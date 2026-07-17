@@ -1,7 +1,16 @@
 /**
- * Lazily render mermaid diagrams via a separate extension chunk.
+ * Lazily render mermaid diagrams via a separate extension chunk,
+ * using VS Code-style theming.
  */
-export async function runMermaid(root: ParentNode, isDark: boolean): Promise<void> {
+import type { MermaidBuiltinTheme } from './vsCodeMermaidTheme';
+
+export async function runMermaid(
+  root: ParentNode,
+  options?: {
+    isDark?: boolean;
+    mermaidTheme?: MermaidBuiltinTheme;
+  },
+): Promise<void> {
   const nodes = Array.from(root.querySelectorAll('.mermaid')) as HTMLElement[];
   if (!nodes.length) {
     return;
@@ -10,7 +19,10 @@ export async function runMermaid(root: ParentNode, isDark: boolean): Promise<voi
   try {
     const url = chrome.runtime.getURL('content/mermaidChunk.js');
     const mod = await import(/* @vite-ignore */ url);
-    await mod.renderMermaid(nodes, isDark);
+    await mod.renderMermaid(nodes, {
+      isDark: options?.isDark,
+      mermaidTheme: options?.mermaidTheme ?? 'vscode',
+    });
   } catch (e) {
     console.error('[vscode-md-preview] mermaid render failed', e);
     for (const node of nodes) {

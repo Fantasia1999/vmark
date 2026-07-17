@@ -1,5 +1,14 @@
 export type ThemeMode = 'auto' | 'light' | 'dark';
 
+/** Mermaid theme: `vscode` matches VS Code (base + CSS themeVariables). */
+export type MermaidThemeSetting =
+  | 'vscode'
+  | 'default'
+  | 'dark'
+  | 'forest'
+  | 'neutral'
+  | 'base';
+
 export interface PreviewSettings {
   /** Auto-render when a markdown page is detected */
   autoPreview: boolean;
@@ -9,6 +18,8 @@ export interface PreviewSettings {
   mathEnabled: boolean;
   mermaidEnabled: boolean;
   theme: ThemeMode;
+  /** Mermaid look; default `vscode` uses VS Code-derived colors */
+  mermaidTheme: MermaidThemeSetting;
   /** Sanitize HTML with a basic allowlist pass (lighter than full DOMPurify for MVP) */
   sanitizeHtml: boolean;
 }
@@ -21,6 +32,7 @@ export const DEFAULT_SETTINGS: PreviewSettings = {
   mathEnabled: true,
   mermaidEnabled: true,
   theme: 'auto',
+  mermaidTheme: 'vscode',
   sanitizeHtml: false,
 };
 

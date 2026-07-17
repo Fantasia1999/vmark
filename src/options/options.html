@@ -82,6 +82,17 @@
       <legend>Extensions</legend>
       <label><input type="checkbox" id="mathEnabled" /> KaTeX math</label>
       <label><input type="checkbox" id="mermaidEnabled" /> Mermaid diagrams</label>
+      <label>
+        Mermaid theme
+        <select id="mermaidTheme">
+          <option value="vscode">VS Code (recommended)</option>
+          <option value="default">Mermaid default</option>
+          <option value="dark">Mermaid dark</option>
+          <option value="forest">Mermaid forest</option>
+          <option value="neutral">Mermaid neutral</option>
+          <option value="base">Mermaid base (no VS Code vars)</option>
+        </select>
+      </label>
     </fieldset>
 
     <p class="status" id="status" aria-live="polite"></p>
