@@ -26,11 +26,13 @@ import {
   type WorkspaceFileEntry,
 } from '../shared/workspaceFs';
 import { renderFileTree, setWorkspaceChrome } from './workspaceUi';
+import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
 import themeVarsCss from '../preview/styles/theme-vars.css';
 import toolbarCss from '../preview/styles/toolbar.css';
+import iconsCss from '../preview/styles/icons.css';
 
 const STYLE_ID = 'vscode-md-preview-styles';
 const ROOT_ID = 'vscode-md-preview-root';
@@ -46,6 +48,15 @@ let engine: MarkdownPreviewEngine;
 let workspaceRoot: FileSystemDirectoryHandle | null = null;
 let workspaceFiles: WorkspaceFileEntry[] = [];
 let objectUrls: string[] = [];
+
+const outlinePanel = new OutlineFloatingPanel({
+  getScrollRoot: () => document.getElementById('ws-content') ?? document.documentElement,
+  onStateChange: () => {
+    if (doc) {
+      mountToolbarExtras();
+    }
+  },
+});
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -68,7 +79,14 @@ function injectStyles(): void {
   }
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  style.textContent = [themeVarsCss, markdownCss, highlightCss, toolbarCss].join('\n');
+  style.textContent = [
+    themeVarsCss,
+    markdownCss,
+    highlightCss,
+    toolbarCss,
+    iconsCss,
+    outlinePanelCss,
+  ].join('\n');
   document.documentElement.appendChild(style);
 
   if (!document.getElementById('vscode-md-preview-katex')) {
@@ -115,6 +133,7 @@ function showEmpty(): void {
   workspaceFiles = [];
   currentPath = undefined;
   doc = null;
+  outlinePanel.close();
   setWorkspaceChrome(false);
   $('empty-state').hidden = false;
   document.getElementById('vscode-md-preview-toolbar')?.remove();
@@ -304,6 +323,10 @@ function showSourceView(): void {
     return;
   }
   mode = 'source';
+  // Unpinned outline closes in source mode; pinned stays (list still useful)
+  if (outlinePanel.isOpen && !outlinePanel.isPinned) {
+    outlinePanel.close();
+  }
   const root = $(ROOT_ID);
   root.hidden = true;
 
@@ -353,6 +376,11 @@ async function showPreviewView(): Promise<void> {
     });
   }
 
+  // Refresh floating outline if open (especially when pinned across files)
+  if (outlinePanel.isOpen) {
+    outlinePanel.updateFromDom(root);
+  }
+
   mountToolbarExtras();
 
   if (location.hash) {
@@ -368,6 +396,14 @@ function mountToolbarExtras(): void {
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
     onOpenOptions: () => void chrome.runtime.openOptionsPage(),
+    onToggleOutline:
+      mode === 'preview'
+        ? () => {
+            const root = document.getElementById(ROOT_ID);
+            outlinePanel.toggle(root);
+          }
+        : undefined,
+    outlineOpen: outlinePanel.isOpen,
   });
 
   const bar = document.getElementById('vscode-md-preview-toolbar');
@@ -560,6 +596,7 @@ async function refreshWorkspace(): Promise<void> {
 async function closeWorkspace(): Promise<void> {
   await clearWorkspace();
   revokeObjectUrls();
+  outlinePanel.close();
   showEmpty();
 }
 
@@ -597,6 +634,7 @@ async function init(): Promise<void> {
   engine = new MarkdownPreviewEngine(settings);
   injectStyles();
   applyThemeClass();
+  await outlinePanel.loadPinPreference();
   wireUi();
   document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
 

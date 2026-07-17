@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS, loadSettings, type PreviewSettings, type ThemeMode } from '../preview/config';
 import { MarkdownPreviewEngine } from '../preview/engine';
+import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import { extractMarkdownSource, isMarkdownSourcePage } from './detect';
 import { runMermaid } from './mermaidRunner';
 import { mountToolbar, type PreviewMode } from './toolbar';
@@ -8,6 +9,7 @@ import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
 import themeVarsCss from '../preview/styles/theme-vars.css';
 import toolbarCss from '../preview/styles/toolbar.css';
+import iconsCss from '../preview/styles/icons.css';
 
 const STYLE_ID = 'vscode-md-preview-styles';
 const ROOT_ID = 'vscode-md-preview-root';
@@ -18,6 +20,11 @@ let mode: PreviewMode = 'preview';
 let settings: PreviewSettings = { ...DEFAULT_SETTINGS };
 let engine = new MarkdownPreviewEngine(settings);
 let bootstrapped = false;
+
+const outlinePanel = new OutlineFloatingPanel({
+  getScrollRoot: () => document.documentElement,
+  onStateChange: () => remountToolbar(),
+});
 
 function resolveTheme(theme: ThemeMode): 'light' | 'dark' {
   if (theme === 'light' || theme === 'dark') {
@@ -32,10 +39,16 @@ function injectStyles(): void {
   }
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  style.textContent = [themeVarsCss, markdownCss, highlightCss, toolbarCss].join('\n');
+  style.textContent = [
+    themeVarsCss,
+    markdownCss,
+    highlightCss,
+    toolbarCss,
+    iconsCss,
+    outlinePanelCss,
+  ].join('\n');
   document.documentElement.appendChild(style);
 
-  // KaTeX CSS as <link> so font urls resolve against chrome-extension://…/styles/
   if (!document.getElementById('vscode-md-preview-katex')) {
     const link = document.createElement('link');
     link.id = 'vscode-md-preview-katex';
@@ -55,8 +68,23 @@ function ensureShell(): HTMLElement {
   return root;
 }
 
+function remountToolbar(): void {
+  mountToolbar(mode, {
+    onToggleMode: (m) => void setMode(m),
+    onOpenOptions: openOptions,
+    onToggleOutline:
+      mode === 'preview'
+        ? () => outlinePanel.toggle(document.getElementById(ROOT_ID))
+        : undefined,
+    outlineOpen: outlinePanel.isOpen,
+  });
+}
+
 function showSource(): void {
   mode = 'source';
+  if (outlinePanel.isOpen && !outlinePanel.isPinned) {
+    outlinePanel.close();
+  }
   const root = document.getElementById(ROOT_ID);
   root?.remove();
 
@@ -81,10 +109,7 @@ function showSource(): void {
     pre.textContent = sourceText;
   }
 
-  mountToolbar(mode, {
-    onToggleMode: (m) => void setMode(m),
-    onOpenOptions: openOptions,
-  });
+  remountToolbar();
 }
 
 async function showPreview(): Promise<void> {
@@ -94,7 +119,6 @@ async function showPreview(): Promise<void> {
   const theme = resolveTheme(settings.theme);
   document.documentElement.classList.add('vscode-md-preview-active');
   document.body.classList.add('vscode-md-preview-active');
-  // Body classes used by VS Code mermaid theme detection helpers
   document.body.classList.toggle('vscode-dark', theme === 'dark');
   document.body.classList.toggle('vscode-light', theme === 'light');
 
@@ -103,7 +127,6 @@ async function showPreview(): Promise<void> {
     sourceEl.hidden = true;
   }
 
-  // Clear body chrome (default plain-text pre, etc.) once
   const existingRoot = document.getElementById(ROOT_ID);
   if (!existingRoot) {
     document.body.innerHTML = '';
@@ -111,7 +134,6 @@ async function showPreview(): Promise<void> {
 
   const root = ensureShell();
   root.dataset.theme = theme;
-  // Put tokens on both root + html so mermaid can resolve CSS variables reliably
   document.documentElement.dataset.theme = theme;
 
   const rendered = engine.render(sourceText, location.href);
@@ -120,7 +142,6 @@ async function showPreview(): Promise<void> {
     document.body.appendChild(root);
   }
 
-  // Ensure styles are applied before reading CSS vars for Mermaid themeVariables
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   if (rendered.hasMermaid) {
@@ -130,12 +151,12 @@ async function showPreview(): Promise<void> {
     });
   }
 
-  mountToolbar(mode, {
-    onToggleMode: (m) => void setMode(m),
-    onOpenOptions: openOptions,
-  });
+  if (outlinePanel.isOpen) {
+    outlinePanel.updateFromDom(root);
+  }
 
-  // Honor hash fragments after render
+  remountToolbar();
+
   if (location.hash) {
     const id = decodeURIComponent(location.hash.slice(1));
     document.getElementById(id)?.scrollIntoView();
@@ -165,7 +186,6 @@ async function bootstrap(force = false): Promise<void> {
 
   settings = await loadSettings();
   if (!force && !settings.autoPreview) {
-    // Still allow toolbar via extension action
     return;
   }
 
@@ -175,11 +195,11 @@ async function bootstrap(force = false): Promise<void> {
   }
 
   engine = new MarkdownPreviewEngine(settings);
+  await outlinePanel.loadPinPreference();
   bootstrapped = true;
   await showPreview();
 }
 
-// Extension icon / context menu
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'togglePreview') {
     void (async () => {
@@ -187,6 +207,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sourceText = extractMarkdownSource();
         settings = await loadSettings();
         engine = new MarkdownPreviewEngine(settings);
+        await outlinePanel.loadPinPreference();
         bootstrapped = true;
         await showPreview();
       } else {
@@ -200,13 +221,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void bootstrap(true).then(() => sendResponse({ ok: true }));
     return true;
   }
+  if (message?.type === 'toggleOutline') {
+    if (bootstrapped && mode === 'preview') {
+      outlinePanel.toggle(document.getElementById(ROOT_ID));
+    }
+    sendResponse({ ok: true, outlineOpen: outlinePanel.isOpen });
+    return true;
+  }
   return false;
 });
 
-// Auto-run on matching pages
 void bootstrap(false);
 
-// React to settings changes
 try {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync' || !bootstrapped) {
@@ -228,5 +254,5 @@ try {
     }
   });
 } catch {
-  // storage may be unavailable in some contexts
+  // storage may be unavailable
 }

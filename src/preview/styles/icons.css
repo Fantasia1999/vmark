@@ -1,0 +1,142 @@
+/* Shared icon styling for toolbar, outline panel, popup, tree */
+
+.vsc-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  line-height: 0;
+  color: currentColor;
+  opacity: 0.9;
+}
+
+.vsc-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.vsc-icon-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.vsc-icon-sm svg {
+  width: 12px;
+  height: 12px;
+}
+
+.vsc-icon-label {
+  margin-left: 0;
+}
+
+/* Icon-only buttons */
+button.vsc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  min-height: 24px;
+  padding: 4px 6px;
+}
+
+button.vsc-icon-btn .vsc-icon {
+  opacity: 0.85;
+}
+
+button.vsc-icon-btn:hover .vsc-icon,
+button.vsc-icon-btn.active .vsc-icon {
+  opacity: 1;
+}
+
+/* Toolbar brand + icon buttons */
+#vscode-md-preview-toolbar .vsc-md-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 4px;
+  opacity: 0.9;
+}
+
+#vscode-md-preview-toolbar .vsc-md-label .vsc-icon {
+  color: var(--vscode-focusBorder, #3794ff);
+  opacity: 1;
+}
+
+#vscode-md-preview-toolbar button.vsc-icon-btn {
+  padding: 4px 6px;
+}
+
+/* Outline panel header icons */
+#vscode-md-outline-panel .md-outline-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 22px;
+  padding: 2px 4px;
+}
+
+#vscode-md-outline-panel .md-outline-header button .vsc-icon {
+  opacity: 0.8;
+}
+
+#vscode-md-outline-panel .md-outline-header button.active .vsc-icon {
+  opacity: 1;
+  color: var(--vscode-focusBorder, #3794ff);
+}
+
+/* File tree */
+.ws-twisty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.ws-twisty .vsc-icon,
+.ws-twisty .vsc-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ws-file-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--vscode-focusBorder, #007fd4);
+  opacity: 0.95;
+}
+
+.ws-file-icon .vsc-icon,
+.ws-file-icon .vsc-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Popup menu icons */
+.popup-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.9;
+  color: currentColor;
+}
+
+.popup-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+button.primary .popup-icon {
+  color: inherit;
+  opacity: 1;
+}

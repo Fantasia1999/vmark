@@ -29,6 +29,7 @@ function copyStatic() {
     'highlight.css',
     'theme-vars.css',
     'toolbar.css',
+    'icons.css',
   ]) {
     const src = join(root, 'src/preview/styles', file);
     if (existsSync(src)) {
