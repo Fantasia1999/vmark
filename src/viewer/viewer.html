@@ -111,8 +111,9 @@
         display: none;
       }
 
-      /* SSH dialog */
-      #ssh-dialog {
+      /* SSH / WSL dialogs (shared overlay) */
+      #ssh-dialog,
+      #wsl-dialog {
         position: fixed;
         inset: 0;
         z-index: 2147483640;
@@ -120,8 +121,10 @@
         align-items: center;
         justify-content: center;
         padding: 16px;
+        box-sizing: border-box;
       }
-      #ssh-dialog[hidden] {
+      #ssh-dialog[hidden],
+      #wsl-dialog[hidden] {
         display: none !important;
       }
       .ssh-dialog-backdrop {
@@ -131,9 +134,11 @@
       }
       .ssh-dialog-card {
         position: relative;
+        z-index: 1;
         width: min(420px, 100%);
         max-height: min(90vh, 640px);
         overflow: auto;
+        margin: auto;
         background: var(--vscode-editorWidget-background, #252526);
         color: var(--vscode-editor-foreground, #d4d4d4);
         border: 1px solid var(--vscode-editorWidget-border, #454545);
@@ -429,7 +434,7 @@
           通过本机 Bridge 调用 <code>wsl.exe</code> 读取<strong>发行版内部</strong>路径
           （如 <code>/home/你的用户/project</code>，不是 Windows 的 <code>C:\\…</code>）。
           也可粘贴 <code>\\wsl.localhost\Debian\home\…</code>、
-          <code>wsl://Debian/home/…</code>。请先重启 bridge 以加载修复。
+          <code>wsl://Debian/home/…</code>。
         </p>
         <label>发行版
           <select id="wsl-distro"><option value="">—</option></select>
