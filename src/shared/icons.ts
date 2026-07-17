@@ -94,6 +94,12 @@ export const iconBrand = svg(`
   <path d="M4.5 10.5V5.5L6.8 9l2.3-3.5v5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
 `);
 
+/** SSH / remote terminal */
+export const iconSsh = svg(`
+  <rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.25"/>
+  <path d="M4 7.5l2 2-2 2M8 11.5h3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+`);
+
 export type IconName =
   | 'folder'
   | 'file'
@@ -107,7 +113,8 @@ export type IconName =
   | 'chevronDown'
   | 'chevronRight'
   | 'mdFile'
-  | 'brand';
+  | 'brand'
+  | 'ssh';
 
 const map: Record<IconName, string> = {
   folder: iconFolder,
@@ -123,6 +130,7 @@ const map: Record<IconName, string> = {
   chevronRight: iconChevronRight,
   mdFile: iconMdFile,
   brand: iconBrand,
+  ssh: iconSsh,
 };
 
 export function iconHtml(name: IconName): string {

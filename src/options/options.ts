@@ -6,6 +6,12 @@ import {
   type PreviewSettings,
   type ThemeMode,
 } from '../preview/config';
+import {
+  DEFAULT_SSH_BRIDGE_URL,
+  loadSshBridgeSettings,
+  saveSshBridgeSettings,
+  sshHealth,
+} from '../shared/sshClient';
 
 const ids = [
   'autoPreview',
@@ -25,6 +31,23 @@ function $(id: string): HTMLElement {
   return el;
 }
 
+async function refreshBridgeStatus(): Promise<void> {
+  const el = document.getElementById('sshBridgeStatus');
+  if (!el) {
+    return;
+  }
+  const h = await sshHealth();
+  if (!h.ok) {
+    el.textContent = 'Bridge status: offline (start ssh-bridge)';
+    return;
+  }
+  if (h.connected && h.meta) {
+    el.textContent = `Bridge status: online · connected as ${h.meta.username}@${h.meta.host}`;
+  } else {
+    el.textContent = 'Bridge status: online · not connected';
+  }
+}
+
 async function init(): Promise<void> {
   const settings = await loadSettings();
 
@@ -41,6 +64,17 @@ async function init(): Promise<void> {
   const mermaidTheme = $('mermaidTheme') as HTMLSelectElement;
   mermaidTheme.value = settings.mermaidTheme ?? 'vscode';
   mermaidTheme.addEventListener('change', () => void persist());
+
+  const bridge = await loadSshBridgeSettings();
+  const bridgeUrl = $('sshBridgeUrl') as HTMLInputElement;
+  const bridgeToken = $('sshBridgeToken') as HTMLInputElement;
+  bridgeUrl.value = bridge.bridgeUrl || DEFAULT_SSH_BRIDGE_URL;
+  bridgeToken.value = bridge.bridgeToken || '';
+  bridgeUrl.addEventListener('change', () => void persistBridge());
+  bridgeToken.addEventListener('change', () => void persistBridge());
+
+  void refreshBridgeStatus();
+  setInterval(() => void refreshBridgeStatus(), 5000);
 
   async function persist(): Promise<void> {
     const next: PreviewSettings = {
@@ -61,6 +95,19 @@ async function init(): Promise<void> {
     setTimeout(() => {
       status.textContent = '';
     }, 2500);
+  }
+
+  async function persistBridge(): Promise<void> {
+    await saveSshBridgeSettings({
+      bridgeUrl: bridgeUrl.value.trim() || DEFAULT_SSH_BRIDGE_URL,
+      bridgeToken: bridgeToken.value.trim(),
+    });
+    const status = $('status');
+    status.textContent = 'SSH Bridge settings saved.';
+    void refreshBridgeStatus();
+    setTimeout(() => {
+      status.textContent = '';
+    }, 2000);
   }
 }
 

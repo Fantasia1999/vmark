@@ -10,6 +10,11 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ['action'],
     });
     chrome.contextMenus.create({
+      id: 'vscode-md-preview-open-ssh',
+      title: '打开 SSH 工作区…',
+      contexts: ['action'],
+    });
+    chrome.contextMenus.create({
       id: 'vscode-md-preview-open-local',
       title: '打开本地 Markdown…',
       contexts: ['action'],
@@ -56,6 +61,9 @@ chrome.contextMenus.onClicked.addListener((info) => {
   switch (info.menuItemId) {
     case 'vscode-md-preview-open-workspace':
       openViewer('?workspace=1');
+      break;
+    case 'vscode-md-preview-open-ssh':
+      openViewer('?ssh=1');
       break;
     case 'vscode-md-preview-open-local':
       openViewer('?pick=1');
