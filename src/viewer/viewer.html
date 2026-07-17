@@ -140,20 +140,31 @@
       .ssh-dialog-card {
         position: relative;
         z-index: 1;
-        width: min(420px, 100%);
-        max-height: min(90vh, 640px);
+        width: min(440px, 100%);
+        max-height: min(90vh, 680px);
         overflow: auto;
         margin: auto;
         background: var(--vscode-editorWidget-background, #252526);
         color: var(--vscode-editor-foreground, #d4d4d4);
         border: 1px solid var(--vscode-editorWidget-border, #454545);
-        border-radius: 10px;
-        padding: 18px 18px 14px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        border-radius: 12px;
+        padding: 0;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
       }
-      .ssh-dialog-card h2 {
-        margin: 0 0 8px;
-        font-size: 1.05rem;
+      .dlg-header {
+        padding: 20px 22px 12px;
+      }
+      .dlg-header h2 {
+        margin: 0 0 6px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .dlg-sub {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.45;
+        opacity: 0.65;
       }
       .ssh-hint {
         margin: 0 0 14px;
@@ -161,32 +172,75 @@
         opacity: 0.7;
         line-height: 1.45;
       }
-      .ssh-dialog-card label {
+      .dlg-body {
+        padding: 4px 22px 8px;
+      }
+      .ssh-dialog-card label,
+      .dlg-field {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin: 0 0 10px;
+        gap: 6px;
+        margin: 0 0 12px;
         font-size: 12px;
+      }
+      .dlg-field-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        opacity: 0.55;
       }
       .ssh-dialog-card input,
       .ssh-dialog-card select {
         font: inherit;
-        padding: 7px 8px;
+        font-size: 13px;
+        padding: 9px 10px;
         border-radius: 6px;
         border: 1px solid var(--vscode-input-border, #3c3c3c);
         background: var(--vscode-input-background, #3c3c3c);
         color: var(--vscode-input-foreground, #ccc);
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .ssh-dialog-card input:focus,
+      .ssh-dialog-card select:focus {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: -1px;
+        border-color: var(--vscode-focusBorder, #007fd4);
+      }
+      .ssh-dialog-card input::placeholder {
+        opacity: 0.45;
+      }
+      .dlg-field-hint {
+        font-size: 11px;
+        opacity: 0.5;
+        line-height: 1.4;
+        margin: -4px 0 0;
       }
       .ssh-error {
         color: #f48771;
         font-size: 12px;
-        margin: 0 0 10px;
+        margin: 0 22px 10px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(244, 135, 113, 0.1);
+        border: 1px solid rgba(244, 135, 113, 0.25);
+      }
+      .ssh-error[hidden] {
+        display: none !important;
       }
       .ssh-actions {
         display: flex;
+        flex-wrap: wrap;
         justify-content: flex-end;
+        align-items: center;
         gap: 8px;
-        margin-top: 6px;
+        margin: 0;
+        padding: 14px 22px 18px;
+        border-top: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #454545) 80%, transparent);
+      }
+      .ssh-actions .dlg-actions-left {
+        margin-right: auto;
       }
       .ssh-actions button {
         appearance: none;
@@ -194,66 +248,71 @@
         border-radius: 6px;
         padding: 8px 14px;
         font: inherit;
+        font-size: 12.5px;
         cursor: pointer;
         background: var(--vscode-button-background, #0e639c);
         color: var(--vscode-button-foreground, #fff);
+      }
+      .ssh-actions button:hover:not(:disabled) {
+        background: var(--vscode-button-hoverBackground, #1177bb);
       }
       .ssh-actions button.secondary {
         background: transparent;
         color: inherit;
         border: 1px solid var(--vscode-editorWidget-border, #454545);
       }
+      .ssh-actions button.secondary:hover:not(:disabled) {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
       .ssh-actions button:disabled {
-        opacity: 0.55;
-        cursor: wait;
+        opacity: 0.5;
+        cursor: not-allowed;
       }
-      .ssh-mode-row {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin: 0 0 12px;
+      .ssh-actions button:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
       }
-      .ssh-mode-option {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 8px;
-        margin: 0;
-        padding: 8px 10px;
-        border: 1px solid var(--vscode-editorWidget-border, #454545);
+
+      /* Segmented tabs for WSL modes */
+      .dlg-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        margin: 0 22px 16px;
+        padding: 3px;
         border-radius: 8px;
+        background: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 70%, transparent);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+      .dlg-tabs button {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        padding: 8px 10px;
+        border-radius: 6px;
         cursor: pointer;
-        font-size: 12px;
+        opacity: 0.7;
+        transition: background 0.12s, opacity 0.12s, box-shadow 0.12s;
       }
-      .ssh-mode-option:has(input:checked) {
-        border-color: var(--vscode-focusBorder, #007fd4);
-        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 12%, transparent);
+      .dlg-tabs button:hover {
+        opacity: 1;
       }
-      .ssh-mode-option input {
-        margin-top: 2px;
-        flex-shrink: 0;
+      .dlg-tabs button.active {
+        opacity: 1;
+        background: var(--vscode-button-background, #0e639c);
+        color: var(--vscode-button-foreground, #fff);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
       }
-      .ssh-mode-option .ssh-mode-body {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+      .dlg-tabs button:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
       }
-      .ssh-mode-option .ssh-mode-title {
-        font-weight: 600;
-      }
-      .ssh-mode-option .ssh-mode-fields {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .ssh-mode-option:not(:has(input:checked)) .ssh-mode-fields {
-        opacity: 0.45;
-        pointer-events: none;
-      }
-      .ssh-mode-option label {
-        margin: 0;
+      .dlg-panel[hidden] {
+        display: none !important;
       }
 
       /* —— workspace shell —— */
@@ -503,47 +562,63 @@
     <!-- WSL connect dialog -->
     <div id="wsl-dialog" hidden>
       <div class="ssh-dialog-backdrop" data-wsl-dismiss></div>
-      <div class="ssh-dialog-card" role="dialog" aria-labelledby="wsl-dialog-title">
-        <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
-        <p class="ssh-hint">
-          通过本机 Bridge 调用 <code>wsl.exe</code> 读取发行版内路径。请<strong>二选一</strong>填写。
-        </p>
-        <div class="ssh-mode-row" role="radiogroup" aria-label="WSL 打开方式">
-          <label class="ssh-mode-option">
-            <input type="radio" name="wsl-mode" id="wsl-mode-select" value="select" checked />
-            <span class="ssh-mode-body">
-              <span class="ssh-mode-title">选择发行版与目录</span>
-              <span class="ssh-mode-fields">
-                <label>发行版
-                  <select id="wsl-distro"><option value="">—</option></select>
-                </label>
-                <label>Linux 根目录
-                  <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
-                </label>
-              </span>
-            </span>
-          </label>
-          <label class="ssh-mode-option">
-            <input type="radio" name="wsl-mode" id="wsl-mode-paste" value="paste" />
-            <span class="ssh-mode-body">
-              <span class="ssh-mode-title">粘贴完整路径 / URI</span>
-              <span class="ssh-mode-fields">
-                <label>路径
-                  <input
-                    id="wsl-path"
-                    type="text"
-                    placeholder="\\wsl.localhost\Debian\home\user\proj 或 wsl://Debian/home/…"
-                  />
-                </label>
-              </span>
-            </span>
-          </label>
+      <div
+        class="ssh-dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wsl-dialog-title"
+      >
+        <div class="dlg-header">
+          <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
+          <p class="dlg-sub">通过本机 Bridge 读取发行版内的 Markdown（需 Windows + 已启动 bridge）</p>
         </div>
+
+        <div class="dlg-tabs" role="tablist" aria-label="打开方式">
+          <button type="button" role="tab" id="wsl-mode-select" data-wsl-tab="select" class="active" aria-selected="true">
+            选择目录
+          </button>
+          <button type="button" role="tab" id="wsl-mode-paste" data-wsl-tab="paste" aria-selected="false">
+            粘贴路径
+          </button>
+        </div>
+
+        <div class="dlg-body">
+          <div class="dlg-panel" id="wsl-panel-select" role="tabpanel" data-wsl-panel="select">
+            <label class="dlg-field">
+              <span class="dlg-field-label">发行版</span>
+              <select id="wsl-distro" aria-label="WSL 发行版"><option value="">—</option></select>
+            </label>
+            <label class="dlg-field">
+              <span class="dlg-field-label">Linux 根目录</span>
+              <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
+            </label>
+            <p class="dlg-field-hint">填写发行版内部路径，例如 <code>/home/you/repo</code>，不是 Windows 盘符。</p>
+          </div>
+
+          <div class="dlg-panel" id="wsl-panel-paste" role="tabpanel" data-wsl-panel="paste" hidden>
+            <label class="dlg-field">
+              <span class="dlg-field-label">完整路径或 URI</span>
+              <input
+                id="wsl-path"
+                type="text"
+                spellcheck="false"
+                placeholder="\\wsl.localhost\Debian\home\user\proj"
+              />
+            </label>
+            <p class="dlg-field-hint">
+              支持 <code>\\wsl$\…</code>、<code>\\wsl.localhost\…</code>、
+              <code>wsl://Distro/…</code>、<code>file://wsl.localhost/…</code>
+            </p>
+          </div>
+        </div>
+
         <p class="ssh-error" id="wsl-error" hidden></p>
         <div class="ssh-actions">
+          <button type="button" class="secondary dlg-actions-left" id="wsl-open-file" hidden>
+            用 file:// 打开
+          </button>
           <button type="button" class="secondary" id="wsl-cancel">取消</button>
-          <button type="button" class="secondary" id="wsl-open-file" title="仅「粘贴路径」模式可用">用 file:// 打开单文件</button>
-          <button type="button" id="wsl-connect">连接工作区</button>
+          <button type="button" id="wsl-connect">连接</button>
         </div>
       </div>
     </div>
@@ -551,30 +626,58 @@
     <!-- SSH connect dialog -->
     <div id="ssh-dialog" hidden>
       <div class="ssh-dialog-backdrop" data-ssh-dismiss></div>
-      <div class="ssh-dialog-card" role="dialog" aria-labelledby="ssh-dialog-title">
-        <h2 id="ssh-dialog-title">打开 SSH 工作区</h2>
-        <p class="ssh-hint">
-          通过本机 SSH Bridge 连接远程目录并预览 Markdown。密码/私钥仅发送到本机
-          <code>127.0.0.1</code> 桥接进程。
-        </p>
-        <label>主机 <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" /></label>
-        <label>端口 <input id="ssh-port" type="number" value="22" min="1" max="65535" /></label>
-        <label>用户名 <input id="ssh-user" type="text" autocomplete="username" /></label>
-        <label>远程根目录 <input id="ssh-root" type="text" placeholder="." value="." /></label>
-        <label>认证
-          <select id="ssh-auth">
-            <option value="password">密码</option>
-            <option value="key">私钥</option>
-          </select>
-        </label>
-        <label id="ssh-password-row">密码
-          <input id="ssh-password" type="password" autocomplete="current-password" />
-        </label>
-        <div id="ssh-key-row" hidden>
-          <label>私钥文件 <input id="ssh-key-file" type="file" /></label>
-          <label>私钥口令（可选）
-            <input id="ssh-passphrase" type="password" autocomplete="off" />
+      <div
+        class="ssh-dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ssh-dialog-title"
+      >
+        <div class="dlg-header">
+          <h2 id="ssh-dialog-title">打开 SSH 工作区</h2>
+          <p class="dlg-sub">
+            经本机 Bridge 连接远程目录。凭证仅发送到 <code>127.0.0.1</code>。
+          </p>
+        </div>
+        <div class="dlg-body">
+          <label class="dlg-field">
+            <span class="dlg-field-label">主机</span>
+            <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" />
           </label>
+          <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
+            <label class="dlg-field">
+              <span class="dlg-field-label">端口</span>
+              <input id="ssh-port" type="number" value="22" min="1" max="65535" />
+            </label>
+            <label class="dlg-field">
+              <span class="dlg-field-label">用户名</span>
+              <input id="ssh-user" type="text" autocomplete="username" />
+            </label>
+          </div>
+          <label class="dlg-field">
+            <span class="dlg-field-label">远程根目录</span>
+            <input id="ssh-root" type="text" placeholder="." value="." />
+          </label>
+          <label class="dlg-field">
+            <span class="dlg-field-label">认证方式</span>
+            <select id="ssh-auth">
+              <option value="password">密码</option>
+              <option value="key">私钥</option>
+            </select>
+          </label>
+          <label class="dlg-field" id="ssh-password-row">
+            <span class="dlg-field-label">密码</span>
+            <input id="ssh-password" type="password" autocomplete="current-password" />
+          </label>
+          <div id="ssh-key-row" hidden>
+            <label class="dlg-field">
+              <span class="dlg-field-label">私钥文件</span>
+              <input id="ssh-key-file" type="file" />
+            </label>
+            <label class="dlg-field">
+              <span class="dlg-field-label">私钥口令（可选）</span>
+              <input id="ssh-passphrase" type="password" autocomplete="off" />
+            </label>
+          </div>
         </div>
         <p class="ssh-error" id="ssh-error" hidden></p>
         <div class="ssh-actions">
