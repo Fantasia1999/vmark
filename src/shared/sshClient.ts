@@ -34,6 +34,10 @@ export interface SshHealth {
   ok: boolean;
   connected: boolean;
   meta: SshSessionMeta | null;
+  platform?: string;
+  wslAvailable?: boolean;
+  wslConnected?: boolean;
+  wslMeta?: { distro: string; root: string; connectedAt: number } | null;
 }
 
 const STORAGE_KEYS = {

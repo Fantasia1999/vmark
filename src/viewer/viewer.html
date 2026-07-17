@@ -403,13 +403,43 @@
         <div class="actions">
           <button type="button" id="btn-open-folder">打开文件夹…</button>
           <button type="button" class="secondary" id="btn-open-ssh">SSH 工作区…</button>
+          <button type="button" class="secondary" id="btn-open-wsl">WSL 工作区…</button>
           <button type="button" class="secondary" id="btn-open">打开文件…</button>
           <button type="button" class="secondary" id="btn-options">选项</button>
         </div>
         <p class="meta" id="empty-meta">
-          本地工作区使用 File System Access API。SSH 工作区需运行本地桥接：
-          <code>cd ssh-bridge && npm start</code>，并在选项中配置 Token。
+          本地工作区使用 File System Access API。SSH/WSL 需本机桥接
+          <code>npm run ssh-bridge</code>（WSL 仅 Windows + wsl.exe）。也可直接打开
+          <code>file://wsl.localhost/…</code> 路径。
         </p>
+      </div>
+    </div>
+
+    <!-- WSL connect dialog -->
+    <div id="wsl-dialog" hidden>
+      <div class="ssh-dialog-backdrop" data-wsl-dismiss></div>
+      <div class="ssh-dialog-card" role="dialog" aria-labelledby="wsl-dialog-title">
+        <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
+        <p class="ssh-hint">
+          通过本机 Bridge 调用 <code>wsl.exe</code> 读取发行版内文件。也可粘贴
+          <code>\\wsl$\Ubuntu\home\…</code>、<code>wsl://Ubuntu/home/…</code> 或
+          <code>file://wsl.localhost/…</code>。
+        </p>
+        <label>发行版
+          <select id="wsl-distro"><option value="">—</option></select>
+        </label>
+        <label>Linux 根目录
+          <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
+        </label>
+        <label>或粘贴完整路径 / URI
+          <input id="wsl-path" type="text" placeholder="\\wsl.localhost\Ubuntu\home\user\proj 或 /home/user/a.md" />
+        </label>
+        <p class="ssh-error" id="wsl-error" hidden></p>
+        <div class="ssh-actions">
+          <button type="button" class="secondary" id="wsl-cancel">取消</button>
+          <button type="button" class="secondary" id="wsl-open-file">用 file:// 打开单文件</button>
+          <button type="button" id="wsl-connect">连接工作区</button>
+        </div>
       </div>
     </div>
 

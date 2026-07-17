@@ -1,3 +1,5 @@
+import { isMarkdownPath, isWslFileUrl, parseWslLocation } from '../shared/wslPaths';
+
 const MD_EXT = /\.(md|markdown|mdown|mkd|mdx)(?:$|[?#])/i;
 
 /**
@@ -6,8 +8,16 @@ const MD_EXT = /\.(md|markdown|mdown|mkd|mdx)(?:$|[?#])/i;
 export function isMarkdownSourcePage(): boolean {
   const url = location.href;
 
-  if (MD_EXT.test(url)) {
+  if (MD_EXT.test(url) || isMarkdownPath(url)) {
     return true;
+  }
+
+  // WSL file:// pages (\\wsl$\ / wsl.localhost) — even without extension, check content
+  if (isWslFileUrl(url) || parseWslLocation(url)) {
+    if (MD_EXT.test(url) || isMarkdownPath(location.pathname)) {
+      return true;
+    }
+    // fall through to content heuristics
   }
 
   // GitHub / Gist raw
@@ -39,11 +49,8 @@ export function isMarkdownSourcePage(): boolean {
     return true;
   }
 
-  if (
-    document.contentType === 'text/plain' &&
-    MD_EXT.test(url)
-  ) {
-    return true;
+  if (document.contentType === 'text/plain' && (MD_EXT.test(url) || isWslFileUrl(url))) {
+    return looksLikeMarkdown(body.innerText || body.textContent || '');
   }
 
   return false;

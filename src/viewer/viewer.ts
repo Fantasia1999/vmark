@@ -36,6 +36,20 @@ import {
   sshReadText,
   type SshSessionMeta,
 } from '../shared/sshClient';
+import {
+  loadWslFormDefaults,
+  parseWslLocation,
+  saveWslFormDefaults,
+  toWslFileUrl,
+  wslConnect,
+  wslCreateObjectUrl,
+  wslDisconnect,
+  wslListDistros,
+  wslListMarkdown,
+  wslReadText,
+  type WslSessionMeta,
+} from '../shared/wslClient';
+import { isMarkdownPath } from '../shared/wslPaths';
 import { renderFileTree, setWorkspaceChrome } from './workspaceUi';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 
@@ -57,9 +71,10 @@ let settings: PreviewSettings;
 let engine: MarkdownPreviewEngine;
 
 let workspaceRoot: FileSystemDirectoryHandle | null = null;
-/** 'local' = File System Access, 'ssh' = remote via bridge */
-let workspaceKind: 'local' | 'ssh' | null = null;
+/** 'local' = File System Access, 'ssh' | 'wsl' = via local bridge */
+let workspaceKind: 'local' | 'ssh' | 'wsl' | null = null;
 let sshMeta: SshSessionMeta | null = null;
+let wslMeta: WslSessionMeta | null = null;
 let workspaceFiles: WorkspaceFileEntry[] = [];
 let objectUrls: string[] = [];
 let sshPrivateKeyText = '';
@@ -126,6 +141,9 @@ function workspaceLabel(): string | undefined {
   if (workspaceKind === 'ssh' && sshMeta) {
     return `ssh://${sshMeta.username}@${sshMeta.host}:${sshMeta.port}${sshMeta.root === '.' ? '' : sshMeta.root}`;
   }
+  if (workspaceKind === 'wsl' && wslMeta) {
+    return `wsl://${wslMeta.distro}${wslMeta.root}`;
+  }
   if (workspaceRoot) {
     return workspaceRoot.name;
   }
@@ -157,6 +175,7 @@ function showEmpty(): void {
   workspaceRoot = null;
   workspaceKind = null;
   sshMeta = null;
+  wslMeta = null;
   workspaceFiles = [];
   currentPath = undefined;
   doc = null;
@@ -240,10 +259,14 @@ async function enterWorkspace(
     return;
   }
 
-  // Leaving SSH if any
+  // Leaving remote sessions if any
   if (workspaceKind === 'ssh') {
     void sshDisconnect();
     sshMeta = null;
+  }
+  if (workspaceKind === 'wsl') {
+    void wslDisconnect();
+    wslMeta = null;
   }
 
   workspaceRoot = root;
@@ -254,10 +277,13 @@ async function enterWorkspace(
 }
 
 async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): Promise<void> {
+  if (workspaceKind === 'wsl') {
+    void wslDisconnect();
+  }
   workspaceRoot = null;
   workspaceKind = 'ssh';
   sshMeta = meta;
-  // Drop local FS handle association while on SSH
+  wslMeta = null;
   try {
     await clearWorkspace();
   } catch {
@@ -265,6 +291,25 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
   }
   workspaceFiles = await sshListMarkdown();
   const title = `${meta.username}@${meta.host}:${meta.root}`;
+  await showWorkspaceShell(title, preferredPath);
+}
+
+async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): Promise<void> {
+  if (workspaceKind === 'ssh') {
+    void sshDisconnect();
+    sshMeta = null;
+  }
+  workspaceRoot = null;
+  workspaceKind = 'wsl';
+  wslMeta = meta;
+  sshMeta = null;
+  try {
+    await clearWorkspace();
+  } catch {
+    // ignore
+  }
+  workspaceFiles = await wslListMarkdown();
+  const title = `wsl://${meta.distro}${meta.root}`;
   await showWorkspaceShell(title, preferredPath);
 }
 
@@ -294,6 +339,20 @@ async function openWorkspaceFile(path: string): Promise<void> {
       };
     } catch (e) {
       alert(`无法读取远程文件: ${path}\n${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+  } else if (workspaceKind === 'wsl') {
+    try {
+      const text = await wslReadText(path);
+      currentPath = path;
+      doc = {
+        name: path.split('/').pop() || path,
+        content: text,
+        openedAt: Date.now(),
+        size: text.length,
+      };
+    } catch (e) {
+      alert(`无法读取 WSL 文件: ${path}\n${e instanceof Error ? e.message : String(e)}`);
       return;
     }
   } else if (workspaceRoot) {
@@ -331,7 +390,10 @@ async function openWorkspaceFile(path: string): Promise<void> {
  * Resolve relative images against local FS or SSH bridge.
  */
 async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
-  if (!currentPath || (workspaceKind !== 'local' && workspaceKind !== 'ssh')) {
+  if (
+    !currentPath ||
+    (workspaceKind !== 'local' && workspaceKind !== 'ssh' && workspaceKind !== 'wsl')
+  ) {
     return;
   }
   if (workspaceKind === 'local' && !workspaceRoot) {
@@ -354,6 +416,8 @@ async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
     let url: string | null = null;
     if (workspaceKind === 'ssh') {
       url = await sshCreateObjectUrl(resolved);
+    } else if (workspaceKind === 'wsl') {
+      url = await wslCreateObjectUrl(resolved);
     } else if (workspaceRoot) {
       url = await createWorkspaceObjectUrl(workspaceRoot, resolved);
     }
@@ -374,7 +438,7 @@ function onPreviewClick(e: MouseEvent): void {
   if (!a || !currentPath) {
     return;
   }
-  if (workspaceKind !== 'local' && workspaceKind !== 'ssh') {
+  if (workspaceKind !== 'local' && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') {
     return;
   }
   if (workspaceKind === 'local' && !workspaceRoot) {
@@ -530,13 +594,13 @@ async function openSingleDoc(next: LocalMarkdownDoc): Promise<void> {
   await saveLocalDoc(next);
   setDocumentTitle(next.name);
 
-  if (!workspaceRoot && workspaceKind !== 'ssh') {
+  if (!workspaceRoot && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') {
     // Use shell layout with empty sidebar message for consistency
     setWorkspaceChrome(true, next.name);
     const treeEl = document.getElementById('ws-file-tree');
     if (treeEl) {
       treeEl.innerHTML =
-        '<p style="padding:12px;opacity:0.6;font-size:12px;line-height:1.4">当前为单文件预览。<br/>可打开本地文件夹或 SSH 工作区。</p>';
+        '<p style="padding:12px;opacity:0.6;font-size:12px;line-height:1.4">当前为单文件预览。<br/>可打开本地文件夹、SSH 或 WSL 工作区。</p>';
     }
     $('empty-state').hidden = true;
     const emptyPrev = document.getElementById('ws-empty-preview');
@@ -577,6 +641,7 @@ function wireUi(): void {
   $('btn-open').addEventListener('click', () => pickFile());
   $('btn-open-folder')?.addEventListener('click', () => void openWorkspaceFolder());
   $('btn-open-ssh')?.addEventListener('click', () => showSshDialog(true));
+  $('btn-open-wsl')?.addEventListener('click', () => showWslDialog(true));
   $('btn-options').addEventListener('click', () => void chrome.runtime.openOptionsPage());
 
   $('ws-btn-refresh')?.addEventListener('click', () => void refreshWorkspace());
@@ -584,6 +649,8 @@ function wireUi(): void {
   $('ws-btn-change-folder')?.addEventListener('click', () => {
     if (workspaceKind === 'ssh') {
       showSshDialog(true);
+    } else if (workspaceKind === 'wsl') {
+      showWslDialog(true);
     } else {
       void openWorkspaceFolder();
     }
@@ -606,6 +673,12 @@ function wireUi(): void {
     }
     sshPrivateKeyText = await file.text();
   });
+
+  // WSL dialog wiring
+  document.getElementById('wsl-cancel')?.addEventListener('click', () => showWslDialog(false));
+  document.querySelector('[data-wsl-dismiss]')?.addEventListener('click', () => showWslDialog(false));
+  document.getElementById('wsl-connect')?.addEventListener('click', () => void connectWslFromDialog());
+  document.getElementById('wsl-open-file')?.addEventListener('click', () => void openWslFileInTab());
 
   dropzone.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('button')) {
@@ -683,6 +756,8 @@ async function refreshWorkspace(): Promise<void> {
   try {
     if (workspaceKind === 'ssh') {
       workspaceFiles = await sshListMarkdown();
+    } else if (workspaceKind === 'wsl') {
+      workspaceFiles = await wslListMarkdown();
     } else if (workspaceRoot) {
       const ok = await ensureReadPermission(workspaceRoot, true);
       if (!ok) {
@@ -712,6 +787,9 @@ async function refreshWorkspace(): Promise<void> {
 async function closeWorkspace(): Promise<void> {
   if (workspaceKind === 'ssh') {
     await sshDisconnect();
+  }
+  if (workspaceKind === 'wsl') {
+    await wslDisconnect();
   }
   await clearWorkspace();
   revokeObjectUrls();
@@ -751,6 +829,166 @@ function setSshAuthMode(mode: 'password' | 'key'): void {
   const key = document.getElementById('ssh-key-row');
   if (pw) pw.hidden = mode !== 'password';
   if (key) key.hidden = mode !== 'key';
+}
+
+/* —— WSL dialog —— */
+
+function showWslDialog(show: boolean): void {
+  const dlg = document.getElementById('wsl-dialog');
+  if (dlg) {
+    dlg.hidden = !show;
+  }
+  if (show) {
+    void (async () => {
+      const err = document.getElementById('wsl-error');
+      if (err) {
+        err.hidden = true;
+        err.textContent = '';
+      }
+      const distroSel = document.getElementById('wsl-distro') as HTMLSelectElement | null;
+      const rootInput = document.getElementById('wsl-root') as HTMLInputElement | null;
+      const pathInput = document.getElementById('wsl-path') as HTMLInputElement | null;
+      const defaults = await loadWslFormDefaults();
+      if (rootInput) {
+        rootInput.value = defaults.root || '~';
+      }
+      if (pathInput) {
+        pathInput.value = '';
+      }
+      if (distroSel) {
+        distroSel.innerHTML = '<option value="">加载中…</option>';
+        try {
+          const distros = await wslListDistros();
+          distroSel.innerHTML = '';
+          if (!distros.length) {
+            distroSel.innerHTML = '<option value="">未找到发行版</option>';
+          } else {
+            for (const d of distros) {
+              const opt = document.createElement('option');
+              opt.value = d;
+              opt.textContent = d;
+              if (d === defaults.distro) {
+                opt.selected = true;
+              }
+              distroSel.appendChild(opt);
+            }
+            if (!defaults.distro && distros[0]) {
+              distroSel.value = distros[0];
+            }
+          }
+        } catch (e) {
+          distroSel.innerHTML = '<option value="">无法列出发行版</option>';
+          if (err) {
+            err.hidden = false;
+            err.textContent = e instanceof Error ? e.message : String(e);
+          }
+        }
+      }
+    })();
+  }
+}
+
+async function connectWslFromDialog(): Promise<void> {
+  const errEl = document.getElementById('wsl-error');
+  const btn = document.getElementById('wsl-connect') as HTMLButtonElement | null;
+  const showErr = (msg: string) => {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = msg;
+    }
+  };
+
+  const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
+  let distro = (document.getElementById('wsl-distro') as HTMLSelectElement)?.value.trim();
+  let root = (document.getElementById('wsl-root') as HTMLInputElement)?.value.trim() || '~';
+
+  // Allow paste of \\wsl$\Ubuntu\home\... or wsl:// or file://wsl...
+  let openAbsFile: string | undefined;
+  if (pathPaste) {
+    const loc = parseWslLocation(pathPaste);
+    if (loc) {
+      distro = loc.distro;
+      root = loc.linuxPath;
+      if (isMarkdownPath(loc.linuxPath)) {
+        openAbsFile = loc.linuxPath;
+        const parent = loc.linuxPath.includes('/')
+          ? loc.linuxPath.slice(0, loc.linuxPath.lastIndexOf('/')) || '/'
+          : '/';
+        root = parent;
+      }
+    } else if (pathPaste.startsWith('/')) {
+      if (isMarkdownPath(pathPaste)) {
+        openAbsFile = pathPaste;
+        root = pathPaste.includes('/')
+          ? pathPaste.slice(0, pathPaste.lastIndexOf('/')) || '/'
+          : '/';
+      } else {
+        root = pathPaste;
+      }
+    } else {
+      showErr('无法解析路径。请使用 \\\\wsl$\\Distro\\path、wsl://Distro/path 或 Linux 绝对路径');
+      return;
+    }
+  }
+
+  if (!distro) {
+    showErr('请选择 WSL 发行版');
+    return;
+  }
+
+  const health = await sshHealth();
+  if (!health.ok) {
+    showErr('本地 Bridge 未运行。请执行: npm run ssh-bridge（需在 Windows 上）');
+    return;
+  }
+  if ((health as { wslAvailable?: boolean }).wslAvailable === false) {
+    showErr('当前 Bridge 不在 Windows 上，无法调用 wsl.exe');
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    const meta = await wslConnect(distro, root);
+    await saveWslFormDefaults({ distro, root: meta.root });
+    showWslDialog(false);
+    let preferred: string | undefined;
+    if (openAbsFile) {
+      const prefix = meta.root.replace(/\/+$/, '');
+      if (openAbsFile === prefix) {
+        preferred = undefined;
+      } else if (openAbsFile.startsWith(prefix + '/')) {
+        preferred = openAbsFile.slice(prefix.length + 1);
+      } else {
+        preferred = openAbsFile.replace(/^\/+/, '');
+      }
+    }
+    await enterWslWorkspace(meta, preferred);
+  } catch (e) {
+    showErr(e instanceof Error ? e.message : String(e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/** Open a single WSL markdown file in Chrome via file://wsl.localhost/... */
+async function openWslFileInTab(): Promise<void> {
+  const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
+  const distro = (document.getElementById('wsl-distro') as HTMLSelectElement)?.value.trim();
+  let loc = pathPaste ? parseWslLocation(pathPaste) : null;
+  if (!loc && distro && pathPaste?.startsWith('/')) {
+    loc = { distro, linuxPath: pathPaste };
+  }
+  if (!loc || !isMarkdownPath(loc.linuxPath)) {
+    const errEl = document.getElementById('wsl-error');
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = '请粘贴完整 WSL 文件路径（.md），或选择发行版并填写绝对路径';
+    }
+    return;
+  }
+  const url = toWslFileUrl(loc, 'wsl.localhost');
+  await chrome.tabs.create({ url });
+  showWslDialog(false);
 }
 
 async function connectSshFromDialog(): Promise<void> {
@@ -856,15 +1094,16 @@ async function init(): Promise<void> {
   const shouldPickFile = params.get('pick') === '1';
   const shouldPickFolder = params.get('workspace') === '1' || params.get('folder') === '1';
   const shouldSsh = params.get('ssh') === '1';
+  const shouldWsl = params.get('wsl') === '1';
 
-  if (shouldPickFile || shouldPickFolder || shouldSsh) {
+  if (shouldPickFile || shouldPickFolder || shouldSsh || shouldWsl) {
     history.replaceState(null, '', location.pathname);
   }
 
-  // Don't restore local FS workspace when user explicitly wants SSH
-  const restored = shouldSsh ? false : await tryRestoreWorkspace();
+  // Don't restore local FS workspace when user explicitly wants remote
+  const restored = shouldSsh || shouldWsl ? false : await tryRestoreWorkspace();
   if (!restored) {
-    const existing = shouldSsh ? null : await loadLocalDoc();
+    const existing = shouldSsh || shouldWsl ? null : await loadLocalDoc();
     if (existing) {
       await openSingleDoc(existing);
     } else {
@@ -873,7 +1112,9 @@ async function init(): Promise<void> {
     }
   }
 
-  if (shouldSsh) {
+  if (shouldWsl) {
+    setTimeout(() => showWslDialog(true), 50);
+  } else if (shouldSsh) {
     setTimeout(() => showSshDialog(true), 50);
   } else if (shouldPickFolder) {
     setTimeout(() => void openWorkspaceFolder(), 50);

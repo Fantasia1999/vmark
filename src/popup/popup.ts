@@ -24,6 +24,10 @@ document.getElementById('openSsh')?.addEventListener('click', () => {
   openViewer('?ssh=1');
 });
 
+document.getElementById('openWsl')?.addEventListener('click', () => {
+  openViewer('?wsl=1');
+});
+
 document.getElementById('openLocal')?.addEventListener('click', () => {
   openViewer('?pick=1');
 });
