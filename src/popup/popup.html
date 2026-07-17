@@ -12,7 +12,7 @@
       }
       body {
         margin: 0;
-        min-width: 260px;
+        min-width: 272px;
         padding: 8px;
         background: Canvas;
         color: CanvasText;
@@ -24,6 +24,14 @@
         opacity: 0.7;
         letter-spacing: 0.02em;
         text-transform: uppercase;
+      }
+      .section-label {
+        margin: 8px 8px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        opacity: 0.5;
       }
       button {
         display: flex;
@@ -68,12 +76,33 @@
         background: #0e639c;
         color: #fff;
         font-weight: 500;
+        padding: 10px 12px;
+        margin-bottom: 6px;
       }
       button.primary:hover {
         background: #1177bb;
       }
       button.primary .popup-icon {
         opacity: 1;
+      }
+      button .btn-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      button .btn-title {
+        font-size: 13px;
+        line-height: 1.3;
+      }
+      button .btn-sub {
+        font-size: 11px;
+        opacity: 0.7;
+        font-weight: 400;
+        line-height: 1.3;
+      }
+      button.primary .btn-sub {
+        opacity: 0.85;
       }
       .hint {
         margin: 8px 8px 4px;
@@ -90,7 +119,17 @@
   </head>
   <body>
     <h1>Markdown Preview</h1>
-    <button type="button" class="primary" id="openWorkspace">
+
+    <button type="button" class="primary" id="openWorkbench" title="打开 Markdown 工作台">
+      <span class="popup-icon" data-icon="workbench"></span>
+      <span class="btn-text">
+        <span class="btn-title">Markdown 工作台</span>
+        <span class="btn-sub">打开入口、最近工作区与文件</span>
+      </span>
+    </button>
+
+    <div class="section-label">打开</div>
+    <button type="button" id="openWorkspace">
       <span class="popup-icon" data-icon="folder"></span>
       <span>打开工作区文件夹…</span>
     </button>
@@ -106,10 +145,7 @@
       <span class="popup-icon" data-icon="file"></span>
       <span>打开本地 Markdown…</span>
     </button>
-    <button type="button" id="openViewer">
-      <span class="popup-icon" data-icon="workbench"></span>
-      <span>打开预览工作台</span>
-    </button>
+
     <hr />
     <button type="button" id="togglePreview">
       <span class="popup-icon" data-icon="preview"></span>
@@ -120,7 +156,7 @@
       <span>选项</span>
     </button>
     <p class="hint">
-      工作区可浏览目录内全部 Markdown，并解析相对路径图片与站内链接。
+      工作台可浏览目录内全部 Markdown，并解析相对路径图片与站内链接。
     </p>
     <script type="module" src="./popup.js"></script>
   </body>

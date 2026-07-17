@@ -9,7 +9,6 @@ import { runMermaid } from '../content/mermaidRunner';
 import { mountToolbar, type PreviewMode } from '../content/toolbar';
 import {
   isMarkdownFileName,
-  loadLocalDoc,
   MD_ACCEPT,
   readFileAsLocalDoc,
   saveLocalDoc,
@@ -22,8 +21,6 @@ import {
   ensureReadPermission,
   isDirectoryPickerSupported,
   listMarkdownFiles,
-  loadWorkspaceHandle,
-  loadWorkspaceMeta,
   pickWorkspaceDirectory,
   readWorkspaceTextFile,
   resolveRelativePath,
@@ -71,6 +68,7 @@ import {
   type FileHistoryEntry,
   type WorkspaceHistoryEntry,
 } from '../shared/history';
+import { saveLastSession } from '../shared/lastSession';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
 
 import markdownCss from '../preview/styles/markdown.css';
@@ -458,15 +456,20 @@ async function enterWorkspace(
   workspaceKind = 'local';
   workspaceFiles = await listMarkdownFiles(root);
   await saveWorkspaceHandle(root, preferredPath);
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
   void recordWorkspaceOpen({
     source: 'local',
     title: root.name,
     subtitle: '本地文件夹',
     localName: root.name,
-    lastFilePath: preferredPath,
+    lastFilePath: pending,
   });
-  const pending = preferredPath ?? pendingHistoryFilePath;
-  pendingHistoryFilePath = undefined;
+  void saveLastSession({
+    kind: 'local',
+    localName: root.name,
+    lastFilePath: pending,
+  });
   await showWorkspaceShell(root.name, pending);
 }
 
@@ -491,15 +494,20 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
     username: meta.username,
     root: meta.root,
   };
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
   void recordWorkspaceOpen({
     source: 'ssh',
     title,
     subtitle: `${meta.root} · :${meta.port}`,
     ssh,
-    lastFilePath: preferredPath,
+    lastFilePath: pending,
   });
-  const pending = preferredPath ?? pendingHistoryFilePath;
-  pendingHistoryFilePath = undefined;
+  void saveLastSession({
+    kind: 'ssh',
+    ssh,
+    lastFilePath: pending,
+  });
   await showWorkspaceShell(`${title}:${meta.root}`, pending);
 }
 
@@ -519,15 +527,20 @@ async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): 
   }
   workspaceFiles = await wslListMarkdown();
   const title = `wsl://${meta.distro}`;
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
   void recordWorkspaceOpen({
     source: 'wsl',
     title,
     subtitle: meta.root,
     wsl: { distro: meta.distro, root: meta.root },
-    lastFilePath: preferredPath,
+    lastFilePath: pending,
   });
-  const pending = preferredPath ?? pendingHistoryFilePath;
-  pendingHistoryFilePath = undefined;
+  void saveLastSession({
+    kind: 'wsl',
+    wsl: { distro: meta.distro, root: meta.root },
+    lastFilePath: pending,
+  });
   await showWorkspaceShell(`${title}${meta.root}`, pending);
 }
 
@@ -597,7 +610,7 @@ async function openWorkspaceFile(path: string): Promise<void> {
   refreshTree();
   setEmptyPreviewVisible(false);
 
-  // History: file + workspace last path
+  // History + last session: file + workspace last path
   const fileName = doc.name;
   if (workspaceKind === 'local' && workspaceRoot) {
     void recordFileOpen({
@@ -611,6 +624,11 @@ async function openWorkspaceFile(path: string): Promise<void> {
       { source: 'local', localName: workspaceRoot.name },
       path,
     );
+    void saveLastSession({
+      kind: 'local',
+      localName: workspaceRoot.name,
+      lastFilePath: path,
+    });
   } else if (workspaceKind === 'ssh' && sshMeta) {
     const ssh = {
       host: sshMeta.host,
@@ -626,6 +644,7 @@ async function openWorkspaceFile(path: string): Promise<void> {
       ssh,
     });
     void touchWorkspaceLastFile({ source: 'ssh', ssh }, path);
+    void saveLastSession({ kind: 'ssh', ssh, lastFilePath: path });
   } else if (workspaceKind === 'wsl' && wslMeta) {
     const wsl = { distro: wslMeta.distro, root: wslMeta.root };
     void recordFileOpen({
@@ -636,6 +655,7 @@ async function openWorkspaceFile(path: string): Promise<void> {
       wsl,
     });
     void touchWorkspaceLastFile({ source: 'wsl', wsl }, path);
+    void saveLastSession({ kind: 'wsl', wsl, lastFilePath: path });
   }
 
   await showPreviewView();
@@ -832,20 +852,29 @@ async function setMode(next: PreviewMode): Promise<void> {
   }
 }
 
-async function openSingleDoc(next: LocalMarkdownDoc): Promise<void> {
-  // Single-file mode: leave workspace if active? Keep workspace shell if open, just show doc without path
+async function openSingleDoc(
+  next: LocalMarkdownDoc,
+  opts?: { skipHistory?: boolean },
+): Promise<void> {
+  const inWorkspace = Boolean(
+    workspaceRoot || workspaceKind === 'ssh' || workspaceKind === 'wsl',
+  );
+
   doc = next;
   currentPath = undefined;
   await saveLocalDoc(next);
   setDocumentTitle(next.name);
 
-  void recordFileOpen({
-    source: 'standalone',
-    title: next.name,
-  });
+  if (!opts?.skipHistory) {
+    void recordFileOpen({
+      source: 'standalone',
+      title: next.name,
+    });
+  }
 
-  if (!workspaceRoot && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') {
-    // Use shell layout with empty sidebar message for consistency
+  if (!inWorkspace) {
+    // True single-file mode — remember so next open does not force a workspace
+    void saveLastSession({ kind: 'standalone', name: next.name });
     setWorkspaceChrome(true, next.name);
     const treeEl = document.getElementById('ws-file-tree');
     if (treeEl) {
@@ -858,6 +887,7 @@ async function openSingleDoc(next: LocalMarkdownDoc): Promise<void> {
       emptyPrev.hidden = true;
     }
   } else {
+    // Keep workspace chrome / last-session; file is a transient view without path
     refreshTree();
   }
   updatePathBar();
@@ -1037,7 +1067,15 @@ async function closeWorkspace(): Promise<void> {
   if (workspaceKind === 'wsl') {
     await wslDisconnect();
   }
-  await clearWorkspace();
+  // Keep local FS handle in IndexedDB so the next workbench open can restore
+  // the same folder + last file. Remote sessions only disconnect.
+  if (workspaceKind !== 'local') {
+    try {
+      await clearWorkspace();
+    } catch {
+      // ignore
+    }
+  }
   revokeObjectUrls();
   outlinePanel.close();
   clearFileTreeExpandState();
@@ -1445,35 +1483,6 @@ async function connectSshFromDialog(): Promise<void> {
   }
 }
 
-async function tryRestoreWorkspace(): Promise<boolean> {
-  const handle = await loadWorkspaceHandle();
-  if (!handle) {
-    return false;
-  }
-  const meta = await loadWorkspaceMeta();
-  // Permission may require a user gesture on some builds; try query first
-  const permitted = await ensureReadPermission(handle, true);
-  if (!permitted) {
-    // keep handle; user can click 刷新/打开 to re-authorize
-    setWorkspaceChrome(true, handle.name || meta?.name || 'Workspace');
-    $('empty-state').hidden = true;
-    injectStyles();
-    applyThemeClass();
-    const treeEl = document.getElementById('ws-file-tree');
-    if (treeEl) {
-      treeEl.innerHTML =
-        '<p style="padding:12px;opacity:0.7;font-size:12px;line-height:1.5">需要重新授权才能读取此文件夹。<br/><button type="button" id="ws-reauth" style="margin-top:8px">授权并打开</button></p>';
-      treeEl.querySelector('#ws-reauth')?.addEventListener('click', () => {
-        void enterWorkspace(handle, meta?.lastFilePath);
-      });
-    }
-    workspaceRoot = handle;
-    return true;
-  }
-  await enterWorkspace(handle, meta?.lastFilePath);
-  return true;
-}
-
 async function init(): Promise<void> {
   settings = await loadSettings();
   engine = new MarkdownPreviewEngine(settings);
@@ -1493,17 +1502,10 @@ async function init(): Promise<void> {
     history.replaceState(null, '', location.pathname);
   }
 
-  // Don't restore local FS workspace when user explicitly wants remote
-  const restored = shouldSsh || shouldWsl ? false : await tryRestoreWorkspace();
-  if (!restored) {
-    const existing = shouldSsh || shouldWsl ? null : await loadLocalDoc();
-    if (existing) {
-      await openSingleDoc(existing);
-    } else {
-      showEmpty();
-      applyThemeClass();
-    }
-  }
+  // Always land on Markdown workbench empty state (open actions + recent history).
+  // Last workspace is restored only when the user picks it from history or opens a source.
+  showEmpty();
+  applyThemeClass();
 
   if (shouldWsl) {
     setTimeout(() => showWslDialog(true), 50);

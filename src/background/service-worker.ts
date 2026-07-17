@@ -26,7 +26,7 @@ chrome.runtime.onInstalled.addListener(() => {
     });
     chrome.contextMenus.create({
       id: 'vscode-md-preview-open-viewer',
-      title: '打开预览工作台',
+      title: 'Markdown 工作台',
       contexts: ['action'],
     });
     chrome.contextMenus.create({
