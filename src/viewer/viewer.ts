@@ -681,6 +681,12 @@ function wireUi(): void {
   document.querySelector('[data-wsl-dismiss]')?.addEventListener('click', () => showWslDialog(false));
   document.getElementById('wsl-connect')?.addEventListener('click', () => void connectWslFromDialog());
   document.getElementById('wsl-open-file')?.addEventListener('click', () => void openWslFileInTab());
+  document.getElementById('wsl-mode-select')?.addEventListener('change', () => setWslDialogMode('select'));
+  document.getElementById('wsl-mode-paste')?.addEventListener('change', () => setWslDialogMode('paste'));
+  // Clicking fields inside a mode option selects that mode
+  document.getElementById('wsl-path')?.addEventListener('focus', () => setWslDialogMode('paste'));
+  document.getElementById('wsl-distro')?.addEventListener('focus', () => setWslDialogMode('select'));
+  document.getElementById('wsl-root')?.addEventListener('focus', () => setWslDialogMode('select'));
 
   dropzone.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('button')) {
@@ -835,6 +841,43 @@ function setSshAuthMode(mode: 'password' | 'key'): void {
 
 /* —— WSL dialog —— */
 
+type WslDialogMode = 'select' | 'paste';
+
+function getWslDialogMode(): WslDialogMode {
+  const checked = document.querySelector(
+    'input[name="wsl-mode"]:checked',
+  ) as HTMLInputElement | null;
+  return checked?.value === 'paste' ? 'paste' : 'select';
+}
+
+function setWslDialogMode(mode: WslDialogMode): void {
+  const selectRadio = document.getElementById('wsl-mode-select') as HTMLInputElement | null;
+  const pasteRadio = document.getElementById('wsl-mode-paste') as HTMLInputElement | null;
+  if (selectRadio) selectRadio.checked = mode === 'select';
+  if (pasteRadio) pasteRadio.checked = mode === 'paste';
+
+  const distro = document.getElementById('wsl-distro') as HTMLSelectElement | null;
+  const root = document.getElementById('wsl-root') as HTMLInputElement | null;
+  const path = document.getElementById('wsl-path') as HTMLInputElement | null;
+  const openFileBtn = document.getElementById('wsl-open-file') as HTMLButtonElement | null;
+
+  if (distro) distro.disabled = mode !== 'select';
+  if (root) root.disabled = mode !== 'select';
+  if (path) path.disabled = mode !== 'paste';
+  if (openFileBtn) {
+    openFileBtn.disabled = mode !== 'paste';
+    openFileBtn.title =
+      mode === 'paste'
+        ? '用 file://wsl.localhost 在新标签打开粘贴的 .md 文件'
+        : '请先选择「粘贴完整路径」并填入 .md 文件路径';
+  }
+
+  // Clear the inactive side so values cannot conflict
+  if (mode === 'select' && path) {
+    path.value = '';
+  }
+}
+
 function showWslDialog(show: boolean): void {
   const dlg = document.getElementById('wsl-dialog');
   if (dlg) {
@@ -847,6 +890,7 @@ function showWslDialog(show: boolean): void {
         err.hidden = true;
         err.textContent = '';
       }
+      setWslDialogMode('select');
       const distroSel = document.getElementById('wsl-distro') as HTMLSelectElement | null;
       const rootInput = document.getElementById('wsl-root') as HTMLInputElement | null;
       const pathInput = document.getElementById('wsl-path') as HTMLInputElement | null;
@@ -886,8 +930,34 @@ function showWslDialog(show: boolean): void {
           }
         }
       }
+      setWslDialogMode('select');
     })();
   }
+}
+
+function parseWslPasteInput(pathPaste: string): {
+  distro: string;
+  root: string;
+  openAbsFile?: string;
+} | { error: string } {
+  const loc = parseWslLocation(pathPaste);
+  if (loc) {
+    if (isMarkdownPath(loc.linuxPath)) {
+      const parent = loc.linuxPath.includes('/')
+        ? loc.linuxPath.slice(0, loc.linuxPath.lastIndexOf('/')) || '/'
+        : '/';
+      return { distro: loc.distro, root: parent, openAbsFile: loc.linuxPath };
+    }
+    return { distro: loc.distro, root: loc.linuxPath };
+  }
+  if (pathPaste.startsWith('/')) {
+    return {
+      error: '粘贴 Linux 绝对路径时请使用完整形式，例如 wsl://发行版' + pathPaste,
+    };
+  }
+  return {
+    error: '无法解析路径。请使用 \\\\wsl.localhost\\Distro\\path 或 wsl://Distro/path',
+  };
 }
 
 async function connectWslFromDialog(): Promise<void> {
@@ -900,42 +970,32 @@ async function connectWslFromDialog(): Promise<void> {
     }
   };
 
-  const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
-  let distro = (document.getElementById('wsl-distro') as HTMLSelectElement)?.value.trim();
-  let root = (document.getElementById('wsl-root') as HTMLInputElement)?.value.trim() || '~';
-
-  // Allow paste of \\wsl$\Ubuntu\home\... or wsl:// or file://wsl...
+  const mode = getWslDialogMode();
+  let distro = '';
+  let root = '~';
   let openAbsFile: string | undefined;
-  if (pathPaste) {
-    const loc = parseWslLocation(pathPaste);
-    if (loc) {
-      distro = loc.distro;
-      root = loc.linuxPath;
-      if (isMarkdownPath(loc.linuxPath)) {
-        openAbsFile = loc.linuxPath;
-        const parent = loc.linuxPath.includes('/')
-          ? loc.linuxPath.slice(0, loc.linuxPath.lastIndexOf('/')) || '/'
-          : '/';
-        root = parent;
-      }
-    } else if (pathPaste.startsWith('/')) {
-      if (isMarkdownPath(pathPaste)) {
-        openAbsFile = pathPaste;
-        root = pathPaste.includes('/')
-          ? pathPaste.slice(0, pathPaste.lastIndexOf('/')) || '/'
-          : '/';
-      } else {
-        root = pathPaste;
-      }
-    } else {
-      showErr('无法解析路径。请使用 \\\\wsl$\\Distro\\path、wsl://Distro/path 或 Linux 绝对路径');
+
+  if (mode === 'paste') {
+    const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
+    if (!pathPaste) {
+      showErr('请粘贴完整 WSL 路径或 URI');
       return;
     }
-  }
-
-  if (!distro) {
-    showErr('请选择 WSL 发行版');
-    return;
+    const parsed = parseWslPasteInput(pathPaste);
+    if ('error' in parsed) {
+      showErr(parsed.error);
+      return;
+    }
+    distro = parsed.distro;
+    root = parsed.root;
+    openAbsFile = parsed.openAbsFile;
+  } else {
+    distro = (document.getElementById('wsl-distro') as HTMLSelectElement)?.value.trim();
+    root = (document.getElementById('wsl-root') as HTMLInputElement)?.value.trim() || '~';
+    if (!distro) {
+      showErr('请选择 WSL 发行版');
+      return;
+    }
   }
 
   const health = await sshHealth();
@@ -943,7 +1003,7 @@ async function connectWslFromDialog(): Promise<void> {
     showErr('本地 Bridge 未运行。请执行: npm run ssh-bridge（需在 Windows 上）');
     return;
   }
-  if ((health as { wslAvailable?: boolean }).wslAvailable === false) {
+  if (health.wslAvailable === false) {
     showErr('当前 Bridge 不在 Windows 上，无法调用 wsl.exe');
     return;
   }
@@ -974,18 +1034,28 @@ async function connectWslFromDialog(): Promise<void> {
 
 /** Open a single WSL markdown file in Chrome via file://wsl.localhost/... */
 async function openWslFileInTab(): Promise<void> {
-  const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
-  const distro = (document.getElementById('wsl-distro') as HTMLSelectElement)?.value.trim();
-  let loc = pathPaste ? parseWslLocation(pathPaste) : null;
-  if (!loc && distro && pathPaste?.startsWith('/')) {
-    loc = { distro, linuxPath: pathPaste };
-  }
-  if (!loc || !isMarkdownPath(loc.linuxPath)) {
-    const errEl = document.getElementById('wsl-error');
+  const errEl = document.getElementById('wsl-error');
+  const showErr = (msg: string) => {
     if (errEl) {
       errEl.hidden = false;
-      errEl.textContent = '请粘贴完整 WSL 文件路径（.md），或选择发行版并填写绝对路径';
+      errEl.textContent = msg;
     }
+  };
+
+  if (getWslDialogMode() !== 'paste') {
+    showErr('请先选择「粘贴完整路径」，并填入 .md 文件路径');
+    return;
+  }
+
+  const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
+  if (!pathPaste) {
+    showErr('请粘贴完整 WSL 文件路径（.md）');
+    return;
+  }
+
+  const loc = parseWslLocation(pathPaste);
+  if (!loc || !isMarkdownPath(loc.linuxPath)) {
+    showErr('请粘贴指向 .md 的完整路径，例如 \\\\wsl.localhost\\Debian\\home\\u\\a.md');
     return;
   }
   const url = toWslFileUrl(loc, 'wsl.localhost');
