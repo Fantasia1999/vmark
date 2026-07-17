@@ -69,3 +69,32 @@
 #vscode-md-preview-toolbar button[hidden] {
   display: none !important;
 }
+
+/* Preview content zoom controls */
+#vscode-md-preview-toolbar .vsc-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-left: 2px;
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#vscode-md-preview-toolbar .vsc-zoom-group button {
+  border-radius: 0;
+  border: none;
+  min-width: 26px;
+  padding: 4px 6px;
+}
+
+#vscode-md-preview-toolbar .vsc-zoom-group button[data-action="zoom-label"] {
+  min-width: 42px;
+  padding: 4px 4px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+#vscode-md-preview-toolbar .vsc-zoom-group button + button {
+  border-left: 1px solid var(--vscode-editorWidget-border, #454545);
+}

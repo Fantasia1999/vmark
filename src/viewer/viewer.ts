@@ -69,6 +69,15 @@ import {
   type WorkspaceHistoryEntry,
 } from '../shared/history';
 import { saveLastSession } from '../shared/lastSession';
+import {
+  applyPreviewZoom,
+  loadPreviewZoom,
+  PREVIEW_ZOOM_DEFAULT,
+  PREVIEW_ZOOM_MAX,
+  PREVIEW_ZOOM_MIN,
+  savePreviewZoom,
+  stepPreviewZoom,
+} from '../shared/previewZoom';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
 
 import markdownCss from '../preview/styles/markdown.css';
@@ -87,6 +96,8 @@ let currentPath: string | undefined;
 let mode: PreviewMode = 'preview';
 let settings: PreviewSettings;
 let engine: MarkdownPreviewEngine;
+/** Preview content zoom only (not chrome UI) */
+let previewZoom = PREVIEW_ZOOM_DEFAULT;
 
 let workspaceRoot: FileSystemDirectoryHandle | null = null;
 /** 'local' = File System Access, 'ssh' | 'wsl' = via local bridge */
@@ -153,6 +164,84 @@ function applyPreviewWidth(width?: PreviewWidthSetting): void {
   if (root) {
     root.dataset.previewWidth = w;
   }
+}
+
+async function setPreviewZoom(next: number, persist = true): Promise<void> {
+  previewZoom = Math.min(PREVIEW_ZOOM_MAX, Math.max(PREVIEW_ZOOM_MIN, next));
+  applyPreviewZoom(previewZoom);
+  if (persist) {
+    void savePreviewZoom(previewZoom);
+  }
+  if (doc) {
+    mountToolbarExtras();
+  }
+}
+
+function zoomIn(): void {
+  void setPreviewZoom(stepPreviewZoom(previewZoom, 1));
+}
+
+function zoomOut(): void {
+  void setPreviewZoom(stepPreviewZoom(previewZoom, -1));
+}
+
+function zoomReset(): void {
+  void setPreviewZoom(PREVIEW_ZOOM_DEFAULT);
+}
+
+function wirePreviewZoomShortcuts(): void {
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) {
+        return;
+      }
+      // Only when a document is open (preview or source)
+      if (!doc) {
+        return;
+      }
+      const key = e.key;
+      if (key === '=' || key === '+') {
+        e.preventDefault();
+        zoomIn();
+      } else if (key === '-' || key === '_') {
+        e.preventDefault();
+        zoomOut();
+      } else if (key === '0') {
+        e.preventDefault();
+        zoomReset();
+      }
+    },
+    true,
+  );
+
+  // Ctrl/Cmd + wheel over preview content only (not sidebar / toolbar)
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      if (!(e.ctrlKey || e.metaKey) || !doc) {
+        return;
+      }
+      const t = e.target as Node | null;
+      if (!t) {
+        return;
+      }
+      const root = document.getElementById(ROOT_ID);
+      const source = document.getElementById(SOURCE_ID);
+      const content = document.getElementById('ws-content');
+      const overContent =
+        (root && root.contains(t)) ||
+        (source && source.contains(t)) ||
+        (content && content.contains(t));
+      if (!overContent) {
+        return;
+      }
+      e.preventDefault();
+      if (e.deltaY < 0) zoomIn();
+      else if (e.deltaY > 0) zoomOut();
+    },
+    { passive: false, capture: true },
+  );
 }
 
 function applyThemeClass(): void {
@@ -765,6 +854,7 @@ function showSourceView(): void {
   pre.textContent = doc.content;
 
   applyThemeClass();
+  applyPreviewZoom(previewZoom);
   mountToolbarExtras();
 }
 
@@ -795,6 +885,7 @@ async function showPreviewView(): Promise<void> {
   root.dataset.theme = resolveTheme(settings.theme);
   root.dataset.previewWidth = settings.previewWidth || 'wide';
   applyPreviewWidth(settings.previewWidth);
+  applyPreviewZoom(previewZoom);
 
   engine.updateSettings(settings);
   // documentBase unused for workspace assets (resolved after render)
@@ -841,6 +932,10 @@ function mountToolbarExtras(): void {
     outlineOpen: outlinePanel.isOpen,
     onOpenFile: () => pickFile(),
     onOpenFolder: () => void openWorkspaceFolder(),
+    onZoomIn: () => zoomIn(),
+    onZoomOut: () => zoomOut(),
+    onZoomReset: () => zoomReset(),
+    zoom: previewZoom,
   });
 }
 
@@ -1488,8 +1583,11 @@ async function init(): Promise<void> {
   engine = new MarkdownPreviewEngine(settings);
   injectStyles();
   applyThemeClass();
+  previewZoom = await loadPreviewZoom();
+  applyPreviewZoom(previewZoom);
   await outlinePanel.loadPinPreference();
   wireUi();
+  wirePreviewZoomShortcuts();
   document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
 
   const params = new URLSearchParams(location.search);

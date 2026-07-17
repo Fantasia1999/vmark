@@ -1,4 +1,5 @@
 import { createIconEl, setButtonIcon } from '../shared/icons';
+import { formatPreviewZoom } from '../shared/previewZoom';
 
 export type PreviewMode = 'preview' | 'source';
 
@@ -12,6 +13,12 @@ export interface ToolbarHandlers {
   onOpenFile?: () => void;
   /** Viewer: open local workspace folder */
   onOpenFolder?: () => void;
+  /** Preview content zoom (0.5–2.5); not chrome UI */
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomReset?: () => void;
+  /** Current zoom factor for label (e.g. 1 = 100%) */
+  zoom?: number;
 }
 
 const TOOLBAR_ID = 'vscode-md-preview-toolbar';
@@ -94,6 +101,15 @@ export function mountToolbar(
         case 'open-folder':
           rt.handlers.onOpenFolder?.();
           break;
+        case 'zoom-in':
+          rt.handlers.onZoomIn?.();
+          break;
+        case 'zoom-out':
+          rt.handlers.onZoomOut?.();
+          break;
+        case 'zoom-label':
+          rt.handlers.onZoomReset?.();
+          break;
       }
     });
 
@@ -174,6 +190,9 @@ export function mountToolbar(
     if (b) b.hidden = true;
   }
 
+  // Zoom group (content only) — before options
+  ensureZoomGroup(bar, handlers);
+
   // Options always last
   const optionsBtn = ensureButton(bar, 'options', () => {
     const b = document.createElement('button');
@@ -193,6 +212,66 @@ export function mountToolbar(
   }
 
   return bar;
+}
+
+function ensureZoomGroup(bar: HTMLElement, handlers: ToolbarHandlers): void {
+  let group = bar.querySelector<HTMLElement>('.vsc-zoom-group');
+  if (!group) {
+    group = document.createElement('span');
+    group.className = 'vsc-zoom-group';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', '预览缩放');
+
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.dataset.action = 'zoom-out';
+    out.title = '缩小预览 (Ctrl+-)';
+    out.setAttribute('aria-label', '缩小预览');
+    out.textContent = '−';
+
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.dataset.action = 'zoom-label';
+    label.title = '重置为 100% (Ctrl+0)';
+    label.setAttribute('aria-label', '重置缩放');
+    label.textContent = '100%';
+
+    const inn = document.createElement('button');
+    inn.type = 'button';
+    inn.dataset.action = 'zoom-in';
+    inn.title = '放大预览 (Ctrl+=)';
+    inn.setAttribute('aria-label', '放大预览');
+    inn.textContent = '+';
+
+    group.append(out, label, inn);
+
+    const options = bar.querySelector('button[data-action="options"]');
+    if (options) {
+      bar.insertBefore(group, options);
+    } else {
+      bar.appendChild(group);
+    }
+  }
+
+  const hasZoom =
+    Boolean(handlers.onZoomIn) ||
+    Boolean(handlers.onZoomOut) ||
+    Boolean(handlers.onZoomReset);
+  group.hidden = !hasZoom;
+
+  const labelBtn = group.querySelector<HTMLButtonElement>('button[data-action="zoom-label"]');
+  if (labelBtn && typeof handlers.zoom === 'number') {
+    labelBtn.textContent = formatPreviewZoom(handlers.zoom);
+  }
+
+  const outBtn = group.querySelector<HTMLButtonElement>('button[data-action="zoom-out"]');
+  const inBtn = group.querySelector<HTMLButtonElement>('button[data-action="zoom-in"]');
+  if (outBtn && typeof handlers.zoom === 'number') {
+    outBtn.disabled = handlers.zoom <= 0.5;
+  }
+  if (inBtn && typeof handlers.zoom === 'number') {
+    inBtn.disabled = handlers.zoom >= 2.5;
+  }
 }
 
 export function removeToolbar(): void {
