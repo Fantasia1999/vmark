@@ -61,6 +61,17 @@ import {
   setWorkspaceChrome,
 } from './workspaceUi';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
+import {
+  clearAllHistory,
+  recordFileOpen,
+  recordWorkspaceOpen,
+  removeFileHistory,
+  removeWorkspaceHistory,
+  touchWorkspaceLastFile,
+  type FileHistoryEntry,
+  type WorkspaceHistoryEntry,
+} from '../shared/history';
+import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -205,6 +216,164 @@ function showEmpty(): void {
   document.documentElement.classList.remove('vscode-md-preview-active');
   document.body.classList.remove('vscode-md-preview-active');
   setDocumentTitle();
+  void refreshHistoryPanel(historyHandlersRef);
+}
+
+let pendingHistoryFilePath: string | undefined;
+
+const historyHandlersRef = {
+  onOpenWorkspace: (entry: WorkspaceHistoryEntry) => void openHistoryWorkspace(entry),
+  onOpenFile: (entry: FileHistoryEntry) => void openHistoryFile(entry),
+  onRemoveWorkspace: (id: string) =>
+    void removeWorkspaceHistory(id).then(() => refreshHistoryPanel(historyHandlersRef)),
+  onRemoveFile: (id: string) =>
+    void removeFileHistory(id).then(() => refreshHistoryPanel(historyHandlersRef)),
+  onClearAll: () =>
+    void clearAllHistory().then(() => refreshHistoryPanel(historyHandlersRef)),
+};
+
+async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void> {
+  if (entry.source === 'local') {
+    // Cannot restore FS handle; re-pick and hint
+    alert(
+      entry.localName
+        ? `请重新选择本地文件夹「${entry.localName}」（浏览器无法保存文件夹权限句柄）。`
+        : '请重新选择本地文件夹。',
+    );
+    pendingHistoryFilePath = entry.lastFilePath;
+    await openWorkspaceFolder();
+    return;
+  }
+  if (entry.source === 'ssh' && entry.ssh) {
+    pendingHistoryFilePath = entry.lastFilePath;
+    showSshDialog(true);
+    // Prefill after dialog opens
+    requestAnimationFrame(() => {
+      const host = document.getElementById('ssh-host') as HTMLInputElement | null;
+      const port = document.getElementById('ssh-port') as HTMLInputElement | null;
+      const user = document.getElementById('ssh-user') as HTMLInputElement | null;
+      const root = document.getElementById('ssh-root') as HTMLInputElement | null;
+      if (host) host.value = entry.ssh!.host;
+      if (port) port.value = String(entry.ssh!.port);
+      if (user) user.value = entry.ssh!.username;
+      if (root) root.value = entry.ssh!.root;
+    });
+    return;
+  }
+  if (entry.source === 'wsl' && entry.wsl) {
+    pendingHistoryFilePath = entry.lastFilePath;
+    // Connect directly if bridge is up
+    try {
+      const meta = await wslConnect(entry.wsl.distro, entry.wsl.root);
+      showWslDialog(false);
+      await enterWslWorkspace(meta, entry.lastFilePath);
+    } catch (e) {
+      alert(
+        `无法自动连接 WSL，请在对话框中重试。\n${e instanceof Error ? e.message : String(e)}`,
+      );
+      showWslDialog(true);
+      setWslDialogMode('select');
+      requestAnimationFrame(() => {
+        const distro = document.getElementById('wsl-distro') as HTMLSelectElement | null;
+        const root = document.getElementById('wsl-root') as HTMLInputElement | null;
+        if (distro && entry.wsl) {
+          // ensure option exists
+          if (![...distro.options].some((o) => o.value === entry.wsl!.distro)) {
+            const opt = document.createElement('option');
+            opt.value = entry.wsl.distro;
+            opt.textContent = entry.wsl.distro;
+            distro.appendChild(opt);
+          }
+          distro.value = entry.wsl.distro;
+        }
+        if (root && entry.wsl) root.value = entry.wsl.root;
+      });
+    }
+  }
+}
+
+async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
+  if (entry.source === 'standalone' || !entry.path) {
+    alert(`请重新选择文件「${entry.title}」（本地单文件无法自动恢复路径）。`);
+    pickFile();
+    return;
+  }
+
+  // Already in matching workspace?
+  if (workspaceKind === 'local' && entry.source === 'local' && workspaceRoot) {
+    if (!entry.localName || workspaceRoot.name === entry.localName) {
+      await openWorkspaceFile(entry.path);
+      return;
+    }
+  }
+  if (workspaceKind === 'ssh' && entry.source === 'ssh' && sshMeta && entry.ssh) {
+    if (
+      sshMeta.host === entry.ssh.host &&
+      sshMeta.port === entry.ssh.port &&
+      sshMeta.username === entry.ssh.username
+    ) {
+      await openWorkspaceFile(entry.path);
+      return;
+    }
+  }
+  if (workspaceKind === 'wsl' && entry.source === 'wsl' && wslMeta && entry.wsl) {
+    if (wslMeta.distro === entry.wsl.distro) {
+      await openWorkspaceFile(entry.path);
+      return;
+    }
+  }
+
+  // Reconnect then open
+  if (entry.source === 'ssh' && entry.ssh) {
+    pendingHistoryFilePath = entry.path;
+    showSshDialog(true);
+    requestAnimationFrame(() => {
+      const host = document.getElementById('ssh-host') as HTMLInputElement | null;
+      const port = document.getElementById('ssh-port') as HTMLInputElement | null;
+      const user = document.getElementById('ssh-user') as HTMLInputElement | null;
+      const root = document.getElementById('ssh-root') as HTMLInputElement | null;
+      if (host) host.value = entry.ssh!.host;
+      if (port) port.value = String(entry.ssh!.port);
+      if (user) user.value = entry.ssh!.username;
+      if (root) root.value = entry.ssh!.root;
+    });
+    return;
+  }
+  if (entry.source === 'wsl' && entry.wsl) {
+    pendingHistoryFilePath = entry.path;
+    try {
+      const meta = await wslConnect(entry.wsl.distro, entry.wsl.root);
+      await enterWslWorkspace(meta, entry.path);
+    } catch (e) {
+      alert(`无法打开历史文件。\n${e instanceof Error ? e.message : String(e)}`);
+      showWslDialog(true);
+      setWslDialogMode('select');
+      requestAnimationFrame(() => {
+        const distro = document.getElementById('wsl-distro') as HTMLSelectElement | null;
+        const root = document.getElementById('wsl-root') as HTMLInputElement | null;
+        if (distro && entry.wsl) {
+          if (![...distro.options].some((o) => o.value === entry.wsl!.distro)) {
+            const opt = document.createElement('option');
+            opt.value = entry.wsl.distro;
+            opt.textContent = entry.wsl.distro;
+            distro.appendChild(opt);
+          }
+          distro.value = entry.wsl.distro;
+        }
+        if (root && entry.wsl) root.value = entry.wsl.root;
+      });
+    }
+    return;
+  }
+  if (entry.source === 'local') {
+    alert(
+      entry.localName
+        ? `请先打开本地文件夹「${entry.localName}」，再选择文件 ${entry.path}`
+        : `请先打开对应工作区，再选择文件 ${entry.path}`,
+    );
+    pendingHistoryFilePath = entry.path;
+    await openWorkspaceFolder();
+  }
 }
 
 function updatePathBar(): void {
@@ -289,7 +458,16 @@ async function enterWorkspace(
   workspaceKind = 'local';
   workspaceFiles = await listMarkdownFiles(root);
   await saveWorkspaceHandle(root, preferredPath);
-  await showWorkspaceShell(root.name, preferredPath);
+  void recordWorkspaceOpen({
+    source: 'local',
+    title: root.name,
+    subtitle: '本地文件夹',
+    localName: root.name,
+    lastFilePath: preferredPath,
+  });
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
+  await showWorkspaceShell(root.name, pending);
 }
 
 async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): Promise<void> {
@@ -306,8 +484,23 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
     // ignore
   }
   workspaceFiles = await sshListMarkdown();
-  const title = `${meta.username}@${meta.host}:${meta.root}`;
-  await showWorkspaceShell(title, preferredPath);
+  const title = `${meta.username}@${meta.host}`;
+  const ssh = {
+    host: meta.host,
+    port: meta.port,
+    username: meta.username,
+    root: meta.root,
+  };
+  void recordWorkspaceOpen({
+    source: 'ssh',
+    title,
+    subtitle: `${meta.root} · :${meta.port}`,
+    ssh,
+    lastFilePath: preferredPath,
+  });
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
+  await showWorkspaceShell(`${title}:${meta.root}`, pending);
 }
 
 async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): Promise<void> {
@@ -325,8 +518,17 @@ async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): 
     // ignore
   }
   workspaceFiles = await wslListMarkdown();
-  const title = `wsl://${meta.distro}${meta.root}`;
-  await showWorkspaceShell(title, preferredPath);
+  const title = `wsl://${meta.distro}`;
+  void recordWorkspaceOpen({
+    source: 'wsl',
+    title,
+    subtitle: meta.root,
+    wsl: { distro: meta.distro, root: meta.root },
+    lastFilePath: preferredPath,
+  });
+  const pending = preferredPath ?? pendingHistoryFilePath;
+  pendingHistoryFilePath = undefined;
+  await showWorkspaceShell(`${title}${meta.root}`, pending);
 }
 
 async function openWorkspaceFolder(): Promise<void> {
@@ -394,6 +596,48 @@ async function openWorkspaceFile(path: string): Promise<void> {
   setDocumentTitle(doc.name);
   refreshTree();
   setEmptyPreviewVisible(false);
+
+  // History: file + workspace last path
+  const fileName = doc.name;
+  if (workspaceKind === 'local' && workspaceRoot) {
+    void recordFileOpen({
+      source: 'local',
+      title: fileName,
+      path,
+      workspaceTitle: workspaceRoot.name,
+      localName: workspaceRoot.name,
+    });
+    void touchWorkspaceLastFile(
+      { source: 'local', localName: workspaceRoot.name },
+      path,
+    );
+  } else if (workspaceKind === 'ssh' && sshMeta) {
+    const ssh = {
+      host: sshMeta.host,
+      port: sshMeta.port,
+      username: sshMeta.username,
+      root: sshMeta.root,
+    };
+    void recordFileOpen({
+      source: 'ssh',
+      title: fileName,
+      path,
+      workspaceTitle: `${sshMeta.username}@${sshMeta.host}`,
+      ssh,
+    });
+    void touchWorkspaceLastFile({ source: 'ssh', ssh }, path);
+  } else if (workspaceKind === 'wsl' && wslMeta) {
+    const wsl = { distro: wslMeta.distro, root: wslMeta.root };
+    void recordFileOpen({
+      source: 'wsl',
+      title: fileName,
+      path,
+      workspaceTitle: `wsl://${wslMeta.distro}`,
+      wsl,
+    });
+    void touchWorkspaceLastFile({ source: 'wsl', wsl }, path);
+  }
+
   await showPreviewView();
 }
 
@@ -595,6 +839,11 @@ async function openSingleDoc(next: LocalMarkdownDoc): Promise<void> {
   await saveLocalDoc(next);
   setDocumentTitle(next.name);
 
+  void recordFileOpen({
+    source: 'standalone',
+    title: next.name,
+  });
+
   if (!workspaceRoot && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') {
     // Use shell layout with empty sidebar message for consistency
     setWorkspaceChrome(true, next.name);
@@ -732,6 +981,8 @@ function wireUi(): void {
   });
 
   wireModalKeyboard();
+  wireHistoryClearButton(historyHandlersRef);
+  void refreshHistoryPanel(historyHandlersRef);
 
   if (!isDirectoryPickerSupported()) {
     const meta = document.getElementById('empty-meta');

@@ -21,8 +21,10 @@
         box-sizing: border-box;
         min-height: 100vh;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 8px;
         padding: 32px 16px;
         background: var(--vscode-editor-background, #1e1e1e);
         color: var(--vscode-editor-foreground, #d4d4d4);
@@ -110,6 +112,144 @@
         margin-top: 18px;
         font-size: 12px;
         opacity: 0.55;
+      }
+
+      /* Recent history on empty state */
+      .history-panel {
+        width: min(560px, 100%);
+        margin-top: 20px;
+        text-align: left;
+      }
+      .history-panel[hidden] {
+        display: none !important;
+      }
+      .history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .history-head h3 {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.55;
+      }
+      .history-head button {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 11px;
+        opacity: 0.55;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .history-head button:hover {
+        opacity: 1;
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+      .history-list {
+        list-style: none;
+        margin: 0 0 14px;
+        padding: 0;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--vscode-editorWidget-background, #252526);
+      }
+      .history-list:empty {
+        display: none;
+      }
+      .history-item {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #454545) 70%, transparent);
+      }
+      .history-item:last-child {
+        border-bottom: none;
+      }
+      .history-item-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .history-item-main:hover {
+        background: var(--vscode-list-hoverBackground, #2a2d2e);
+      }
+      .history-item-main:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: -1px;
+      }
+      .history-item-icon {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        opacity: 0.85;
+        color: var(--vscode-focusBorder, #3794ff);
+      }
+      .history-item-icon .vsc-icon,
+      .history-item-icon .vsc-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .history-item-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .history-item-title {
+        font-size: 13px;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .history-item-sub {
+        font-size: 11px;
+        opacity: 0.55;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .history-item-time {
+        flex-shrink: 0;
+        font-size: 11px;
+        opacity: 0.45;
+        padding-left: 6px;
+      }
+      .history-item-remove {
+        flex-shrink: 0;
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        opacity: 0.35;
+        cursor: pointer;
+        padding: 0 10px;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .history-item-remove:hover {
+        opacity: 1;
+        background: color-mix(in srgb, #f48771 15%, transparent);
+        color: #f48771;
       }
 
       #file-input {
@@ -556,6 +696,18 @@
           <code>npm run ssh-bridge</code>（WSL 仅 Windows + wsl.exe）。也可直接打开
           <code>file://wsl.localhost/…</code> 路径。
         </p>
+      </div>
+
+      <div class="history-panel" id="history-panel" hidden>
+        <div class="history-head">
+          <h3>最近工作区</h3>
+          <button type="button" id="history-clear-all" title="清空全部历史">清空全部</button>
+        </div>
+        <ul class="history-list" id="history-workspaces" aria-label="最近工作区"></ul>
+        <div class="history-head">
+          <h3>最近文件</h3>
+        </div>
+        <ul class="history-list" id="history-files" aria-label="最近文件"></ul>
       </div>
     </div>
 
