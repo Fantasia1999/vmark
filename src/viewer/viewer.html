@@ -9,8 +9,14 @@
       body {
         margin: 0;
         min-height: 100%;
+        height: 100%;
       }
 
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      /* —— empty state —— */
       #empty-state {
         box-sizing: border-box;
         min-height: 100vh;
@@ -18,17 +24,17 @@
         align-items: center;
         justify-content: center;
         padding: 32px 16px;
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
         background: var(--vscode-editor-background, #1e1e1e);
         color: var(--vscode-editor-foreground, #d4d4d4);
       }
 
-      #empty-state[hidden] {
+      #empty-state[hidden],
+      #workspace-shell[hidden] {
         display: none !important;
       }
 
       .dropzone {
-        width: min(520px, 100%);
+        width: min(560px, 100%);
         border: 2px dashed var(--vscode-editorWidget-border, #454545);
         border-radius: 12px;
         padding: 40px 28px;
@@ -62,28 +68,36 @@
         justify-content: center;
       }
 
-      .dropzone button {
+      .dropzone button,
+      .ws-toolbar button,
+      .ws-sidebar-actions button {
         appearance: none;
         border: none;
         border-radius: 6px;
-        padding: 10px 16px;
+        padding: 8px 12px;
         font: inherit;
         cursor: pointer;
         background: var(--vscode-button-background, #0e639c);
         color: var(--vscode-button-foreground, #fff);
       }
 
-      .dropzone button:hover {
+      .dropzone button:hover,
+      .ws-toolbar button:hover,
+      .ws-sidebar-actions button:hover {
         background: var(--vscode-button-hoverBackground, #1177bb);
       }
 
-      .dropzone button.secondary {
+      .dropzone button.secondary,
+      .ws-sidebar-actions button.secondary,
+      .ws-toolbar button.secondary {
         background: transparent;
         color: inherit;
         border: 1px solid var(--vscode-editorWidget-border, #454545);
       }
 
-      .dropzone button.secondary:hover {
+      .dropzone button.secondary:hover,
+      .ws-sidebar-actions button.secondary:hover,
+      .ws-toolbar button.secondary:hover {
         background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
       }
 
@@ -96,6 +110,193 @@
       #file-input {
         display: none;
       }
+
+      /* —— workspace shell —— */
+      #workspace-shell {
+        display: grid;
+        grid-template-columns: minmax(200px, 280px) 1fr;
+        grid-template-rows: 100vh;
+        height: 100vh;
+        background: var(--vscode-editor-background, #1e1e1e);
+        color: var(--vscode-editor-foreground, #d4d4d4);
+      }
+
+      .ws-sidebar {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-sideBar-background, #252526);
+        color: var(--vscode-sideBar-foreground, #cccccc);
+        min-width: 0;
+      }
+
+      .ws-sidebar-header {
+        padding: 10px 12px 8px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+
+      .ws-sidebar-header .ws-caption {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.65;
+        margin-bottom: 4px;
+      }
+
+      #ws-title {
+        font-weight: 600;
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ws-sidebar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+
+      .ws-sidebar-actions button {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      #ws-file-tree {
+        flex: 1;
+        overflow: auto;
+        padding: 6px 0 16px;
+      }
+
+      .ws-tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .ws-node {
+        margin: 0;
+      }
+
+      .ws-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 12.5px;
+        text-align: left;
+        cursor: pointer;
+        padding: 3px 8px;
+        border-radius: 0;
+        box-sizing: border-box;
+      }
+
+      .ws-row:hover {
+        background: var(--vscode-list-hoverBackground, #2a2d2e);
+      }
+
+      .ws-file-row.active {
+        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 28%, transparent);
+      }
+
+      .ws-twisty {
+        width: 12px;
+        font-size: 10px;
+        opacity: 0.7;
+        flex-shrink: 0;
+      }
+
+      .ws-file-icon {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--vscode-focusBorder, #007fd4);
+        opacity: 0.9;
+        flex-shrink: 0;
+        width: 18px;
+      }
+
+      .ws-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ws-main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        position: relative;
+      }
+
+      .ws-main-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        font-size: 12px;
+        min-height: 36px;
+        box-sizing: border-box;
+      }
+
+      #ws-current-path {
+        flex: 1;
+        opacity: 0.85;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ws-main-bar .hint {
+        opacity: 0.5;
+        font-size: 11px;
+      }
+
+      .ws-content {
+        flex: 1;
+        overflow: auto;
+        min-height: 0;
+        position: relative;
+      }
+
+      .ws-content #vscode-md-preview-root {
+        /* override max-width centering padding slightly for workspace */
+      }
+
+      .ws-empty-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        opacity: 0.55;
+        font-size: 14px;
+        padding: 24px;
+        text-align: center;
+      }
+
+      /* toolbar in workspace sits top-right of content */
+      #workspace-shell #vscode-md-preview-toolbar {
+        top: 48px;
+      }
+
+      @media (max-width: 720px) {
+        #workspace-shell {
+          grid-template-columns: 1fr;
+          grid-template-rows: 40vh 1fr;
+        }
+        .ws-sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+        }
+      }
     </style>
   </head>
   <body>
@@ -106,19 +307,48 @@
     />
 
     <div id="empty-state">
-      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="打开或拖放 Markdown 文件">
-        <h1>打开本地 Markdown</h1>
-        <p>选择或拖放 <code>.md</code> 文件到此处，使用 VS Code 风格预览。</p>
+      <div class="dropzone" id="dropzone" tabindex="0">
+        <h1>Markdown 工作台</h1>
+        <p>
+          像 VS Code 一样打开整个文件夹作为工作区，浏览并预览其中的 Markdown；也可以只打开单个文件。
+        </p>
         <div class="actions">
-          <button type="button" id="btn-open">选择文件…</button>
+          <button type="button" id="btn-open-folder">打开文件夹…</button>
+          <button type="button" class="secondary" id="btn-open">打开文件…</button>
           <button type="button" class="secondary" id="btn-options">选项</button>
         </div>
-        <p class="meta">支持 KaTeX / Mermaid。相对路径图片在“打开本地文件”模式下可能无法加载；完整资源解析请用浏览器直接打开 <code>file://</code> 文件。</p>
+        <p class="meta" id="empty-meta">
+          工作区使用浏览器 File System Access API；相对路径图片/链接可正确解析。也可拖放文件到此处。
+        </p>
       </div>
     </div>
 
-    <div id="vscode-md-preview-root" class="vscode-md-preview-root" hidden></div>
-    <pre id="vscode-md-preview-source" hidden></pre>
+    <div id="workspace-shell" hidden>
+      <aside class="ws-sidebar">
+        <div class="ws-sidebar-header">
+          <div class="ws-caption">工作区</div>
+          <div id="ws-title">—</div>
+        </div>
+        <div class="ws-sidebar-actions">
+          <button type="button" id="ws-btn-refresh" class="secondary" title="重新扫描 Markdown 文件">刷新</button>
+          <button type="button" id="ws-btn-open-file" class="secondary" title="打开工作区外的单个文件">文件…</button>
+          <button type="button" id="ws-btn-change-folder" class="secondary" title="更换文件夹">换夹…</button>
+          <button type="button" id="ws-btn-close" class="secondary" title="关闭工作区">关闭</button>
+        </div>
+        <div id="ws-file-tree" aria-label="Markdown 文件列表"></div>
+      </aside>
+      <main class="ws-main">
+        <div class="ws-main-bar">
+          <span id="ws-current-path">选择左侧 Markdown 文件开始预览</span>
+          <span class="hint" id="ws-file-count"></span>
+        </div>
+        <div class="ws-content" id="ws-content">
+          <div class="ws-empty-preview" id="ws-empty-preview">从左侧选择一个 .md 文件</div>
+          <div id="vscode-md-preview-root" class="vscode-md-preview-root" hidden></div>
+          <pre id="vscode-md-preview-source" hidden></pre>
+        </div>
+      </main>
+    </div>
 
     <script type="module" src="./viewer.js"></script>
   </body>

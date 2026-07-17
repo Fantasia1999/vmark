@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "VS Code Markdown Preview",
-  "version": "0.2.0",
-  "description": "Open Markdown files as a VS Code-style preview in Chrome (local + remote).",
+  "version": "0.3.0",
+  "description": "VS Code-style Markdown preview for Chrome: workspaces, local files, and remote .md pages.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
