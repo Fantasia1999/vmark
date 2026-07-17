@@ -8,7 +8,8 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke-render.mjs"
+    "smoke": "node scripts/smoke-render.mjs",
+    "icons": "python3 scripts/generate-icons.py"
   },
   "dependencies": {
     "@vscode/markdown-it-katex": "^1.1.2",
