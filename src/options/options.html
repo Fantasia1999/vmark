@@ -48,6 +48,27 @@
         font-size: 0.9rem;
         color: #0a7;
       }
+      #sshBridgeStatus {
+        font-size: 0.9rem;
+        margin-top: 0.75rem;
+      }
+      #sshBridgeStatus .bridge-state {
+        font-weight: 600;
+      }
+      #sshBridgeStatus.bridge-online .bridge-state {
+        color: #1a9b4a;
+      }
+      #sshBridgeStatus.bridge-offline .bridge-state {
+        color: #c42b2b;
+      }
+      @media (prefers-color-scheme: dark) {
+        #sshBridgeStatus.bridge-online .bridge-state {
+          color: #3dd68c;
+        }
+        #sshBridgeStatus.bridge-offline .bridge-state {
+          color: #f48771;
+        }
+      }
     </style>
   </head>
   <body>
@@ -119,7 +140,7 @@
         Bridge Token
         <input id="sshBridgeToken" type="password" autocomplete="off" style="padding:0.4rem 0.5rem" />
       </label>
-      <p class="hint" id="sshBridgeStatus">Bridge status: —</p>
+      <p id="sshBridgeStatus">Bridge status: <span class="bridge-state">—</span></p>
     </fieldset>
 
     <p class="status" id="status" aria-live="polite"></p>

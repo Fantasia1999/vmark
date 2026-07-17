@@ -39,22 +39,28 @@ async function refreshBridgeStatus(): Promise<void> {
   }
   const h = await sshHealth();
   if (!h.ok) {
-    el.textContent = 'Bridge status: offline (start ssh-bridge)';
+    el.classList.remove('bridge-online');
+    el.classList.add('bridge-offline');
+    el.innerHTML =
+      'Bridge status: <span class="bridge-state">offline</span> (start ssh-bridge)';
     return;
   }
-  const bits = ['online'];
+  const extras: string[] = [];
   if (h.wslAvailable) {
-    bits.push('WSL ready');
+    extras.push('WSL ready');
   } else if (h.platform && h.platform !== 'win32') {
-    bits.push('WSL n/a (not Windows)');
+    extras.push('WSL n/a (not Windows)');
   }
   if (h.connected && h.meta) {
-    bits.push(`SSH ${h.meta.username}@${h.meta.host}`);
+    extras.push(`SSH ${h.meta.username}@${h.meta.host}`);
   }
   if (h.wslConnected && h.wslMeta) {
-    bits.push(`WSL ${h.wslMeta.distro}:${h.wslMeta.root}`);
+    extras.push(`WSL ${h.wslMeta.distro}:${h.wslMeta.root}`);
   }
-  el.textContent = `Bridge status: ${bits.join(' · ')}`;
+  el.classList.remove('bridge-offline');
+  el.classList.add('bridge-online');
+  const suffix = extras.length ? ` · ${extras.join(' · ')}` : '';
+  el.innerHTML = `Bridge status: <span class="bridge-state">online</span>${suffix}`;
 }
 
 async function init(): Promise<void> {
