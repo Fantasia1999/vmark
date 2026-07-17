@@ -1,4 +1,9 @@
-import { loadSettings, type PreviewSettings, type ThemeMode } from '../preview/config';
+import {
+  loadSettings,
+  type PreviewSettings,
+  type PreviewWidthSetting,
+  type ThemeMode,
+} from '../preview/config';
 import { MarkdownPreviewEngine } from '../preview/engine';
 import { runMermaid } from '../content/mermaidRunner';
 import { mountToolbar, type PreviewMode } from '../content/toolbar';
@@ -128,6 +133,15 @@ function injectStyles(): void {
   }
 }
 
+function applyPreviewWidth(width?: PreviewWidthSetting): void {
+  const w = width || settings?.previewWidth || 'wide';
+  document.documentElement.dataset.previewWidth = w;
+  const root = document.getElementById(ROOT_ID);
+  if (root) {
+    root.dataset.previewWidth = w;
+  }
+}
+
 function applyThemeClass(): void {
   const theme = resolveTheme(settings.theme);
   document.documentElement.dataset.theme = theme;
@@ -135,6 +149,7 @@ function applyThemeClass(): void {
   document.body.classList.toggle('vscode-light', theme === 'light');
   document.documentElement.classList.add('vscode-md-preview-active');
   document.body.classList.add('vscode-md-preview-active');
+  applyPreviewWidth(settings.previewWidth);
 }
 
 function workspaceLabel(): string | undefined {
@@ -510,6 +525,8 @@ async function showPreviewView(): Promise<void> {
   root.hidden = false;
   root.className = 'vscode-md-preview-root';
   root.dataset.theme = resolveTheme(settings.theme);
+  root.dataset.previewWidth = settings.previewWidth || 'wide';
+  applyPreviewWidth(settings.previewWidth);
 
   engine.updateSettings(settings);
   // documentBase unused for workspace assets (resolved after render)

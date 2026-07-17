@@ -9,6 +9,15 @@ export type MermaidThemeSetting =
   | 'neutral'
   | 'base';
 
+/**
+ * Preview content width.
+ * - comfortable: ~980px (classic reading column)
+ * - wide: ~1280px (default, better on large monitors)
+ * - fluid: up to ~1600px / 96vw
+ * - full: use full pane width
+ */
+export type PreviewWidthSetting = 'comfortable' | 'wide' | 'fluid' | 'full';
+
 export interface PreviewSettings {
   /** Auto-render when a markdown page is detected */
   autoPreview: boolean;
@@ -22,6 +31,8 @@ export interface PreviewSettings {
   mermaidTheme: MermaidThemeSetting;
   /** Sanitize HTML with a basic allowlist pass (lighter than full DOMPurify for MVP) */
   sanitizeHtml: boolean;
+  /** Max width of the rendered markdown column */
+  previewWidth: PreviewWidthSetting;
 }
 
 export const DEFAULT_SETTINGS: PreviewSettings = {
@@ -34,6 +45,7 @@ export const DEFAULT_SETTINGS: PreviewSettings = {
   theme: 'auto',
   mermaidTheme: 'vscode',
   sanitizeHtml: false,
+  previewWidth: 'wide',
 };
 
 export async function loadSettings(): Promise<PreviewSettings> {
