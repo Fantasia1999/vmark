@@ -34,6 +34,7 @@ try {
     mathEnabled: true,
     mermaidEnabled: true,
     theme: 'auto',
+    mermaidTheme: 'vscode',
     sanitizeHtml: false,
   });
   const out = engine.render(md, 'file:///tmp/sample.md');

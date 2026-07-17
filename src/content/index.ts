@@ -94,6 +94,9 @@ async function showPreview(): Promise<void> {
   const theme = resolveTheme(settings.theme);
   document.documentElement.classList.add('vscode-md-preview-active');
   document.body.classList.add('vscode-md-preview-active');
+  // Body classes used by VS Code mermaid theme detection helpers
+  document.body.classList.toggle('vscode-dark', theme === 'dark');
+  document.body.classList.toggle('vscode-light', theme === 'light');
 
   const sourceEl = document.getElementById(SOURCE_ID);
   if (sourceEl) {
@@ -108,7 +111,8 @@ async function showPreview(): Promise<void> {
 
   const root = ensureShell();
   root.dataset.theme = theme;
-  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+  // Put tokens on both root + html so mermaid can resolve CSS variables reliably
+  document.documentElement.dataset.theme = theme;
 
   const rendered = engine.render(sourceText, location.href);
   root.innerHTML = rendered.html;
@@ -116,8 +120,14 @@ async function showPreview(): Promise<void> {
     document.body.appendChild(root);
   }
 
+  // Ensure styles are applied before reading CSS vars for Mermaid themeVariables
+  await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
   if (rendered.hasMermaid) {
-    await runMermaid(root, theme === 'dark');
+    await runMermaid(root, {
+      isDark: theme === 'dark',
+      mermaidTheme: settings.mermaidTheme,
+    });
   }
 
   mountToolbar(mode, {

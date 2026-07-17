@@ -1,70 +1,135 @@
-/* VS Code-like color tokens for markdown preview outside of VS Code */
+/* VS Code-like color tokens for markdown preview + Mermaid themeVariables */
 
+/* ---------- shared token block (light defaults) ---------- */
 :root,
+html[data-theme="light"],
 .vscode-md-preview-root[data-theme="light"] {
   color-scheme: light;
+
+  --vscode-foreground: #333333;
   --vscode-editor-background: #ffffff;
   --vscode-editor-foreground: #333333;
+  --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
+  --vscode-font-size: 13px;
+
   --vscode-textLink-foreground: #006ab1;
   --vscode-textPreformat-foreground: #a31515;
   --vscode-textPreformat-background: rgba(0, 0, 0, 0.06);
   --vscode-textCodeBlock-background: rgba(0, 0, 0, 0.04);
   --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
   --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
+
   --vscode-editorWidget-background: #f3f3f3;
   --vscode-editorWidget-border: #c8c8c8;
   --vscode-editorHoverWidget-background: #f3f3f3;
   --vscode-editorHoverWidget-border: #c8c8c8;
   --vscode-editorIndentGuide-background: rgba(0, 0, 0, 0.1);
+
   --vscode-button-background: #007acc;
   --vscode-button-foreground: #ffffff;
   --vscode-button-hoverBackground: #0062a3;
   --vscode-focusBorder: #007fd4;
+  --vscode-icon-foreground: #424242;
+
   --vscode-input-background: #ffffff;
   --vscode-input-foreground: #333333;
   --vscode-input-border: #cecece;
+  --vscode-inputValidation-errorBackground: #f2dede;
+  --vscode-editorError-foreground: #e51400;
+  --vscode-editorError-background: rgba(255, 0, 0, 0.08);
+  --vscode-editorInfo-foreground: #1a85ff;
+  --vscode-editorWarning-foreground: #bf8803;
+
   --vscode-list-hoverBackground: #e8e8e8;
   --vscode-toolbar-hoverBackground: rgba(184, 184, 184, 0.31);
+  --vscode-toolbar-activeBackground: rgba(166, 166, 166, 0.31);
   --vscode-sideBar-background: #f3f3f3;
   --vscode-sideBar-foreground: #616161;
   --vscode-widget-shadow: rgba(0, 0, 0, 0.16);
+
+  /* Chart / Mermaid palette (VS Code colorRegistry defaults + light themes) */
+  --vscode-charts-foreground: #333333;
+  --vscode-charts-lines: rgba(51, 51, 51, 0.5);
+  --vscode-chart-line: #1a85ff;
+  --vscode-charts-blue: #1a85ff;
+  --vscode-charts-green: #388a34;
+  --vscode-charts-orange: #d18616;
+  --vscode-charts-red: #e51400;
+  --vscode-charts-purple: #652d90;
+  --vscode-charts-yellow: #bf8803;
+
   --markdown-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
   --markdown-font-size: 14px;
   --markdown-line-height: 22px;
 }
 
+/* ---------- dark ---------- */
+html[data-theme="dark"],
 .vscode-md-preview-root[data-theme="dark"] {
   color-scheme: dark;
+
+  --vscode-foreground: #cccccc;
   --vscode-editor-background: #1e1e1e;
   --vscode-editor-foreground: #d4d4d4;
+  --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
+  --vscode-font-size: 13px;
+
   --vscode-textLink-foreground: #3794ff;
   --vscode-textPreformat-foreground: #d7ba7d;
   --vscode-textPreformat-background: rgba(255, 255, 255, 0.1);
   --vscode-textCodeBlock-background: rgba(10, 10, 10, 0.4);
   --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
   --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
+
   --vscode-editorWidget-background: #252526;
   --vscode-editorWidget-border: #454545;
   --vscode-editorHoverWidget-background: #252526;
   --vscode-editorHoverWidget-border: #454545;
   --vscode-editorIndentGuide-background: rgba(255, 255, 255, 0.1);
+
   --vscode-button-background: #0e639c;
   --vscode-button-foreground: #ffffff;
   --vscode-button-hoverBackground: #1177bb;
   --vscode-focusBorder: #007fd4;
+  --vscode-icon-foreground: #c5c5c5;
+
   --vscode-input-background: #3c3c3c;
   --vscode-input-foreground: #cccccc;
   --vscode-input-border: #3c3c3c;
+  --vscode-inputValidation-errorBackground: #5a1d1d;
+  --vscode-editorError-foreground: #f14c4c;
+  --vscode-editorError-background: rgba(255, 0, 0, 0.12);
+  --vscode-editorInfo-foreground: #3794ff;
+  --vscode-editorWarning-foreground: #cca700;
+
   --vscode-list-hoverBackground: #2a2d2e;
   --vscode-toolbar-hoverBackground: rgba(90, 93, 94, 0.31);
+  --vscode-toolbar-activeBackground: rgba(99, 102, 103, 0.31);
   --vscode-sideBar-background: #252526;
   --vscode-sideBar-foreground: #cccccc;
   --vscode-widget-shadow: rgba(0, 0, 0, 0.36);
+
+  --vscode-charts-foreground: #cccccc;
+  --vscode-charts-lines: rgba(204, 204, 204, 0.5);
+  --vscode-chart-line: #3794ff;
+  --vscode-charts-blue: #3794ff;
+  --vscode-charts-green: #89d185;
+  --vscode-charts-orange: #d18616;
+  --vscode-charts-red: #f14c4c;
+  --vscode-charts-purple: #b180d7;
+  --vscode-charts-yellow: #cca700;
 }
 
+/* system dark when theme is auto (no explicit light) */
 @media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .vscode-md-preview-root:not([data-theme="light"]),
+  html:not([data-theme]):not([data-theme="light"]) {
+    /* handled via data-theme set in JS; keep media fallback for first paint */
+  }
+
   .vscode-md-preview-root:not([data-theme="light"]) {
     color-scheme: dark;
+    --vscode-foreground: #cccccc;
     --vscode-editor-background: #1e1e1e;
     --vscode-editor-foreground: #d4d4d4;
     --vscode-textLink-foreground: #3794ff;
@@ -82,14 +147,30 @@
     --vscode-button-foreground: #ffffff;
     --vscode-button-hoverBackground: #1177bb;
     --vscode-focusBorder: #007fd4;
+    --vscode-icon-foreground: #c5c5c5;
     --vscode-input-background: #3c3c3c;
     --vscode-input-foreground: #cccccc;
     --vscode-input-border: #3c3c3c;
+    --vscode-inputValidation-errorBackground: #5a1d1d;
+    --vscode-editorError-foreground: #f14c4c;
+    --vscode-editorError-background: rgba(255, 0, 0, 0.12);
+    --vscode-editorInfo-foreground: #3794ff;
+    --vscode-editorWarning-foreground: #cca700;
     --vscode-list-hoverBackground: #2a2d2e;
     --vscode-toolbar-hoverBackground: rgba(90, 93, 94, 0.31);
+    --vscode-toolbar-activeBackground: rgba(99, 102, 103, 0.31);
     --vscode-sideBar-background: #252526;
     --vscode-sideBar-foreground: #cccccc;
     --vscode-widget-shadow: rgba(0, 0, 0, 0.36);
+    --vscode-charts-foreground: #cccccc;
+    --vscode-charts-lines: rgba(204, 204, 204, 0.5);
+    --vscode-chart-line: #3794ff;
+    --vscode-charts-blue: #3794ff;
+    --vscode-charts-green: #89d185;
+    --vscode-charts-orange: #d18616;
+    --vscode-charts-red: #f14c4c;
+    --vscode-charts-purple: #b180d7;
+    --vscode-charts-yellow: #cca700;
   }
 }
 
@@ -106,6 +187,34 @@ body.vscode-md-preview-active {
   font-family: var(--markdown-font-family);
 }
 
+/* Mermaid diagram container polish (subset of VS Code diagramStyles) */
+.markdown-body .mermaid {
+  margin: 1em 0;
+  text-align: center;
+  overflow: auto;
+}
+
+.markdown-body .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Transparent mermaid background so editor bg shows through like VS Code */
+.markdown-body .mermaid svg {
+  background: transparent;
+}
+
+.vscode-md-preview-error {
+  color: #f48771;
+  background: rgba(244, 135, 113, 0.1);
+  border: 1px solid rgba(244, 135, 113, 0.4);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-family: var(--markdown-font-family);
+  font-size: 13px;
+}
+
 .markdown-body {
   box-sizing: border-box;
   min-width: 200px;
@@ -118,15 +227,4 @@ body.vscode-md-preview-active {
   .markdown-body {
     padding: 15px;
   }
-}
-
-.vscode-md-preview-error {
-  color: #f48771;
-  background: rgba(244, 135, 113, 0.1);
-  border: 1px solid rgba(244, 135, 113, 0.4);
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin: 8px 0;
-  font-family: var(--markdown-font-family);
-  font-size: 13px;
 }

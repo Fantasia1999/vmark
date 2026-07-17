@@ -7,7 +7,7 @@ Chrome 扩展：把 VS Code 的 **Open as Preview** 渲染逻辑提取为浏览�
 - `markdown-it` + highlight.js（`markdown-language-features`）
 - `markdown.css` / `highlight.css`（VS Code 预览样式）
 - KaTeX（`markdown-math` / `@vscode/markdown-it-katex`）
-- Mermaid fence（`mermaid-markdown-features`）
+- Mermaid fence + **VS Code 派生主题**（`mermaid-markdown-features`：`theme: base` + CSS `themeVariables`）
 
 ## 安装（开发版）
 
