@@ -35,6 +35,7 @@ npm run build
 | 扩展图标 → **打开本地 Markdown…** | 选择单个 `.md` 文件预览 |
 | 预览工作台 | 换夹 / 刷新 / 拖放文件、Preview ↔ Source |
 | 工作区内相对图片与 `.md` 链接 | 通过 File System Access API 解析 |
+| **大纲**（目录） | 紧凑悬浮窗（工具栏「大纲」）；可 **Pin 固定**、拖动标题栏；不占版面 |
 | 打开 `*.md`（含 `file://`）/ GitHub raw | 页面内自动预览 |
 | 扩展图标 → 切换当前页预览 | 对当前标签页强制切换 |
 | 选项页 | breaks / linkify / 数学 / Mermaid / 主题 |

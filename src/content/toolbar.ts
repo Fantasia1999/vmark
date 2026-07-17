@@ -1,8 +1,13 @@
+import { createIconEl, setButtonIcon } from '../shared/icons';
+
 export type PreviewMode = 'preview' | 'source';
 
 export interface ToolbarHandlers {
   onToggleMode: (mode: PreviewMode) => void;
   onOpenOptions: () => void;
+  /** Optional: toggle document outline / TOC */
+  onToggleOutline?: () => void;
+  outlineOpen?: boolean;
 }
 
 export function mountToolbar(
@@ -19,7 +24,8 @@ export function mountToolbar(
 
   const label = document.createElement('span');
   label.className = 'vsc-md-label';
-  label.textContent = 'MD';
+  label.title = 'VS Code Markdown Preview';
+  label.appendChild(createIconEl('brand'));
 
   const previewBtn = document.createElement('button');
   previewBtn.type = 'button';
@@ -31,10 +37,21 @@ export function mountToolbar(
   sourceBtn.textContent = 'Source';
   sourceBtn.dataset.mode = 'source';
 
+  const outlineBtn = document.createElement('button');
+  outlineBtn.type = 'button';
+  outlineBtn.className = 'vsc-icon-btn';
+  outlineBtn.title = '文档大纲';
+  outlineBtn.dataset.action = 'outline';
+  setButtonIcon(outlineBtn, 'outline');
+  if (handlers.outlineOpen) {
+    outlineBtn.classList.add('active');
+  }
+
   const optionsBtn = document.createElement('button');
   optionsBtn.type = 'button';
-  optionsBtn.textContent = '⚙';
-  optionsBtn.title = 'Options';
+  optionsBtn.className = 'vsc-icon-btn';
+  optionsBtn.title = '选项';
+  setButtonIcon(optionsBtn, 'settings');
 
   const setActive = (m: PreviewMode) => {
     previewBtn.classList.toggle('active', m === 'preview');
@@ -50,9 +67,14 @@ export function mountToolbar(
     setActive('source');
     handlers.onToggleMode('source');
   });
+  outlineBtn.addEventListener('click', () => handlers.onToggleOutline?.());
   optionsBtn.addEventListener('click', () => handlers.onOpenOptions());
 
-  bar.append(label, previewBtn, sourceBtn, optionsBtn);
+  bar.append(label, previewBtn, sourceBtn);
+  if (handlers.onToggleOutline) {
+    bar.append(outlineBtn);
+  }
+  bar.append(optionsBtn);
   document.documentElement.appendChild(bar);
   return bar;
 }
