@@ -1,5 +1,8 @@
 /**
  * Windows WSL helpers via wsl.exe (runs on Windows host only).
+ *
+ * Scripts are base64-encoded before being passed through wsl.exe to avoid
+ * Windows/WSL argument splitting and accidental $var expansion.
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -37,14 +40,19 @@ export async function listDistros() {
   if (!isWindowsHost()) {
     throw new Error('WSL is only available when the bridge runs on Windows');
   }
-  const { stdout } = await execFileAsync('wsl.exe', ['-l', '-q'], {
-    encoding: 'buffer',
-    windowsHide: true,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  // wsl -l -q emits UTF-16LE
+  let stdout;
+  try {
+    ({ stdout } = await execFileAsync('wsl.exe', ['-l', '-q'], {
+      encoding: 'buffer',
+      windowsHide: true,
+      maxBuffer: 2 * 1024 * 1024,
+    }));
+  } catch (e) {
+    throw new Error(formatExecError('wsl.exe -l -q failed', e));
+  }
+  // wsl -l -q often emits UTF-16LE (NUL between chars)
   let text;
-  if (stdout[1] === 0) {
+  if (stdout.length >= 2 && stdout[1] === 0) {
     text = stdout.toString('utf16le');
   } else {
     text = stdout.toString('utf8');
@@ -52,45 +60,119 @@ export async function listDistros() {
   return text
     .split(/\r?\n/)
     .map((s) => s.replace(/\0/g, '').trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    // drop docker-desktop noise if present
+    .filter((n) => !/^docker-desktop/i.test(n));
 }
 
 function shellQuote(s) {
   return `'${String(s).replace(/'/g, `'\\''`)}'`;
 }
 
+/** Drop known noisy WSL warnings from stderr. */
+function cleanWslText(s) {
+  return String(s || '')
+    .split(/\r?\n/)
+    .filter((line) => {
+      const t = line.trim();
+      if (!t) {
+        return false;
+      }
+      if (/localhost proxy configuration was detected/i.test(t)) {
+        return false;
+      }
+      if (/WSL in NAT mode does not support localhost proxies/i.test(t)) {
+        return false;
+      }
+      return true;
+    })
+    .join('\n')
+    .trim();
+}
+
+function formatExecError(prefix, e) {
+  const err = e && typeof e === 'object' ? e : {};
+  const stderr = cleanWslText(err.stderr);
+  const stdout = cleanWslText(err.stdout);
+  const msg = err.message ? String(err.message) : String(e);
+  // Prefer bash's own error over Node's "Command failed: ..."
+  const detail = stderr || stdout || msg;
+  return `${prefix}: ${detail}`;
+}
+
+/**
+ * Run a bash script inside a WSL distro. Script is base64-wrapped for safe transport.
+ */
 async function wslBash(distro, script) {
-  const { stdout, stderr } = await execFileAsync(
-    'wsl.exe',
-    ['-d', distro, '--', 'bash', '-lc', script],
-    {
-      encoding: 'utf8',
-      windowsHide: true,
-      maxBuffer: 32 * 1024 * 1024,
-    },
-  );
-  return { stdout, stderr };
+  if (!isWindowsHost()) {
+    throw new Error('WSL is only available when the bridge runs on Windows');
+  }
+  const b64 = Buffer.from(script, 'utf8').toString('base64');
+  // Single-quoted base64 payload — no $ or spaces issues through wsl.exe argv
+  const runner = `echo '${b64}' | base64 -d | bash`;
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'wsl.exe',
+      ['-d', distro, '--', 'bash', '-c', runner],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        maxBuffer: 32 * 1024 * 1024,
+      },
+    );
+    return {
+      stdout: String(stdout || ''),
+      stderr: cleanWslText(stderr),
+    };
+  } catch (e) {
+    throw new Error(formatExecError(`wsl.exe -d ${distro}`, e));
+  }
 }
 
 /**
  * Resolve root to absolute path inside distro; throw if missing.
  */
 export async function resolveRoot(distro, root) {
-  const r = root || '~';
-  const script = `set -e; p=${shellQuote(r)}; p=$(eval echo "$p"); realpath -m "$p"; test -d "$p" || test -e "$p"`;
-  const { stdout } = await wslBash(distro, script);
-  const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
+  const r = (root || '~').trim() || '~';
+  // Expand ~ without eval; support realpath or readlink -f or pwd -P fallback
+  const script = `
+set -e
+input=${shellQuote(r)}
+case "$input" in
+  "~"|"")
+    p="$HOME"
+    ;;
+  ~/*)
+    p="$HOME/\${input#~/}"
+    ;;
+  *)
+    p="$input"
+    ;;
+esac
+if [ ! -e "$p" ]; then
+  echo "WSL path not found: $p (distro=${distro}, input=$input, HOME=$HOME)" >&2
+  exit 1
+fi
+if command -v realpath >/dev/null 2>&1; then
+  realpath "$p"
+elif command -v readlink >/dev/null 2>&1; then
+  readlink -f "$p"
+else
+  cd "$p" && pwd -P
+fi
+`;
+  const { stdout, stderr } = await wslBash(distro, script);
+  const lines = stdout
+    .trim()
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('/'));
   const abs = lines[lines.length - 1];
-  if (!abs || !abs.startsWith('/')) {
-    throw new Error(`invalid WSL root: ${root}`);
-  }
-  // verify exists
-  const check = await wslBash(
-    distro,
-    `test -e ${shellQuote(abs)} && echo OK`,
-  );
-  if (!check.stdout.includes('OK')) {
-    throw new Error(`WSL path not found: ${abs}`);
+  if (!abs) {
+    throw new Error(
+      stderr ||
+        `failed to resolve WSL path "${r}" in distro "${distro}" (empty result)`,
+    );
   }
   return abs;
 }
@@ -99,13 +181,13 @@ export async function resolveRoot(distro, root) {
  * List markdown files under root (relative paths).
  */
 export async function listMarkdown(distro, rootAbs) {
-  // find is reliable; limit depth
-  const script = [
-    'set -e',
-    `cd ${shellQuote(rootAbs)}`,
-    `find . -maxdepth 12 \\( ${[...SKIP].map((d) => `-name ${shellQuote(d)}`).join(' -o ')} \\) -prune -o -type f -print 2>/dev/null | head -n 8000`,
-  ].join('; ');
-
+  const prune = [...SKIP].map((d) => `-name ${shellQuote(d)}`).join(' -o ');
+  const script = `
+set -e
+cd ${shellQuote(rootAbs)}
+# Print files; prune heavy/hidden trees
+find . -maxdepth 12 \\( ${prune} \\) -prune -o -type f -print 2>/dev/null | head -n 8000
+`;
   const { stdout } = await wslBash(distro, script);
   const files = [];
   for (const line of stdout.split(/\r?\n/)) {
@@ -117,10 +199,8 @@ export async function listMarkdown(distro, rootAbs) {
       rel = rel.slice(2);
     }
     if (rel.startsWith('/')) {
-      // shouldn't happen after cd
       continue;
     }
-    // skip hidden segments
     if (rel.split('/').some((s) => s.startsWith('.') && s !== '.')) {
       continue;
     }
@@ -139,17 +219,24 @@ export async function listMarkdown(distro, rootAbs) {
 }
 
 export async function readFileBase64(distro, absPath) {
-  const script = `base64 -w0 ${shellQuote(absPath)} 2>/dev/null || base64 ${shellQuote(absPath)} | tr -d '\\n'`;
+  const script = `
+set -e
+f=${shellQuote(absPath)}
+if [ ! -f "$f" ]; then
+  echo "file not found: $f" >&2
+  exit 1
+fi
+if base64 -w0 "$f" 2>/dev/null; then
+  :
+elif base64 "$f" 2>/dev/null | tr -d '\\n'; then
+  :
+else
+  echo "base64 failed for $f" >&2
+  exit 1
+fi
+`;
   const { stdout } = await wslBash(distro, script);
-  const b64 = stdout.trim();
-  if (!b64) {
-    // empty file is ok; distinguish missing
-    const exists = await wslBash(distro, `test -f ${shellQuote(absPath)} && echo Y || echo N`);
-    if (!exists.stdout.includes('Y')) {
-      throw new Error(`file not found: ${absPath}`);
-    }
-  }
-  return b64;
+  return stdout.trim();
 }
 
 export async function readFileUtf8(distro, absPath) {
@@ -162,7 +249,6 @@ export function joinUnderRoot(rootAbs, rel) {
   if (!r || r === '.') {
     return rootAbs;
   }
-  // block escape
   const parts = [];
   for (const p of r.split('/')) {
     if (!p || p === '.') {
