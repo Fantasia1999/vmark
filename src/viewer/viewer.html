@@ -202,6 +202,54 @@
         opacity: 0.55;
         cursor: wait;
       }
+      .ssh-mode-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 0 0 12px;
+      }
+      .ssh-mode-option {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0;
+        padding: 8px 10px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .ssh-mode-option:has(input:checked) {
+        border-color: var(--vscode-focusBorder, #007fd4);
+        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 12%, transparent);
+      }
+      .ssh-mode-option input {
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+      .ssh-mode-option .ssh-mode-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .ssh-mode-option .ssh-mode-title {
+        font-weight: 600;
+      }
+      .ssh-mode-option .ssh-mode-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .ssh-mode-option:not(:has(input:checked)) .ssh-mode-fields {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .ssh-mode-option label {
+        margin: 0;
+      }
 
       /* —— workspace shell —— */
       #workspace-shell {
@@ -431,24 +479,43 @@
       <div class="ssh-dialog-card" role="dialog" aria-labelledby="wsl-dialog-title">
         <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
         <p class="ssh-hint">
-          通过本机 Bridge 调用 <code>wsl.exe</code> 读取<strong>发行版内部</strong>路径
-          （如 <code>/home/你的用户/project</code>，不是 Windows 的 <code>C:\\…</code>）。
-          也可粘贴 <code>\\wsl.localhost\Debian\home\…</code>、
-          <code>wsl://Debian/home/…</code>。
+          通过本机 Bridge 调用 <code>wsl.exe</code> 读取发行版内路径。请<strong>二选一</strong>填写。
         </p>
-        <label>发行版
-          <select id="wsl-distro"><option value="">—</option></select>
-        </label>
-        <label>Linux 根目录
-          <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
-        </label>
-        <label>或粘贴完整路径 / URI
-          <input id="wsl-path" type="text" placeholder="\\wsl.localhost\Ubuntu\home\user\proj 或 /home/user/a.md" />
-        </label>
+        <div class="ssh-mode-row" role="radiogroup" aria-label="WSL 打开方式">
+          <label class="ssh-mode-option">
+            <input type="radio" name="wsl-mode" id="wsl-mode-select" value="select" checked />
+            <span class="ssh-mode-body">
+              <span class="ssh-mode-title">选择发行版与目录</span>
+              <span class="ssh-mode-fields">
+                <label>发行版
+                  <select id="wsl-distro"><option value="">—</option></select>
+                </label>
+                <label>Linux 根目录
+                  <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
+                </label>
+              </span>
+            </span>
+          </label>
+          <label class="ssh-mode-option">
+            <input type="radio" name="wsl-mode" id="wsl-mode-paste" value="paste" />
+            <span class="ssh-mode-body">
+              <span class="ssh-mode-title">粘贴完整路径 / URI</span>
+              <span class="ssh-mode-fields">
+                <label>路径
+                  <input
+                    id="wsl-path"
+                    type="text"
+                    placeholder="\\wsl.localhost\Debian\home\user\proj 或 wsl://Debian/home/…"
+                  />
+                </label>
+              </span>
+            </span>
+          </label>
+        </div>
         <p class="ssh-error" id="wsl-error" hidden></p>
         <div class="ssh-actions">
           <button type="button" class="secondary" id="wsl-cancel">取消</button>
-          <button type="button" class="secondary" id="wsl-open-file">用 file:// 打开单文件</button>
+          <button type="button" class="secondary" id="wsl-open-file" title="仅「粘贴路径」模式可用">用 file:// 打开单文件</button>
           <button type="button" id="wsl-connect">连接工作区</button>
         </div>
       </div>
