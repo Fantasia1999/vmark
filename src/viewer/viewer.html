@@ -421,9 +421,10 @@
       <div class="ssh-dialog-card" role="dialog" aria-labelledby="wsl-dialog-title">
         <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
         <p class="ssh-hint">
-          通过本机 Bridge 调用 <code>wsl.exe</code> 读取发行版内文件。也可粘贴
-          <code>\\wsl$\Ubuntu\home\…</code>、<code>wsl://Ubuntu/home/…</code> 或
-          <code>file://wsl.localhost/…</code>。
+          通过本机 Bridge 调用 <code>wsl.exe</code> 读取<strong>发行版内部</strong>路径
+          （如 <code>/home/你的用户/project</code>，不是 Windows 的 <code>C:\\…</code>）。
+          也可粘贴 <code>\\wsl.localhost\Debian\home\…</code>、
+          <code>wsl://Debian/home/…</code>。请先重启 bridge 以加载修复。
         </p>
         <label>发行版
           <select id="wsl-distro"><option value="">—</option></select>
