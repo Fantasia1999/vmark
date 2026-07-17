@@ -1,5 +1,8 @@
 import {
   formatHistoryTime,
+  fileWorkspaceGroupKey,
+  fileWorkspaceGroupLabel,
+  fileWorkspaceGroupSub,
   loadFileHistory,
   loadWorkspaceHistory,
   type FileHistoryEntry,
@@ -13,6 +16,56 @@ export interface HistoryUiHandlers {
   onRemoveWorkspace: (id: string) => void;
   onRemoveFile: (id: string) => void;
   onClearAll: () => void;
+}
+
+interface FileHistoryGroup {
+  key: string;
+  label: string;
+  sub?: string;
+  source: FileHistoryEntry['source'];
+  files: FileHistoryEntry[];
+  /** Most recent file open in this group */
+  openedAt: number;
+}
+
+const EXPAND_STORAGE_KEY = 'historyFileGroupExpanded';
+
+/** In-memory cache; hydrated from chrome.storage.local */
+let expandState: Record<string, boolean> = {};
+let expandStateLoaded = false;
+
+async function loadExpandState(): Promise<Record<string, boolean>> {
+  if (expandStateLoaded) {
+    return expandState;
+  }
+  try {
+    const r = await chrome.storage.local.get(EXPAND_STORAGE_KEY);
+    const raw = r[EXPAND_STORAGE_KEY];
+    expandState =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? (raw as Record<string, boolean>)
+        : {};
+  } catch {
+    expandState = {};
+  }
+  expandStateLoaded = true;
+  return expandState;
+}
+
+async function setGroupExpanded(key: string, expanded: boolean): Promise<void> {
+  expandState = { ...expandState, [key]: expanded };
+  try {
+    await chrome.storage.local.set({ [EXPAND_STORAGE_KEY]: expandState });
+  } catch {
+    // ignore
+  }
+}
+
+function isGroupExpanded(key: string, defaultExpanded: boolean): boolean {
+  if (Object.prototype.hasOwnProperty.call(expandState, key)) {
+    return Boolean(expandState[key]);
+  }
+  return defaultExpanded;
 }
 
 function sourceIcon(source: string): IconName {
@@ -48,18 +101,50 @@ function workspaceSub(entry: WorkspaceHistoryEntry): string {
   return entry.source;
 }
 
-function fileSub(entry: FileHistoryEntry): string {
-  const parts: string[] = [];
-  if (entry.workspaceTitle) {
-    parts.push(entry.workspaceTitle);
-  }
+/** Path-only subtitle when already nested under a workspace group. */
+function fileSubInGroup(entry: FileHistoryEntry): string {
   if (entry.path && entry.path !== entry.title) {
-    parts.push(entry.path);
+    return entry.path;
   }
-  if (!parts.length) {
-    parts.push(entry.source === 'standalone' ? '本地文件' : entry.source);
+  if (entry.source === 'standalone') {
+    return '本地单文件';
   }
-  return parts.join(' · ');
+  return entry.path || entry.source;
+}
+
+function groupFilesByWorkspace(files: FileHistoryEntry[]): FileHistoryGroup[] {
+  const map = new Map<string, FileHistoryGroup>();
+  for (const file of files) {
+    const key = fileWorkspaceGroupKey(file);
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        key,
+        label: fileWorkspaceGroupLabel(file),
+        sub: fileWorkspaceGroupSub(file),
+        source: file.source,
+        files: [],
+        openedAt: file.openedAt,
+      };
+      map.set(key, group);
+    }
+    group.files.push(file);
+    if (file.openedAt > group.openedAt) {
+      group.openedAt = file.openedAt;
+      // Prefer label from the newest entry
+      group.label = fileWorkspaceGroupLabel(file);
+      group.sub = fileWorkspaceGroupSub(file);
+    }
+  }
+
+  const groups = [...map.values()];
+  // Within each group: newest first
+  for (const g of groups) {
+    g.files.sort((a, b) => b.openedAt - a.openedAt);
+  }
+  // Groups: most recently used first
+  groups.sort((a, b) => b.openedAt - a.openedAt);
+  return groups;
 }
 
 function renderWorkspaceItem(
@@ -113,7 +198,7 @@ function renderWorkspaceItem(
 
 function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): HTMLLIElement {
   const li = document.createElement('li');
-  li.className = 'history-item';
+  li.className = 'history-item history-item-file';
   li.dataset.id = entry.id;
 
   const main = document.createElement('button');
@@ -132,7 +217,7 @@ function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): H
   title.textContent = entry.title;
   const sub = document.createElement('span');
   sub.className = 'history-item-sub';
-  sub.textContent = fileSub(entry);
+  sub.textContent = fileSubInGroup(entry);
   text.append(title, sub);
 
   const time = document.createElement('span');
@@ -157,6 +242,80 @@ function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): H
   return li;
 }
 
+function applyGroupExpandedUi(
+  groupEl: HTMLElement,
+  chevron: HTMLElement,
+  fileUl: HTMLElement,
+  expanded: boolean,
+): void {
+  groupEl.classList.toggle('is-collapsed', !expanded);
+  groupEl.classList.toggle('is-expanded', expanded);
+  fileUl.hidden = !expanded;
+  chevron.replaceChildren(createIconEl(expanded ? 'chevronDown' : 'chevronRight', 'vsc-icon vsc-icon-sm'));
+}
+
+function renderFileGroup(
+  group: FileHistoryGroup,
+  handlers: HistoryUiHandlers,
+  defaultExpanded: boolean,
+): HTMLLIElement {
+  const expanded = isGroupExpanded(group.key, defaultExpanded);
+
+  const li = document.createElement('li');
+  li.className = 'history-group';
+  li.dataset.groupKey = group.key;
+
+  const header = document.createElement('button');
+  header.type = 'button';
+  header.className = 'history-group-header';
+  header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  header.title = expanded ? `收起 ${group.label}` : `展开 ${group.label}`;
+
+  const chevron = document.createElement('span');
+  chevron.className = 'history-group-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+
+  const icon = document.createElement('span');
+  icon.className = 'history-item-icon history-group-icon';
+  icon.appendChild(createIconEl(sourceIcon(group.source)));
+
+  const text = document.createElement('span');
+  text.className = 'history-item-text';
+  const title = document.createElement('span');
+  title.className = 'history-item-title';
+  title.textContent = group.label;
+  text.appendChild(title);
+  if (group.sub) {
+    const sub = document.createElement('span');
+    sub.className = 'history-item-sub';
+    sub.textContent = group.sub;
+    text.appendChild(sub);
+  }
+
+  const count = document.createElement('span');
+  count.className = 'history-group-count';
+  count.textContent = String(group.files.length);
+
+  header.append(chevron, icon, text, count);
+
+  const fileUl = document.createElement('ul');
+  fileUl.className = 'history-group-files';
+  fileUl.replaceChildren(...group.files.map((f) => renderFileItem(f, handlers)));
+
+  applyGroupExpandedUi(li, chevron, fileUl, expanded);
+
+  header.addEventListener('click', () => {
+    const next = li.classList.contains('is-collapsed');
+    applyGroupExpandedUi(li, chevron, fileUl, next);
+    header.setAttribute('aria-expanded', next ? 'true' : 'false');
+    header.title = next ? `收起 ${group.label}` : `展开 ${group.label}`;
+    void setGroupExpanded(group.key, next);
+  });
+
+  li.append(header, fileUl);
+  return li;
+}
+
 export async function refreshHistoryPanel(handlers: HistoryUiHandlers): Promise<void> {
   const panel = document.getElementById('history-panel');
   const wsList = document.getElementById('history-workspaces');
@@ -165,13 +324,20 @@ export async function refreshHistoryPanel(handlers: HistoryUiHandlers): Promise<
     return;
   }
 
-  const [workspaces, files] = await Promise.all([
+  const [, workspaces, files] = await Promise.all([
+    loadExpandState(),
     loadWorkspaceHistory(),
     loadFileHistory(),
   ]);
 
   wsList.replaceChildren(...workspaces.map((e) => renderWorkspaceItem(e, handlers)));
-  fileList.replaceChildren(...files.map((e) => renderFileItem(e, handlers)));
+
+  const groups = groupFilesByWorkspace(files);
+  // Default: only the most recently used group is expanded
+  fileList.classList.add('history-file-groups');
+  fileList.replaceChildren(
+    ...groups.map((g, i) => renderFileGroup(g, handlers, i === 0)),
+  );
 
   const hasAny = workspaces.length > 0 || files.length > 0;
   panel.hidden = !hasAny;

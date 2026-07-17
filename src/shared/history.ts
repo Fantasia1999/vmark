@@ -99,6 +99,66 @@ function fileKey(entry: {
   return `file:${entry.source}:${entry.path || entry.title}`;
 }
 
+/** Stable key for grouping recent files by workspace context. */
+export function fileWorkspaceGroupKey(entry: {
+  source: FileHistoryEntry['source'];
+  localName?: string;
+  workspaceTitle?: string;
+  ssh?: SshHistoryTarget;
+  wsl?: WslHistoryTarget;
+}): string {
+  if (entry.source === 'standalone') {
+    return 'standalone';
+  }
+  if (entry.source === 'local') {
+    return `local:${entry.localName || entry.workspaceTitle || ''}`;
+  }
+  if (entry.source === 'ssh' && entry.ssh) {
+    return `ssh:${entry.ssh.username}@${entry.ssh.host}:${entry.ssh.port}:${entry.ssh.root}`;
+  }
+  if (entry.source === 'wsl' && entry.wsl) {
+    return `wsl:${entry.wsl.distro}:${entry.wsl.root}`;
+  }
+  return `other:${entry.source}`;
+}
+
+export function fileWorkspaceGroupLabel(entry: FileHistoryEntry): string {
+  if (entry.source === 'standalone') {
+    return '本地文件';
+  }
+  if (entry.workspaceTitle) {
+    return entry.workspaceTitle;
+  }
+  if (entry.source === 'local') {
+    return entry.localName || '本地文件夹';
+  }
+  if (entry.source === 'ssh' && entry.ssh) {
+    return `${entry.ssh.username}@${entry.ssh.host}`;
+  }
+  if (entry.source === 'wsl' && entry.wsl) {
+    return `wsl://${entry.wsl.distro}`;
+  }
+  return entry.source;
+}
+
+export function fileWorkspaceGroupSub(entry: FileHistoryEntry): string | undefined {
+  if (entry.source === 'standalone') {
+    return undefined;
+  }
+  if (entry.source === 'local') {
+    return entry.localName && entry.workspaceTitle !== entry.localName
+      ? entry.localName
+      : '本地文件夹';
+  }
+  if (entry.source === 'ssh' && entry.ssh) {
+    return `${entry.ssh.root} · :${entry.ssh.port}`;
+  }
+  if (entry.source === 'wsl' && entry.wsl) {
+    return entry.wsl.root;
+  }
+  return undefined;
+}
+
 async function loadList<T>(key: string): Promise<T[]> {
   try {
     const r = await chrome.storage.local.get(key);
@@ -223,7 +283,7 @@ export async function removeFileHistory(id: string): Promise<void> {
 }
 
 export async function clearAllHistory(): Promise<void> {
-  await chrome.storage.local.remove([WS_KEY, FILE_KEY]);
+  await chrome.storage.local.remove([WS_KEY, FILE_KEY, 'historyFileGroupExpanded']);
 }
 
 export function formatHistoryTime(ts: number): string {
