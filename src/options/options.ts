@@ -41,11 +41,19 @@ async function refreshBridgeStatus(): Promise<void> {
     el.textContent = 'Bridge status: offline (start ssh-bridge)';
     return;
   }
-  if (h.connected && h.meta) {
-    el.textContent = `Bridge status: online · connected as ${h.meta.username}@${h.meta.host}`;
-  } else {
-    el.textContent = 'Bridge status: online · not connected';
+  const bits = ['online'];
+  if (h.wslAvailable) {
+    bits.push('WSL ready');
+  } else if (h.platform && h.platform !== 'win32') {
+    bits.push('WSL n/a (not Windows)');
   }
+  if (h.connected && h.meta) {
+    bits.push(`SSH ${h.meta.username}@${h.meta.host}`);
+  }
+  if (h.wslConnected && h.wslMeta) {
+    bits.push(`WSL ${h.wslMeta.distro}:${h.wslMeta.root}`);
+  }
+  el.textContent = `Bridge status: ${bits.join(' · ')}`;
 }
 
 async function init(): Promise<void> {

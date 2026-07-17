@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Local SSH/SFTP bridge for the Chrome extension.
+ * Local bridge for the Chrome extension: SSH/SFTP + Windows WSL.
  * Binds to 127.0.0.1 only. Requires a token on every request.
  *
  * Usage:
@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Client } from 'ssh2';
+import * as wsl from './wsl.mjs';
 
 const PORT = Number(process.env.PORT || 17823);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -47,6 +48,9 @@ const TOKEN = loadOrCreateToken();
 
 /** @type {{ client: Client, sftp: import('ssh2').SFTPWrapper, meta: object } | null} */
 let session = null;
+
+/** @type {{ distro: string, root: string, connectedAt: number } | null} */
+let wslSession = null;
 
 const SKIP = new Set([
   'node_modules',
@@ -288,7 +292,10 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/health') {
     json(res, 200, {
       ok: true,
+      platform: process.platform,
+      wslAvailable: process.platform === 'win32',
       connected: !!session,
+      wslConnected: !!wslSession,
       meta: session?.meta
         ? {
             host: session.meta.host,
@@ -298,6 +305,7 @@ const server = http.createServer(async (req, res) => {
             connectedAt: session.meta.connectedAt,
           }
         : null,
+      wslMeta: wslSession,
     });
     return;
   }
@@ -342,6 +350,80 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/disconnect') {
       disconnect();
       json(res, 200, { ok: true });
+      return;
+    }
+
+    // —— WSL ——
+    if (req.method === 'GET' && url.pathname === '/wsl/distros') {
+      const distros = await wsl.listDistros();
+      json(res, 200, { distros, platform: process.platform });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/wsl/connect') {
+      if (!wsl.isWindowsHost()) {
+        json(res, 400, { error: 'WSL bridge requires Windows host (wsl.exe)' });
+        return;
+      }
+      const body = JSON.parse((await readBody(req)) || '{}');
+      const distro = String(body.distro || '').trim();
+      const root = String(body.root || '~').trim() || '~';
+      if (!distro) {
+        json(res, 400, { error: 'distro required' });
+        return;
+      }
+      const rootAbs = await wsl.resolveRoot(distro, root);
+      wslSession = { distro, root: rootAbs, connectedAt: Date.now() };
+      json(res, 200, { ok: true, meta: wslSession });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/wsl/disconnect') {
+      wslSession = null;
+      json(res, 200, { ok: true });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/wsl/list') {
+      if (!wslSession) {
+        json(res, 409, { error: 'WSL not connected' });
+        return;
+      }
+      const files = await wsl.listMarkdown(wslSession.distro, wslSession.root);
+      json(res, 200, { files, meta: wslSession });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/wsl/read') {
+      if (!wslSession) {
+        json(res, 409, { error: 'WSL not connected' });
+        return;
+      }
+      const rel = normalizeRel(url.searchParams.get('path') || '');
+      if (!rel) {
+        json(res, 400, { error: 'path required' });
+        return;
+      }
+      const abs = wsl.joinUnderRoot(wslSession.root, rel);
+      wsl.assertUnderRoot(wslSession.root, abs);
+      const encoding = url.searchParams.get('encoding') || 'utf8';
+      if (encoding === 'base64') {
+        const content = await wsl.readFileBase64(wslSession.distro, abs);
+        json(res, 200, {
+          path: rel,
+          encoding: 'base64',
+          content,
+          size: Buffer.from(content, 'base64').length,
+        });
+      } else {
+        const content = await wsl.readFileUtf8(wslSession.distro, abs);
+        json(res, 200, {
+          path: rel,
+          encoding: 'utf8',
+          content,
+          size: Buffer.byteLength(content),
+        });
+      }
       return;
     }
 
@@ -403,17 +485,19 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log('');
-  console.log('VS Code Markdown Preview — SSH Bridge');
-  console.log('--------------------------------------');
+  console.log('VS Code Markdown Preview — Local Bridge (SSH + WSL)');
+  console.log('----------------------------------------------------');
   console.log(`Listening:  http://${HOST}:${PORT}`);
   console.log(`Token:      ${TOKEN}`);
   console.log(`Token file: ${TOKEN_FILE}`);
+  console.log(`Platform:   ${process.platform}`);
+  console.log(`WSL APIs:   ${process.platform === 'win32' ? 'enabled' : 'disabled (need Windows)'}`);
   console.log('');
   console.log('In the extension options, set:');
   console.log(`  Bridge URL:   http://${HOST}:${PORT}`);
   console.log(`  Bridge token: (paste token above)`);
   console.log('');
-  console.log('Keep this process running while using SSH workspace.');
+  console.log('Keep this process running while using SSH / WSL workspace.');
   console.log('');
 });
 

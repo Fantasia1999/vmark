@@ -96,11 +96,11 @@
     </fieldset>
 
     <fieldset>
-      <legend>SSH Bridge</legend>
+      <legend>Local Bridge (SSH / WSL)</legend>
       <p class="hint" style="margin-top:0">
-        Chrome 无法直接 SSH。请在本机运行桥接：
+        Chrome 无法直接 SSH/调用 wsl.exe。请在本机运行桥接：
         <code>cd ssh-bridge && npm install && npm start</code>，
-        将终端打印的 Token 填到下方。
+        将终端打印的 Token 填到下方。WSL 工作区需 Bridge 运行在 <strong>Windows</strong> 主机上。
       </p>
       <label style="flex-direction:column;align-items:stretch;gap:0.35rem">
         Bridge URL
