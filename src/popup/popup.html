@@ -47,11 +47,19 @@
         outline: 2px solid #007fd4;
         outline-offset: 1px;
       }
-      button .icon {
+      .popup-icon {
+        display: inline-flex;
         width: 18px;
-        text-align: center;
-        opacity: 0.85;
+        height: 18px;
         flex-shrink: 0;
+        opacity: 0.9;
+        color: currentColor;
+        line-height: 0;
+      }
+      .popup-icon svg {
+        width: 16px;
+        height: 16px;
+        display: block;
       }
       button.primary {
         background: #0e639c;
@@ -60,6 +68,9 @@
       }
       button.primary:hover {
         background: #1177bb;
+      }
+      button.primary .popup-icon {
+        opacity: 1;
       }
       .hint {
         margin: 8px 8px 4px;
@@ -77,24 +88,24 @@
   <body>
     <h1>Markdown Preview</h1>
     <button type="button" class="primary" id="openWorkspace">
-      <span class="icon">📁</span>
+      <span class="popup-icon" data-icon="folder"></span>
       <span>打开工作区文件夹…</span>
     </button>
     <button type="button" id="openLocal">
-      <span class="icon">📄</span>
+      <span class="popup-icon" data-icon="file"></span>
       <span>打开本地 Markdown…</span>
     </button>
     <button type="button" id="openViewer">
-      <span class="icon">🗂</span>
+      <span class="popup-icon" data-icon="workbench"></span>
       <span>打开预览工作台</span>
     </button>
     <hr />
     <button type="button" id="togglePreview">
-      <span class="icon">👁</span>
+      <span class="popup-icon" data-icon="preview"></span>
       <span>切换当前页预览</span>
     </button>
     <button type="button" id="openOptions">
-      <span class="icon">⚙</span>
+      <span class="popup-icon" data-icon="settings"></span>
       <span>选项</span>
     </button>
     <p class="hint">

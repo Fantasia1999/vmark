@@ -1,3 +1,4 @@
+import { createIconEl } from '../shared/icons';
 import type { WorkspaceTreeNode } from '../shared/workspaceFs';
 
 export interface WorkspaceUiHandlers {
@@ -39,7 +40,7 @@ function appendNodes(
       row.style.paddingLeft = `${8 + depth * 12}px`;
       const twisty = document.createElement('span');
       twisty.className = 'ws-twisty open';
-      twisty.textContent = '▾';
+      twisty.appendChild(createIconEl('chevronDown', 'vsc-icon vsc-icon-sm'));
       const label = document.createElement('span');
       label.className = 'ws-label';
       label.textContent = node.name;
@@ -53,7 +54,9 @@ function appendNodes(
         const open = childUl.hidden;
         childUl.hidden = !open;
         twisty.classList.toggle('open', open);
-        twisty.textContent = open ? '▾' : '▸';
+        twisty.replaceChildren(
+          createIconEl(open ? 'chevronDown' : 'chevronRight', 'vsc-icon vsc-icon-sm'),
+        );
       });
 
       li.append(row, childUl);
@@ -67,7 +70,7 @@ function appendNodes(
       }
       const icon = document.createElement('span');
       icon.className = 'ws-file-icon';
-      icon.textContent = 'MD';
+      icon.appendChild(createIconEl('mdFile'));
       const label = document.createElement('span');
       label.className = 'ws-label';
       label.textContent = node.name;
