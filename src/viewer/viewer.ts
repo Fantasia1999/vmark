@@ -10,6 +10,22 @@ import {
   saveLocalDoc,
   type LocalMarkdownDoc,
 } from '../shared/localDoc';
+import {
+  buildFileTree,
+  clearWorkspace,
+  createWorkspaceObjectUrl,
+  ensureReadPermission,
+  isDirectoryPickerSupported,
+  listMarkdownFiles,
+  loadWorkspaceHandle,
+  loadWorkspaceMeta,
+  pickWorkspaceDirectory,
+  readWorkspaceTextFile,
+  resolveRelativePath,
+  saveWorkspaceHandle,
+  type WorkspaceFileEntry,
+} from '../shared/workspaceFs';
+import { renderFileTree, setWorkspaceChrome } from './workspaceUi';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -19,12 +35,17 @@ import toolbarCss from '../preview/styles/toolbar.css';
 const STYLE_ID = 'vscode-md-preview-styles';
 const ROOT_ID = 'vscode-md-preview-root';
 const SOURCE_ID = 'vscode-md-preview-source';
-const EMPTY_ID = 'empty-state';
 
 let doc: LocalMarkdownDoc | null = null;
+/** Relative path inside workspace when in workspace mode */
+let currentPath: string | undefined;
 let mode: PreviewMode = 'preview';
 let settings: PreviewSettings;
 let engine: MarkdownPreviewEngine;
+
+let workspaceRoot: FileSystemDirectoryHandle | null = null;
+let workspaceFiles: WorkspaceFileEntry[] = [];
+let objectUrls: string[] = [];
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -59,26 +80,223 @@ function injectStyles(): void {
   }
 }
 
+function applyThemeClass(): void {
+  const theme = resolveTheme(settings.theme);
+  document.documentElement.dataset.theme = theme;
+  document.body.classList.toggle('vscode-dark', theme === 'dark');
+  document.body.classList.toggle('vscode-light', theme === 'light');
+  document.documentElement.classList.add('vscode-md-preview-active');
+  document.body.classList.add('vscode-md-preview-active');
+}
+
 function setDocumentTitle(name?: string): void {
-  document.title = name ? `${name} — Markdown Preview` : 'Markdown Preview';
+  const ws = workspaceRoot?.name;
+  if (name && ws) {
+    document.title = `${name} — ${ws}`;
+  } else if (name) {
+    document.title = `${name} — Markdown Preview`;
+  } else if (ws) {
+    document.title = `${ws} — Workspace`;
+  } else {
+    document.title = 'Markdown Preview';
+  }
+}
+
+function revokeObjectUrls(): void {
+  for (const u of objectUrls) {
+    URL.revokeObjectURL(u);
+  }
+  objectUrls = [];
 }
 
 function showEmpty(): void {
+  revokeObjectUrls();
+  workspaceRoot = null;
+  workspaceFiles = [];
+  currentPath = undefined;
+  doc = null;
+  setWorkspaceChrome(false);
   $('empty-state').hidden = false;
-  const root = document.getElementById(ROOT_ID);
-  const source = document.getElementById(SOURCE_ID);
-  if (root) {
-    root.hidden = true;
-    root.innerHTML = '';
-  }
-  if (source) {
-    source.hidden = true;
-    source.textContent = '';
-  }
   document.getElementById('vscode-md-preview-toolbar')?.remove();
   document.documentElement.classList.remove('vscode-md-preview-active');
-  document.body.classList.remove('vscode-md-preview-active', 'vscode-dark', 'vscode-light');
+  document.body.classList.remove('vscode-md-preview-active');
   setDocumentTitle();
+}
+
+function updatePathBar(): void {
+  const pathEl = document.getElementById('ws-current-path');
+  const countEl = document.getElementById('ws-file-count');
+  if (pathEl) {
+    pathEl.textContent = currentPath ?? (doc ? doc.name : '选择左侧 Markdown 文件开始预览');
+  }
+  if (countEl) {
+    countEl.textContent = workspaceFiles.length
+      ? `${workspaceFiles.length} 个 Markdown`
+      : '';
+  }
+}
+
+function refreshTree(): void {
+  const treeEl = document.getElementById('ws-file-tree');
+  if (!treeEl) {
+    return;
+  }
+  const tree = buildFileTree(workspaceFiles);
+  renderFileTree(treeEl, tree, currentPath, {
+    onOpenFile: (path) => void openWorkspaceFile(path),
+  });
+  updatePathBar();
+}
+
+async function enterWorkspace(
+  root: FileSystemDirectoryHandle,
+  preferredPath?: string,
+): Promise<void> {
+  const ok = await ensureReadPermission(root, true);
+  if (!ok) {
+    alert('需要读取文件夹权限才能使用工作区。');
+    return;
+  }
+
+  workspaceRoot = root;
+  workspaceFiles = await listMarkdownFiles(root);
+  await saveWorkspaceHandle(root, preferredPath);
+
+  injectStyles();
+  applyThemeClass();
+  setWorkspaceChrome(true, root.name);
+  $('empty-state').hidden = true;
+  setDocumentTitle();
+  refreshTree();
+
+  const emptyPrev = document.getElementById('ws-empty-preview');
+  if (emptyPrev) {
+    emptyPrev.hidden = false;
+  }
+  $(ROOT_ID).hidden = true;
+  $(SOURCE_ID).hidden = true;
+
+  // Prefer last / requested file, else README*, else first file
+  let target = preferredPath;
+  if (target && !workspaceFiles.some((f) => f.path === target)) {
+    target = undefined;
+  }
+  if (!target) {
+    const readme = workspaceFiles.find((f) => /^readme\.(md|markdown|mdx)$/i.test(f.name));
+    target = readme?.path ?? workspaceFiles[0]?.path;
+  }
+  if (target) {
+    await openWorkspaceFile(target);
+  } else {
+    doc = null;
+    currentPath = undefined;
+    updatePathBar();
+    document.getElementById('vscode-md-preview-toolbar')?.remove();
+  }
+}
+
+async function openWorkspaceFolder(): Promise<void> {
+  try {
+    const root = await pickWorkspaceDirectory();
+    await enterWorkspace(root);
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      return;
+    }
+    console.error(e);
+    alert(e instanceof Error ? e.message : String(e));
+  }
+}
+
+async function openWorkspaceFile(path: string): Promise<void> {
+  if (!workspaceRoot) {
+    return;
+  }
+  const result = await readWorkspaceTextFile(workspaceRoot, path);
+  if (!result) {
+    alert(`无法读取文件: ${path}`);
+    return;
+  }
+  currentPath = path;
+  doc = {
+    name: path.split('/').pop() || path,
+    content: result.text,
+    openedAt: Date.now(),
+    lastModified: result.file.lastModified,
+    size: result.file.size,
+  };
+  await saveLocalDoc(doc);
+  await saveWorkspaceHandle(workspaceRoot, path);
+  setDocumentTitle(doc.name);
+  refreshTree();
+
+  const emptyPrev = document.getElementById('ws-empty-preview');
+  if (emptyPrev) {
+    emptyPrev.hidden = true;
+  }
+
+  await showPreviewView();
+}
+
+/**
+ * Resolve relative images (and later assets) against the workspace filesystem.
+ */
+async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
+  if (!workspaceRoot || !currentPath) {
+    return;
+  }
+  revokeObjectUrls();
+
+  const imgs = rootEl.querySelectorAll('img');
+  for (const img of imgs) {
+    const original =
+      img.getAttribute('data-src') || img.getAttribute('src') || '';
+    if (
+      !original ||
+      /^(https?:|data:|blob:|chrome-extension:)/i.test(original) ||
+      original.startsWith('#')
+    ) {
+      continue;
+    }
+    const resolved = resolveRelativePath(currentPath, original);
+    const url = await createWorkspaceObjectUrl(workspaceRoot, resolved);
+    if (url) {
+      objectUrls.push(url);
+      img.setAttribute('src', url);
+      img.setAttribute('data-workspace-src', resolved);
+    }
+  }
+}
+
+/**
+ * Intercept clicks on relative .md links to open within the workspace.
+ * Bound once on the content host (not per render).
+ */
+function onPreviewClick(e: MouseEvent): void {
+  const a = (e.target as HTMLElement).closest('a');
+  if (!a || !workspaceRoot || !currentPath) {
+    return;
+  }
+  const href = a.getAttribute('data-href') || a.getAttribute('href') || '';
+  if (!href || /^(https?:|mailto:|data:|blob:)/i.test(href)) {
+    return;
+  }
+  if (href.startsWith('#')) {
+    return;
+  }
+  const pathOnly = href.split('#')[0].split('?')[0];
+  if (!isMarkdownFileName(pathOnly)) {
+    return;
+  }
+  e.preventDefault();
+  const targetPath = resolveRelativePath(currentPath, pathOnly);
+  const hash = href.includes('#') ? href.slice(href.indexOf('#')) : '';
+  void openWorkspaceFile(targetPath).then(() => {
+    if (hash) {
+      const id = decodeURIComponent(hash.slice(1));
+      document.getElementById(id)?.scrollIntoView();
+    }
+  });
 }
 
 function showSourceView(): void {
@@ -95,18 +313,13 @@ function showSourceView(): void {
   pre.style.wordBreak = 'break-word';
   pre.style.margin = '0';
   pre.style.padding = '16px';
-  pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+  pre.style.fontFamily =
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
   pre.style.fontSize = '13px';
   pre.textContent = doc.content;
 
-  document.documentElement.classList.add('vscode-md-preview-active');
-  document.body.classList.add('vscode-md-preview-active');
-
-  mountToolbar(mode, {
-    onToggleMode: (m) => void setMode(m),
-    onOpenOptions: () => void chrome.runtime.openOptionsPage(),
-  });
-  // Extra: open file via toolbar isn't there — keep empty-state button path
+  applyThemeClass();
+  mountToolbarExtras();
 }
 
 async function showPreviewView(): Promise<void> {
@@ -115,13 +328,7 @@ async function showPreviewView(): Promise<void> {
   }
   mode = 'preview';
   injectStyles();
-
-  const theme = resolveTheme(settings.theme);
-  document.documentElement.classList.add('vscode-md-preview-active');
-  document.body.classList.add('vscode-md-preview-active');
-  document.body.classList.toggle('vscode-dark', theme === 'dark');
-  document.body.classList.toggle('vscode-light', theme === 'light');
-  document.documentElement.dataset.theme = theme;
+  applyThemeClass();
 
   const pre = $(SOURCE_ID);
   pre.hidden = true;
@@ -129,41 +336,62 @@ async function showPreviewView(): Promise<void> {
   const root = $(ROOT_ID);
   root.hidden = false;
   root.className = 'vscode-md-preview-root';
-  root.dataset.theme = theme;
+  root.dataset.theme = resolveTheme(settings.theme);
 
   engine.updateSettings(settings);
+  // documentBase unused for workspace assets (resolved after render)
   const rendered = engine.render(doc.content, undefined);
   root.innerHTML = rendered.html;
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
+  await resolveWorkspaceAssets(root);
 
   if (rendered.hasMermaid && settings.mermaidEnabled) {
     await runMermaid(root, {
-      isDark: theme === 'dark',
+      isDark: resolveTheme(settings.theme) === 'dark',
       mermaidTheme: settings.mermaidTheme,
     });
   }
 
+  mountToolbarExtras();
+
+  if (location.hash) {
+    const id = decodeURIComponent(location.hash.slice(1));
+    document.getElementById(id)?.scrollIntoView();
+  }
+}
+
+function mountToolbarExtras(): void {
+  if (!doc) {
+    return;
+  }
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
     onOpenOptions: () => void chrome.runtime.openOptionsPage(),
   });
 
-  // Append "Open…" control to toolbar
   const bar = document.getElementById('vscode-md-preview-toolbar');
-  if (bar && !bar.querySelector('[data-action="open-file"]')) {
+  if (!bar) {
+    return;
+  }
+
+  if (!bar.querySelector('[data-action="open-file"]')) {
     const openBtn = document.createElement('button');
     openBtn.type = 'button';
     openBtn.dataset.action = 'open-file';
-    openBtn.textContent = 'Open…';
-    openBtn.title = '打开其他本地文件';
+    openBtn.textContent = 'File…';
+    openBtn.title = '打开单个文件';
     openBtn.addEventListener('click', () => pickFile());
     bar.appendChild(openBtn);
   }
-
-  if (location.hash) {
-    const id = decodeURIComponent(location.hash.slice(1));
-    document.getElementById(id)?.scrollIntoView();
+  if (!bar.querySelector('[data-action="open-folder"]')) {
+    const folderBtn = document.createElement('button');
+    folderBtn.type = 'button';
+    folderBtn.dataset.action = 'open-folder';
+    folderBtn.textContent = 'Folder…';
+    folderBtn.title = '打开工作区文件夹';
+    folderBtn.addEventListener('click', () => void openWorkspaceFolder());
+    bar.appendChild(folderBtn);
   }
 }
 
@@ -175,21 +403,44 @@ async function setMode(next: PreviewMode): Promise<void> {
   }
 }
 
-async function openDoc(next: LocalMarkdownDoc): Promise<void> {
+async function openSingleDoc(next: LocalMarkdownDoc): Promise<void> {
+  // Single-file mode: leave workspace if active? Keep workspace shell if open, just show doc without path
   doc = next;
+  currentPath = undefined;
   await saveLocalDoc(next);
-  $('empty-state').hidden = true;
   setDocumentTitle(next.name);
+
+  if (!workspaceRoot) {
+    // Use shell layout with empty sidebar message for consistency
+    setWorkspaceChrome(true, next.name);
+    const treeEl = document.getElementById('ws-file-tree');
+    if (treeEl) {
+      treeEl.innerHTML =
+        '<p style="padding:12px;opacity:0.6;font-size:12px;line-height:1.4">当前为单文件预览。<br/>点击「换夹…」可打开工作区文件夹。</p>';
+    }
+    $('empty-state').hidden = true;
+    const emptyPrev = document.getElementById('ws-empty-preview');
+    if (emptyPrev) {
+      emptyPrev.hidden = true;
+    }
+  } else {
+    refreshTree();
+  }
+  updatePathBar();
   await showPreviewView();
 }
 
 async function openFile(file: File): Promise<void> {
-  if (!isMarkdownFileName(file.name) && file.type && !/markdown|text\/plain|text\//i.test(file.type)) {
+  if (
+    !isMarkdownFileName(file.name) &&
+    file.type &&
+    !/markdown|text\/plain|text\//i.test(file.type)
+  ) {
     alert(`不支持的文件类型: ${file.name}`);
     return;
   }
   const next = await readFileAsLocalDoc(file);
-  await openDoc(next);
+  await openSingleDoc(next);
 }
 
 function pickFile(): void {
@@ -199,23 +450,27 @@ function pickFile(): void {
   input.click();
 }
 
-function wireEmptyState(): void {
+function wireUi(): void {
   const dropzone = $('dropzone');
-  const empty = $(EMPTY_ID);
+  const empty = $('empty-state');
 
   $('btn-open').addEventListener('click', () => pickFile());
+  $('btn-open-folder')?.addEventListener('click', () => void openWorkspaceFolder());
   $('btn-options').addEventListener('click', () => void chrome.runtime.openOptionsPage());
+
+  $('ws-btn-refresh')?.addEventListener('click', () => void refreshWorkspace());
+  $('ws-btn-open-file')?.addEventListener('click', () => pickFile());
+  $('ws-btn-change-folder')?.addEventListener('click', () => void openWorkspaceFolder());
+  $('ws-btn-close')?.addEventListener('click', () => void closeWorkspace());
 
   dropzone.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('button')) {
       return;
     }
-    pickFile();
-  });
-
-  dropzone.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
+    // default: open folder if supported, else file
+    if (isDirectoryPickerSupported()) {
+      void openWorkspaceFolder();
+    } else {
       pickFile();
     }
   });
@@ -224,7 +479,6 @@ function wireEmptyState(): void {
     e.preventDefault();
     e.stopPropagation();
   };
-
   empty.addEventListener('dragenter', (e) => {
     onDrag(e);
     dropzone.classList.add('dragover');
@@ -235,9 +489,7 @@ function wireEmptyState(): void {
   });
   empty.addEventListener('dragleave', (e) => {
     onDrag(e);
-    if (e.target === empty || e.target === dropzone) {
-      dropzone.classList.remove('dragover');
-    }
+    dropzone.classList.remove('dragover');
   });
   empty.addEventListener('drop', (e) => {
     onDrag(e);
@@ -248,7 +500,6 @@ function wireEmptyState(): void {
     }
   });
 
-  // Also allow drop while preview is showing
   document.body.addEventListener('dragover', (e) => {
     if (e.dataTransfer?.types.includes('Files')) {
       e.preventDefault();
@@ -269,37 +520,108 @@ function wireEmptyState(): void {
       void openFile(file);
     }
   });
+
+  if (!isDirectoryPickerSupported()) {
+    const meta = document.getElementById('empty-meta');
+    if (meta) {
+      meta.textContent =
+        '当前环境不支持打开文件夹，请使用「打开文件」或直接在浏览器中打开 file:// 路径。';
+    }
+    const btn = document.getElementById('btn-open-folder') as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = true;
+      btn.title = '不支持 Directory Picker';
+    }
+  }
+}
+
+async function refreshWorkspace(): Promise<void> {
+  if (!workspaceRoot) {
+    return;
+  }
+  const ok = await ensureReadPermission(workspaceRoot, true);
+  if (!ok) {
+    alert('权限已失效，请重新打开文件夹。');
+    return;
+  }
+  workspaceFiles = await listMarkdownFiles(workspaceRoot);
+  refreshTree();
+  if (currentPath && !workspaceFiles.some((f) => f.path === currentPath)) {
+    currentPath = undefined;
+    doc = null;
+    $(ROOT_ID).hidden = true;
+    const emptyPrev = document.getElementById('ws-empty-preview');
+    if (emptyPrev) {
+      emptyPrev.hidden = false;
+    }
+  }
+}
+
+async function closeWorkspace(): Promise<void> {
+  await clearWorkspace();
+  revokeObjectUrls();
+  showEmpty();
+}
+
+async function tryRestoreWorkspace(): Promise<boolean> {
+  const handle = await loadWorkspaceHandle();
+  if (!handle) {
+    return false;
+  }
+  const meta = await loadWorkspaceMeta();
+  // Permission may require a user gesture on some builds; try query first
+  const permitted = await ensureReadPermission(handle, true);
+  if (!permitted) {
+    // keep handle; user can click 刷新/打开 to re-authorize
+    setWorkspaceChrome(true, handle.name || meta?.name || 'Workspace');
+    $('empty-state').hidden = true;
+    injectStyles();
+    applyThemeClass();
+    const treeEl = document.getElementById('ws-file-tree');
+    if (treeEl) {
+      treeEl.innerHTML =
+        '<p style="padding:12px;opacity:0.7;font-size:12px;line-height:1.5">需要重新授权才能读取此文件夹。<br/><button type="button" id="ws-reauth" style="margin-top:8px">授权并打开</button></p>';
+      treeEl.querySelector('#ws-reauth')?.addEventListener('click', () => {
+        void enterWorkspace(handle, meta?.lastFilePath);
+      });
+    }
+    workspaceRoot = handle;
+    return true;
+  }
+  await enterWorkspace(handle, meta?.lastFilePath);
+  return true;
 }
 
 async function init(): Promise<void> {
   settings = await loadSettings();
   engine = new MarkdownPreviewEngine(settings);
   injectStyles();
-  // Apply theme tokens on empty state too
-  const theme = resolveTheme(settings.theme);
-  document.documentElement.dataset.theme = theme;
-  document.body.classList.toggle('vscode-dark', theme === 'dark');
-  document.body.classList.toggle('vscode-light', theme === 'light');
-
-  wireEmptyState();
+  applyThemeClass();
+  wireUi();
+  document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
 
   const params = new URLSearchParams(location.search);
-  const shouldPick = params.get('pick') === '1';
+  const shouldPickFile = params.get('pick') === '1';
+  const shouldPickFolder = params.get('workspace') === '1' || params.get('folder') === '1';
 
-  const existing = await loadLocalDoc();
-  if (existing) {
-    doc = existing;
-    $('empty-state').hidden = true;
-    setDocumentTitle(existing.name);
-    await showPreviewView();
-  } else {
-    showEmpty();
+  if (shouldPickFile || shouldPickFolder) {
+    history.replaceState(null, '', location.pathname);
   }
 
-  if (shouldPick) {
-    // Strip pick query so refresh doesn't re-open dialog forever
-    history.replaceState(null, '', location.pathname);
-    // Defer so the page paints first
+  const restored = await tryRestoreWorkspace();
+  if (!restored) {
+    const existing = await loadLocalDoc();
+    if (existing) {
+      await openSingleDoc(existing);
+    } else {
+      showEmpty();
+      applyThemeClass();
+    }
+  }
+
+  if (shouldPickFolder) {
+    setTimeout(() => void openWorkspaceFolder(), 50);
+  } else if (shouldPickFile) {
     setTimeout(() => pickFile(), 50);
   }
 

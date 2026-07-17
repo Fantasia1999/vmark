@@ -12,7 +12,7 @@
       }
       body {
         margin: 0;
-        min-width: 240px;
+        min-width: 260px;
         padding: 8px;
         background: Canvas;
         color: CanvasText;
@@ -76,7 +76,11 @@
   </head>
   <body>
     <h1>Markdown Preview</h1>
-    <button type="button" class="primary" id="openLocal">
+    <button type="button" class="primary" id="openWorkspace">
+      <span class="icon">📁</span>
+      <span>打开工作区文件夹…</span>
+    </button>
+    <button type="button" id="openLocal">
       <span class="icon">📄</span>
       <span>打开本地 Markdown…</span>
     </button>
@@ -94,7 +98,7 @@
       <span>选项</span>
     </button>
     <p class="hint">
-      也可在预览工作台中拖放文件。访问 <code>file://</code> 时请在扩展详情中允许访问文件网址。
+      工作区可浏览目录内全部 Markdown，并解析相对路径图片与站内链接。
     </p>
     <script type="module" src="./popup.js"></script>
   </body>

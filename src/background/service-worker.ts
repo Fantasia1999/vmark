@@ -5,6 +5,11 @@ const VIEWER_PATH = 'viewer/viewer.html';
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
+      id: 'vscode-md-preview-open-workspace',
+      title: '打开工作区文件夹…',
+      contexts: ['action'],
+    });
+    chrome.contextMenus.create({
       id: 'vscode-md-preview-open-local',
       title: '打开本地 Markdown…',
       contexts: ['action'],
@@ -22,8 +27,8 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-function openViewer(pick = false): void {
-  const url = chrome.runtime.getURL(`${VIEWER_PATH}${pick ? '?pick=1' : ''}`);
+function openViewer(query = ''): void {
+  const url = chrome.runtime.getURL(`${VIEWER_PATH}${query}`);
   void chrome.tabs.create({ url });
 }
 
@@ -49,11 +54,14 @@ async function sendToActiveTab(message: Record<string, unknown>): Promise<void> 
 
 chrome.contextMenus.onClicked.addListener((info) => {
   switch (info.menuItemId) {
+    case 'vscode-md-preview-open-workspace':
+      openViewer('?workspace=1');
+      break;
     case 'vscode-md-preview-open-local':
-      openViewer(true);
+      openViewer('?pick=1');
       break;
     case 'vscode-md-preview-open-viewer':
-      openViewer(false);
+      openViewer('');
       break;
     case 'vscode-md-preview-toggle':
       void sendToActiveTab({ type: 'togglePreview' });
@@ -67,8 +75,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
+  if (message?.type === 'openWorkspace') {
+    openViewer('?workspace=1');
+    sendResponse({ ok: true });
+    return true;
+  }
   if (message?.type === 'openLocalFile' || message?.type === 'openViewer') {
-    openViewer(message?.type === 'openLocalFile' || message?.pick === true);
+    const q =
+      message?.type === 'openLocalFile' || message?.pick === true
+        ? '?pick=1'
+        : message?.workspace
+          ? '?workspace=1'
+          : '';
+    openViewer(q);
     sendResponse({ ok: true });
     return true;
   }

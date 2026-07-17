@@ -1,6 +1,12 @@
 # VS Code Markdown Preview (Chrome)
 
+<p align="center">
+  <img src="public/icons/logo-512.png" width="128" height="128" alt="VS Code Markdown Preview logo" />
+</p>
+
 Chrome 扩展：把 VS Code 的 **Open as Preview** 渲染逻辑提取为浏览器预览——本地 `file://` 与远程 `.md` 源文件均可一键切换 **Preview / Source**。
+
+图标资源：`public/icons/`（`logo.svg` 源文件，`icon16/48/128.png` 用于扩展；`npm run icons` 可重生）。
 
 渲染栈对齐 VS Code 内置扩展：
 
@@ -25,15 +31,15 @@ npm run build
 
 | 场景 | 行为 |
 |------|------|
-| 扩展图标 → **打开本地 Markdown…** | 选择本地 `.md` 文件，在预览工作台中渲染 |
-| 预览工作台 | 拖放文件、切换 Preview/Source、再打开其他文件 |
-| 打开 `*.md` / `*.markdown` / `*.mdx`（含 `file://`） | 自动进入 VS Code 风格预览 |
-| GitHub raw / gist raw | 自动预览 |
-| 工具栏 **Preview / Source** | 切换渲染与原文 |
-| 扩展图标 → 切换当前页预览 | 对当前标签页强制切换预览 |
+| 扩展图标 → **打开工作区文件夹…** | 选择目录，左侧文件树 + 预览（类似 VS Code 工作区） |
+| 扩展图标 → **打开本地 Markdown…** | 选择单个 `.md` 文件预览 |
+| 预览工作台 | 换夹 / 刷新 / 拖放文件、Preview ↔ Source |
+| 工作区内相对图片与 `.md` 链接 | 通过 File System Access API 解析 |
+| 打开 `*.md`（含 `file://`）/ GitHub raw | 页面内自动预览 |
+| 扩展图标 → 切换当前页预览 | 对当前标签页强制切换 |
 | 选项页 | breaks / linkify / 数学 / Mermaid / 主题 |
 
-> **相对路径图片**：用「打开本地文件」时浏览器无法解析磁盘相对路径，图片可能失效。需要完整资源路径时，请直接用 Chrome 打开 `file://…/xxx.md`（并开启 **允许访问文件网址**）。
+工作区句柄会保存在浏览器 IndexedDB 中，重新打开工作台时可恢复（可能需要再次授权读取）。
 
 ## 开发
 

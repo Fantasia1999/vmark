@@ -1,17 +1,21 @@
 export {}; // treat as ES module for isolated scope
 
-function openViewer(pick = false): void {
-  const url = chrome.runtime.getURL(`viewer/viewer.html${pick ? '?pick=1' : ''}`);
+function openViewer(query = ''): void {
+  const url = chrome.runtime.getURL(`viewer/viewer.html${query}`);
   void chrome.tabs.create({ url });
   window.close();
 }
 
+document.getElementById('openWorkspace')?.addEventListener('click', () => {
+  openViewer('?workspace=1');
+});
+
 document.getElementById('openLocal')?.addEventListener('click', () => {
-  openViewer(true);
+  openViewer('?pick=1');
 });
 
 document.getElementById('openViewer')?.addEventListener('click', () => {
-  openViewer(false);
+  openViewer('');
 });
 
 document.getElementById('togglePreview')?.addEventListener('click', () => {
