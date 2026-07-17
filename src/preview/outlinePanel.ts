@@ -190,6 +190,8 @@ export class OutlineFloatingPanel {
     };
   }
 
+  #escHandler: ((e: KeyboardEvent) => void) | undefined;
+
   #bindOutsideClick(): void {
     this.#unbindOutsideClick();
     this.#outsideHandler = (e: MouseEvent) => {
@@ -207,10 +209,29 @@ export class OutlineFloatingPanel {
       }
       this.close();
     };
+    this.#escHandler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !this.#open) {
+        return;
+      }
+      // Let modal dialogs take precedence
+      const wsl = document.getElementById('wsl-dialog');
+      const ssh = document.getElementById('ssh-dialog');
+      if ((wsl && !wsl.hidden) || (ssh && !ssh.hidden)) {
+        return;
+      }
+      if (this.#pinned) {
+        return;
+      }
+      e.preventDefault();
+      this.close();
+    };
     // next tick so the opening click doesn't immediately close
     window.setTimeout(() => {
       if (this.#outsideHandler) {
         document.addEventListener('mousedown', this.#outsideHandler, true);
+      }
+      if (this.#escHandler) {
+        document.addEventListener('keydown', this.#escHandler, true);
       }
     }, 0);
   }
@@ -219,6 +240,10 @@ export class OutlineFloatingPanel {
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, true);
       this.#outsideHandler = undefined;
+    }
+    if (this.#escHandler) {
+      document.removeEventListener('keydown', this.#escHandler, true);
+      this.#escHandler = undefined;
     }
   }
 
@@ -278,13 +303,19 @@ export class OutlineFloatingPanel {
     this.#open = true;
     const panel = this.#ensurePanel();
     panel.hidden = false;
+    panel.setAttribute('aria-modal', 'false');
     this.#syncPinUi(panel);
     this.updateFromDom(previewRoot ?? document.getElementById('vscode-md-preview-root'));
+    // Always listen for Esc when unpinned; pin also keeps outside-click off
     if (!this.#pinned) {
       this.#bindOutsideClick();
     } else {
       this.#unbindOutsideClick();
     }
+    // Focus panel body for keyboard users without trapping
+    const body = panel.querySelector('.md-outline-body') as HTMLElement | null;
+    body?.setAttribute('tabindex', '-1');
+    body?.focus({ preventScroll: true });
     this.#emit();
   }
 
