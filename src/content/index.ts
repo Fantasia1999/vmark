@@ -1,4 +1,10 @@
-import { DEFAULT_SETTINGS, loadSettings, type PreviewSettings, type ThemeMode } from '../preview/config';
+import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  type PreviewSettings,
+  type PreviewWidthSetting,
+  type ThemeMode,
+} from '../preview/config';
 import { MarkdownPreviewEngine } from '../preview/engine';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import { extractMarkdownSource, isMarkdownSourcePage } from './detect';
@@ -31,6 +37,15 @@ function resolveTheme(theme: ThemeMode): 'light' | 'dark' {
     return theme;
   }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyPreviewWidth(width: PreviewWidthSetting = settings.previewWidth): void {
+  const w = width || 'wide';
+  document.documentElement.dataset.previewWidth = w;
+  const root = document.getElementById(ROOT_ID);
+  if (root) {
+    root.dataset.previewWidth = w;
+  }
 }
 
 function injectStyles(): void {
@@ -121,6 +136,7 @@ async function showPreview(): Promise<void> {
   document.body.classList.add('vscode-md-preview-active');
   document.body.classList.toggle('vscode-dark', theme === 'dark');
   document.body.classList.toggle('vscode-light', theme === 'light');
+  applyPreviewWidth(settings.previewWidth);
 
   const sourceEl = document.getElementById(SOURCE_ID);
   if (sourceEl) {
@@ -134,7 +150,9 @@ async function showPreview(): Promise<void> {
 
   const root = ensureShell();
   root.dataset.theme = theme;
+  root.dataset.previewWidth = settings.previewWidth || 'wide';
   document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.previewWidth = settings.previewWidth || 'wide';
 
   const rendered = engine.render(sourceText, location.href);
   root.innerHTML = rendered.html;

@@ -409,7 +409,13 @@
       }
 
       .ws-content #vscode-md-preview-root {
-        /* override max-width centering padding slightly for workspace */
+        width: 100%;
+        min-height: 100%;
+      }
+
+      .ws-content #vscode-md-preview-root .markdown-body {
+        /* keep horizontal centering inside the main pane */
+        box-sizing: border-box;
       }
 
       .ws-empty-preview {

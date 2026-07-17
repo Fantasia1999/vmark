@@ -36,6 +36,7 @@ try {
     theme: 'auto',
     mermaidTheme: 'vscode',
     sanitizeHtml: false,
+    previewWidth: 'wide',
   });
   const out = engine.render(md, 'file:///tmp/sample.md');
   const checks = [

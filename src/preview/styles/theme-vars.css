@@ -224,16 +224,60 @@ body.vscode-md-preview-active {
   100% { background-color: transparent; }
 }
 
+/* Preview column width (overridable via data-preview-width on root/html) */
+:root,
+.vscode-md-preview-root,
+html {
+  --md-preview-max-width: min(1280px, 94vw);
+  --md-preview-padding-block: 45px;
+  --md-preview-padding-inline: 45px;
+}
+
+html[data-preview-width="comfortable"],
+.vscode-md-preview-root[data-preview-width="comfortable"] {
+  --md-preview-max-width: min(980px, 100%);
+  --md-preview-padding-inline: 45px;
+}
+
+html[data-preview-width="wide"],
+.vscode-md-preview-root[data-preview-width="wide"] {
+  --md-preview-max-width: min(1280px, 94vw);
+  --md-preview-padding-inline: 48px;
+}
+
+html[data-preview-width="fluid"],
+.vscode-md-preview-root[data-preview-width="fluid"] {
+  --md-preview-max-width: min(1600px, 96vw);
+  --md-preview-padding-inline: clamp(24px, 4vw, 64px);
+}
+
+html[data-preview-width="full"],
+.vscode-md-preview-root[data-preview-width="full"] {
+  --md-preview-max-width: 100%;
+  --md-preview-padding-inline: clamp(20px, 3vw, 56px);
+}
+
 .markdown-body {
   box-sizing: border-box;
+  width: 100%;
   min-width: 200px;
-  max-width: 980px;
+  max-width: var(--md-preview-max-width, min(1280px, 94vw));
   margin: 0 auto;
-  padding: 45px;
+  padding: var(--md-preview-padding-block, 45px) var(--md-preview-padding-inline, 45px);
+}
+
+/* Ultra-wide: slightly wider default column when still on "wide" */
+@media (min-width: 1800px) {
+  html[data-preview-width="wide"] ,
+  .vscode-md-preview-root[data-preview-width="wide"] {
+    --md-preview-max-width: min(1440px, 90vw);
+  }
 }
 
 @media (max-width: 767px) {
   .markdown-body {
+    --md-preview-padding-block: 15px;
+    --md-preview-padding-inline: 15px;
     padding: 15px;
   }
 }

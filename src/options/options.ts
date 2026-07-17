@@ -4,6 +4,7 @@ import {
   saveSettings,
   type MermaidThemeSetting,
   type PreviewSettings,
+  type PreviewWidthSetting,
   type ThemeMode,
 } from '../preview/config';
 import {
@@ -69,6 +70,10 @@ async function init(): Promise<void> {
   theme.value = settings.theme;
   theme.addEventListener('change', () => void persist());
 
+  const previewWidth = $('previewWidth') as HTMLSelectElement;
+  previewWidth.value = settings.previewWidth ?? 'wide';
+  previewWidth.addEventListener('change', () => void persist());
+
   const mermaidTheme = $('mermaidTheme') as HTMLSelectElement;
   mermaidTheme.value = settings.mermaidTheme ?? 'vscode';
   mermaidTheme.addEventListener('change', () => void persist());
@@ -96,10 +101,11 @@ async function init(): Promise<void> {
       mermaidEnabled: ($('mermaidEnabled') as HTMLInputElement).checked,
       theme: theme.value as ThemeMode,
       mermaidTheme: mermaidTheme.value as MermaidThemeSetting,
+      previewWidth: previewWidth.value as PreviewWidthSetting,
     };
     await saveSettings(next);
     const status = $('status');
-    status.textContent = 'Saved. Reload the preview tab to apply Mermaid theme.';
+    status.textContent = 'Saved. Reload open preview tabs to apply layout/theme changes.';
     setTimeout(() => {
       status.textContent = '';
     }, 2500);
