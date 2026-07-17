@@ -370,6 +370,11 @@
         text-align: center;
       }
 
+      /* display:flex above would otherwise override the UA [hidden] rule */
+      .ws-empty-preview[hidden] {
+        display: none !important;
+      }
+
       /* toolbar in workspace sits top-right of content */
       #workspace-shell #vscode-md-preview-toolbar {
         top: 48px;
