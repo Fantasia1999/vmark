@@ -10,6 +10,15 @@ import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import { extractMarkdownSource, isMarkdownSourcePage } from './detect';
 import { runMermaid } from './mermaidRunner';
 import { mountToolbar, type PreviewMode } from './toolbar';
+import {
+  applyPreviewZoom,
+  loadPreviewZoom,
+  PREVIEW_ZOOM_DEFAULT,
+  PREVIEW_ZOOM_MAX,
+  PREVIEW_ZOOM_MIN,
+  savePreviewZoom,
+  stepPreviewZoom,
+} from '../shared/previewZoom';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -26,6 +35,8 @@ let mode: PreviewMode = 'preview';
 let settings: PreviewSettings = { ...DEFAULT_SETTINGS };
 let engine = new MarkdownPreviewEngine(settings);
 let bootstrapped = false;
+let previewZoom = PREVIEW_ZOOM_DEFAULT;
+let zoomShortcutsWired = false;
 
 const outlinePanel = new OutlineFloatingPanel({
   getScrollRoot: () => document.documentElement,
@@ -83,6 +94,74 @@ function ensureShell(): HTMLElement {
   return root;
 }
 
+async function setPreviewZoom(next: number, persist = true): Promise<void> {
+  previewZoom = Math.min(PREVIEW_ZOOM_MAX, Math.max(PREVIEW_ZOOM_MIN, next));
+  applyPreviewZoom(previewZoom);
+  if (persist) {
+    void savePreviewZoom(previewZoom);
+  }
+  remountToolbar();
+}
+
+function zoomIn(): void {
+  void setPreviewZoom(stepPreviewZoom(previewZoom, 1));
+}
+
+function zoomOut(): void {
+  void setPreviewZoom(stepPreviewZoom(previewZoom, -1));
+}
+
+function zoomReset(): void {
+  void setPreviewZoom(PREVIEW_ZOOM_DEFAULT);
+}
+
+function wirePreviewZoomShortcuts(): void {
+  if (zoomShortcutsWired) {
+    return;
+  }
+  zoomShortcutsWired = true;
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || !bootstrapped) {
+        return;
+      }
+      const key = e.key;
+      if (key === '=' || key === '+') {
+        e.preventDefault();
+        zoomIn();
+      } else if (key === '-' || key === '_') {
+        e.preventDefault();
+        zoomOut();
+      } else if (key === '0') {
+        e.preventDefault();
+        zoomReset();
+      }
+    },
+    true,
+  );
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      if (!(e.ctrlKey || e.metaKey) || !bootstrapped) {
+        return;
+      }
+      const t = e.target as Node | null;
+      if (!t) {
+        return;
+      }
+      const root = document.getElementById(ROOT_ID);
+      const source = document.getElementById(SOURCE_ID);
+      if ((root && root.contains(t)) || (source && source.contains(t))) {
+        e.preventDefault();
+        if (e.deltaY < 0) zoomIn();
+        else if (e.deltaY > 0) zoomOut();
+      }
+    },
+    { passive: false, capture: true },
+  );
+}
+
 function remountToolbar(): void {
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
@@ -92,6 +171,10 @@ function remountToolbar(): void {
         ? () => outlinePanel.toggle(document.getElementById(ROOT_ID))
         : undefined,
     outlineOpen: outlinePanel.isOpen,
+    onZoomIn: () => zoomIn(),
+    onZoomOut: () => zoomOut(),
+    onZoomReset: () => zoomReset(),
+    zoom: previewZoom,
   });
 }
 
@@ -124,6 +207,7 @@ function showSource(): void {
     pre.textContent = sourceText;
   }
 
+  applyPreviewZoom(previewZoom);
   remountToolbar();
 }
 
@@ -153,6 +237,7 @@ async function showPreview(): Promise<void> {
   root.dataset.previewWidth = settings.previewWidth || 'wide';
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.previewWidth = settings.previewWidth || 'wide';
+  applyPreviewZoom(previewZoom);
 
   const rendered = engine.render(sourceText, location.href);
   root.innerHTML = rendered.html;
@@ -214,6 +299,9 @@ async function bootstrap(force = false): Promise<void> {
 
   engine = new MarkdownPreviewEngine(settings);
   await outlinePanel.loadPinPreference();
+  previewZoom = await loadPreviewZoom();
+  applyPreviewZoom(previewZoom);
+  wirePreviewZoomShortcuts();
   bootstrapped = true;
   await showPreview();
 }
@@ -226,6 +314,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         settings = await loadSettings();
         engine = new MarkdownPreviewEngine(settings);
         await outlinePanel.loadPinPreference();
+        previewZoom = await loadPreviewZoom();
+        applyPreviewZoom(previewZoom);
+        wirePreviewZoomShortcuts();
         bootstrapped = true;
         await showPreview();
       } else {

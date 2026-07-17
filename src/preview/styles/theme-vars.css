@@ -189,6 +189,7 @@ body.vscode-md-preview-active {
 
 /* Mermaid diagram container polish (subset of VS Code diagramStyles) */
 .markdown-body .mermaid {
+  position: relative;
   margin: 1em 0;
   text-align: center;
   overflow: auto;
@@ -202,6 +203,69 @@ body.vscode-md-preview-active {
 /* Transparent mermaid background so editor bg shows through like VS Code */
 .markdown-body .mermaid svg {
   background: transparent;
+}
+
+/* Export PNG/JPG controls — top-right of each diagram */
+.markdown-body .mermaid .mermaid-export {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.markdown-body .mermaid:hover .mermaid-export,
+.markdown-body .mermaid:focus-within .mermaid-export,
+.markdown-body .mermaid.mermaid-has-export:hover .mermaid-export {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Keep buttons usable when focused via keyboard */
+.markdown-body .mermaid .mermaid-export:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.markdown-body .mermaid .mermaid-export-btn {
+  appearance: none;
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 4px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorWidget-background, #252526) 92%,
+    transparent
+  );
+  backdrop-filter: blur(6px);
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.markdown-body .mermaid .mermaid-export-btn:hover:not(:disabled) {
+  background: var(--vscode-button-background, #0e639c);
+  border-color: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.markdown-body .mermaid .mermaid-export-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 1px;
+}
+
+.markdown-body .mermaid .mermaid-export-btn:disabled {
+  opacity: 0.75;
+  cursor: default;
 }
 
 .vscode-md-preview-error {
@@ -264,6 +328,13 @@ html[data-preview-width="full"],
   max-width: var(--md-preview-max-width, min(1280px, 94vw));
   margin: 0 auto;
   padding: var(--md-preview-padding-block, 45px) var(--md-preview-padding-inline, 45px);
+}
+
+/* Content-only zoom (toolbar, sidebar, outline stay 100%) */
+.vscode-md-preview-root,
+#vscode-md-preview-root,
+#vscode-md-preview-source {
+  zoom: var(--preview-zoom, 1);
 }
 
 /* Ultra-wide: slightly wider default column when still on "wide" */

@@ -3,6 +3,7 @@
  * Uses VS Code-derived Mermaid theme (base + themeVariables from CSS tokens).
  */
 import mermaid from 'mermaid';
+import { attachMermaidExportButtons } from './mermaidExport';
 import {
   resolveMermaidTheme,
   type MermaidBuiltinTheme,
@@ -34,4 +35,5 @@ export async function renderMermaid(
   });
 
   await mermaid.run({ nodes });
+  attachMermaidExportButtons(nodes);
 }
