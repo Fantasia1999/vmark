@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VS Code Markdown Preview — Options</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        line-height: 1.5;
+      }
+      body {
+        max-width: 560px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      fieldset {
+        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border-radius: 8px;
+        margin: 1rem 0;
+        padding: 0.75rem 1rem 1rem;
+      }
+      legend {
+        padding: 0 0.35rem;
+        font-weight: 600;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.45rem 0;
+      }
+      select {
+        margin-left: 0.25rem;
+      }
+      .hint {
+        color: color-mix(in srgb, CanvasText 65%, transparent);
+        font-size: 0.9rem;
+        margin-top: 1rem;
+      }
+      .status {
+        min-height: 1.25rem;
+        font-size: 0.9rem;
+        color: #0a7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>VS Code Markdown Preview</h1>
+    <p class="hint">
+      Settings sync via <code>chrome.storage.sync</code>. For local <code>file://</code> Markdown,
+      enable <strong>Allow access to file URLs</strong> on the extension details page.
+    </p>
+
+    <fieldset>
+      <legend>General</legend>
+      <label><input type="checkbox" id="autoPreview" /> Auto-preview when Markdown is detected</label>
+      <label>
+        Theme
+        <select id="theme">
+          <option value="auto">Auto (system)</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Markdown</legend>
+      <label><input type="checkbox" id="breaks" /> Breaks (GFM-style newlines → &lt;br&gt;)</label>
+      <label><input type="checkbox" id="linkify" /> Linkify URLs</label>
+      <label><input type="checkbox" id="typographer" /> Typographer (smart quotes)</label>
+      <label><input type="checkbox" id="sanitizeHtml" /> Disable raw HTML in Markdown (safer)</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Extensions</legend>
+      <label><input type="checkbox" id="mathEnabled" /> KaTeX math</label>
+      <label><input type="checkbox" id="mermaidEnabled" /> Mermaid diagrams</label>
+    </fieldset>
+
+    <p class="status" id="status" aria-live="polite"></p>
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

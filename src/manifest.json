@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "VS Code Markdown Preview",
+  "version": "0.1.0",
+  "description": "Open Markdown files as a VS Code-style preview in Chrome (local + remote).",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Toggle Markdown Preview",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
+  "host_permissions": ["file:///*", "http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": [
+        "file:///*",
+        "*://*/*.md",
+        "*://*/*.md?*",
+        "*://*/*.markdown",
+        "*://*/*.markdown?*",
+        "*://*/*.mdx",
+        "*://*/*.mdx?*",
+        "https://raw.githubusercontent.com/*",
+        "https://gist.githubusercontent.com/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["styles/*", "icons/*", "content/mermaidChunk.js"],
+      "matches": ["<all_urls>", "file:///*"]
+    }
+  ]
+}
