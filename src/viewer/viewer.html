@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Markdown Preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      #empty-state {
+        box-sizing: border-box;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 16px;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--vscode-editor-background, #1e1e1e);
+        color: var(--vscode-editor-foreground, #d4d4d4);
+      }
+
+      #empty-state[hidden] {
+        display: none !important;
+      }
+
+      .dropzone {
+        width: min(520px, 100%);
+        border: 2px dashed var(--vscode-editorWidget-border, #454545);
+        border-radius: 12px;
+        padding: 40px 28px;
+        text-align: center;
+        background: var(--vscode-editorWidget-background, #252526);
+        transition: border-color 0.15s, background 0.15s;
+      }
+
+      .dropzone.dragover {
+        border-color: var(--vscode-focusBorder, #007fd4);
+        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 12%, transparent);
+      }
+
+      .dropzone h1 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+
+      .dropzone p {
+        margin: 0 0 20px;
+        opacity: 0.75;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .dropzone .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .dropzone button {
+        appearance: none;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font: inherit;
+        cursor: pointer;
+        background: var(--vscode-button-background, #0e639c);
+        color: var(--vscode-button-foreground, #fff);
+      }
+
+      .dropzone button:hover {
+        background: var(--vscode-button-hoverBackground, #1177bb);
+      }
+
+      .dropzone button.secondary {
+        background: transparent;
+        color: inherit;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+
+      .dropzone button.secondary:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+
+      .dropzone .meta {
+        margin-top: 18px;
+        font-size: 12px;
+        opacity: 0.55;
+      }
+
+      #file-input {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <input
+      id="file-input"
+      type="file"
+      accept=".md,.markdown,.mdown,.mkd,.mdx,.txt,text/markdown,text/plain"
+    />
+
+    <div id="empty-state">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="打开或拖放 Markdown 文件">
+        <h1>打开本地 Markdown</h1>
+        <p>选择或拖放 <code>.md</code> 文件到此处，使用 VS Code 风格预览。</p>
+        <div class="actions">
+          <button type="button" id="btn-open">选择文件…</button>
+          <button type="button" class="secondary" id="btn-options">选项</button>
+        </div>
+        <p class="meta">支持 KaTeX / Mermaid。相对路径图片在“打开本地文件”模式下可能无法加载；完整资源解析请用浏览器直接打开 <code>file://</code> 文件。</p>
+      </div>
+    </div>
+
+    <div id="vscode-md-preview-root" class="vscode-md-preview-root" hidden></div>
+    <pre id="vscode-md-preview-source" hidden></pre>
+
+    <script type="module" src="./viewer.js"></script>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VS Code Markdown Preview",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open Markdown files as a VS Code-style preview in Chrome (local + remote).",
   "icons": {
     "16": "icons/icon16.png",
@@ -9,7 +9,8 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Toggle Markdown Preview",
+    "default_title": "VS Code Markdown Preview",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png"
