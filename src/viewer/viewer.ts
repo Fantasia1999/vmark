@@ -224,10 +224,7 @@ async function showWorkspaceShell(
   setDocumentTitle();
   refreshTree();
 
-  const emptyPrev = document.getElementById('ws-empty-preview');
-  if (emptyPrev) {
-    emptyPrev.hidden = false;
-  }
+  setEmptyPreviewVisible(true);
   $(ROOT_ID).hidden = true;
   $(SOURCE_ID).hidden = true;
 
@@ -377,12 +374,7 @@ async function openWorkspaceFile(path: string): Promise<void> {
   await saveLocalDoc(doc);
   setDocumentTitle(doc.name);
   refreshTree();
-
-  const emptyPrev = document.getElementById('ws-empty-preview');
-  if (emptyPrev) {
-    emptyPrev.hidden = true;
-  }
-
+  setEmptyPreviewVisible(false);
   await showPreviewView();
 }
 
@@ -493,6 +485,13 @@ function showSourceView(): void {
   mountToolbarExtras();
 }
 
+function setEmptyPreviewVisible(visible: boolean): void {
+  const emptyPrev = document.getElementById('ws-empty-preview');
+  if (emptyPrev) {
+    emptyPrev.hidden = !visible;
+  }
+}
+
 async function showPreviewView(): Promise<void> {
   if (!doc) {
     return;
@@ -500,6 +499,9 @@ async function showPreviewView(): Promise<void> {
   mode = 'preview';
   injectStyles();
   applyThemeClass();
+
+  // Always hide the placeholder once we have document content
+  setEmptyPreviewVisible(false);
 
   const pre = $(SOURCE_ID);
   pre.hidden = true;
