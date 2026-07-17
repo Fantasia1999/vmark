@@ -111,6 +111,93 @@
         display: none;
       }
 
+      /* SSH dialog */
+      #ssh-dialog {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483640;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      #ssh-dialog[hidden] {
+        display: none !important;
+      }
+      .ssh-dialog-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+      }
+      .ssh-dialog-card {
+        position: relative;
+        width: min(420px, 100%);
+        max-height: min(90vh, 640px);
+        overflow: auto;
+        background: var(--vscode-editorWidget-background, #252526);
+        color: var(--vscode-editor-foreground, #d4d4d4);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 10px;
+        padding: 18px 18px 14px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      }
+      .ssh-dialog-card h2 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+      .ssh-hint {
+        margin: 0 0 14px;
+        font-size: 12px;
+        opacity: 0.7;
+        line-height: 1.45;
+      }
+      .ssh-dialog-card label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin: 0 0 10px;
+        font-size: 12px;
+      }
+      .ssh-dialog-card input,
+      .ssh-dialog-card select {
+        font: inherit;
+        padding: 7px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-input-border, #3c3c3c);
+        background: var(--vscode-input-background, #3c3c3c);
+        color: var(--vscode-input-foreground, #ccc);
+      }
+      .ssh-error {
+        color: #f48771;
+        font-size: 12px;
+        margin: 0 0 10px;
+      }
+      .ssh-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .ssh-actions button {
+        appearance: none;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font: inherit;
+        cursor: pointer;
+        background: var(--vscode-button-background, #0e639c);
+        color: var(--vscode-button-foreground, #fff);
+      }
+      .ssh-actions button.secondary {
+        background: transparent;
+        color: inherit;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+      .ssh-actions button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
       /* —— workspace shell —— */
       #workspace-shell {
         display: grid;
@@ -315,12 +402,50 @@
         </p>
         <div class="actions">
           <button type="button" id="btn-open-folder">打开文件夹…</button>
+          <button type="button" class="secondary" id="btn-open-ssh">SSH 工作区…</button>
           <button type="button" class="secondary" id="btn-open">打开文件…</button>
           <button type="button" class="secondary" id="btn-options">选项</button>
         </div>
         <p class="meta" id="empty-meta">
-          工作区使用浏览器 File System Access API；相对路径图片/链接可正确解析。也可拖放文件到此处。
+          本地工作区使用 File System Access API。SSH 工作区需运行本地桥接：
+          <code>cd ssh-bridge && npm start</code>，并在选项中配置 Token。
         </p>
+      </div>
+    </div>
+
+    <!-- SSH connect dialog -->
+    <div id="ssh-dialog" hidden>
+      <div class="ssh-dialog-backdrop" data-ssh-dismiss></div>
+      <div class="ssh-dialog-card" role="dialog" aria-labelledby="ssh-dialog-title">
+        <h2 id="ssh-dialog-title">打开 SSH 工作区</h2>
+        <p class="ssh-hint">
+          通过本机 SSH Bridge 连接远程目录并预览 Markdown。密码/私钥仅发送到本机
+          <code>127.0.0.1</code> 桥接进程。
+        </p>
+        <label>主机 <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" /></label>
+        <label>端口 <input id="ssh-port" type="number" value="22" min="1" max="65535" /></label>
+        <label>用户名 <input id="ssh-user" type="text" autocomplete="username" /></label>
+        <label>远程根目录 <input id="ssh-root" type="text" placeholder="." value="." /></label>
+        <label>认证
+          <select id="ssh-auth">
+            <option value="password">密码</option>
+            <option value="key">私钥</option>
+          </select>
+        </label>
+        <label id="ssh-password-row">密码
+          <input id="ssh-password" type="password" autocomplete="current-password" />
+        </label>
+        <div id="ssh-key-row" hidden>
+          <label>私钥文件 <input id="ssh-key-file" type="file" /></label>
+          <label>私钥口令（可选）
+            <input id="ssh-passphrase" type="password" autocomplete="off" />
+          </label>
+        </div>
+        <p class="ssh-error" id="ssh-error" hidden></p>
+        <div class="ssh-actions">
+          <button type="button" class="secondary" id="ssh-cancel">取消</button>
+          <button type="button" id="ssh-connect">连接</button>
+        </div>
       </div>
     </div>
 

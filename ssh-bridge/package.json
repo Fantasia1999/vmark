@@ -1,0 +1,14 @@
+{
+  "name": "vscode-md-preview-ssh-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local SSH/SFTP bridge for VS Code Markdown Preview Chrome extension",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0"
+  }
+}

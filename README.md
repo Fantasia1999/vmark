@@ -32,6 +32,7 @@ npm run build
 | 场景 | 行为 |
 |------|------|
 | 扩展图标 → **打开工作区文件夹…** | 选择目录，左侧文件树 + 预览（类似 VS Code 工作区） |
+| 扩展图标 → **打开 SSH 工作区…** | 经本机 SSH Bridge 连接远程目录并预览 |
 | 扩展图标 → **打开本地 Markdown…** | 选择单个 `.md` 文件预览 |
 | 预览工作台 | 换夹 / 刷新 / 拖放文件、Preview ↔ Source |
 | 工作区内相对图片与 `.md` 链接 | 通过 File System Access API 解析 |
@@ -41,6 +42,21 @@ npm run build
 | 选项页 | breaks / linkify / 数学 / Mermaid / 主题 |
 
 工作区句柄会保存在浏览器 IndexedDB 中，重新打开工作台时可恢复（可能需要再次授权读取）。
+
+## SSH 工作区
+
+浏览器扩展**不能直接建立 SSH 连接**。本项目提供本机桥接进程（仅监听 `127.0.0.1`）：
+
+```bash
+npm run ssh-bridge:install   # 首次
+npm run ssh-bridge           # 启动，终端会打印 Token
+```
+
+1. 把 Token 填到扩展 **选项 → SSH Bridge**
+2. 弹窗选择 **打开 SSH 工作区…**
+3. 填写主机 / 用户 / 密码或私钥 / 远程根目录
+
+桥接使用 [ssh2](https://github.com/mscdex/ssh2) 做 SFTP：列 Markdown、读文件、解析相对图片。凭证只发往本机 Bridge，不会上传到第三方。
 
 ## 开发
 

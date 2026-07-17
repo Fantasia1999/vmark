@@ -9,7 +9,9 @@
     "dev": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke-render.mjs",
-    "icons": "python3 scripts/generate-icons.py"
+    "icons": "python3 scripts/generate-icons.py",
+    "ssh-bridge": "npm --prefix ssh-bridge start",
+    "ssh-bridge:install": "npm --prefix ssh-bridge install"
   },
   "dependencies": {
     "@vscode/markdown-it-katex": "^1.1.2",

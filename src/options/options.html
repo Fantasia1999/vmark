@@ -95,6 +95,24 @@
       </label>
     </fieldset>
 
+    <fieldset>
+      <legend>SSH Bridge</legend>
+      <p class="hint" style="margin-top:0">
+        Chrome 无法直接 SSH。请在本机运行桥接：
+        <code>cd ssh-bridge && npm install && npm start</code>，
+        将终端打印的 Token 填到下方。
+      </p>
+      <label style="flex-direction:column;align-items:stretch;gap:0.35rem">
+        Bridge URL
+        <input id="sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" style="padding:0.4rem 0.5rem" />
+      </label>
+      <label style="flex-direction:column;align-items:stretch;gap:0.35rem">
+        Bridge Token
+        <input id="sshBridgeToken" type="password" autocomplete="off" style="padding:0.4rem 0.5rem" />
+      </label>
+      <p class="hint" id="sshBridgeStatus">Bridge status: —</p>
+    </fieldset>
+
     <p class="status" id="status" aria-live="polite"></p>
     <script type="module" src="./options.js"></script>
   </body>

@@ -20,6 +20,10 @@ document.getElementById('openWorkspace')?.addEventListener('click', () => {
   openViewer('?workspace=1');
 });
 
+document.getElementById('openSsh')?.addEventListener('click', () => {
+  openViewer('?ssh=1');
+});
+
 document.getElementById('openLocal')?.addEventListener('click', () => {
   openViewer('?pick=1');
 });
