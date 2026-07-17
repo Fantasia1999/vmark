@@ -43,6 +43,9 @@
       button:hover {
         background: color-mix(in srgb, CanvasText 8%, transparent);
       }
+      button:active {
+        transform: scale(0.99);
+      }
       button:focus-visible {
         outline: 2px solid #007fd4;
         outline-offset: 1px;
@@ -96,7 +99,7 @@
       <span>打开 SSH 工作区…</span>
     </button>
     <button type="button" id="openWsl">
-      <span class="popup-icon" data-icon="workbench"></span>
+      <span class="popup-icon" data-icon="folder"></span>
       <span>打开 WSL 工作区…</span>
     </button>
     <button type="button" id="openLocal">

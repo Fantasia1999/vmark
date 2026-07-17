@@ -55,7 +55,11 @@ import {
   type WslSessionMeta,
 } from '../shared/wslClient';
 import { isMarkdownPath } from '../shared/wslPaths';
-import { renderFileTree, setWorkspaceChrome } from './workspaceUi';
+import {
+  clearFileTreeExpandState,
+  renderFileTree,
+  setWorkspaceChrome,
+} from './workspaceUi';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 
 import markdownCss from '../preview/styles/markdown.css';
@@ -571,31 +575,9 @@ function mountToolbarExtras(): void {
           }
         : undefined,
     outlineOpen: outlinePanel.isOpen,
+    onOpenFile: () => pickFile(),
+    onOpenFolder: () => void openWorkspaceFolder(),
   });
-
-  const bar = document.getElementById('vscode-md-preview-toolbar');
-  if (!bar) {
-    return;
-  }
-
-  if (!bar.querySelector('[data-action="open-file"]')) {
-    const openBtn = document.createElement('button');
-    openBtn.type = 'button';
-    openBtn.dataset.action = 'open-file';
-    openBtn.textContent = 'File…';
-    openBtn.title = '打开单个文件';
-    openBtn.addEventListener('click', () => pickFile());
-    bar.appendChild(openBtn);
-  }
-  if (!bar.querySelector('[data-action="open-folder"]')) {
-    const folderBtn = document.createElement('button');
-    folderBtn.type = 'button';
-    folderBtn.dataset.action = 'open-folder';
-    folderBtn.textContent = 'Folder…';
-    folderBtn.title = '打开工作区文件夹';
-    folderBtn.addEventListener('click', () => void openWorkspaceFolder());
-    bar.appendChild(folderBtn);
-  }
 }
 
 async function setMode(next: PreviewMode): Promise<void> {
@@ -705,17 +687,7 @@ function wireUi(): void {
   document.getElementById('wsl-distro')?.addEventListener('focus', () => setWslDialogMode('select'));
   document.getElementById('wsl-root')?.addEventListener('focus', () => setWslDialogMode('select'));
 
-  dropzone.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('button')) {
-      return;
-    }
-    // default: open folder if supported, else file
-    if (isDirectoryPickerSupported()) {
-      void openWorkspaceFolder();
-    } else {
-      pickFile();
-    }
-  });
+  // Dropzone is drag-target only; explicit buttons open folder/file (avoids mis-clicks)
 
   const onDrag = (e: DragEvent) => {
     e.preventDefault();
@@ -762,6 +734,8 @@ function wireUi(): void {
       void openFile(file);
     }
   });
+
+  wireModalKeyboard();
 
   if (!isDirectoryPickerSupported()) {
     const meta = document.getElementById('empty-meta');
@@ -819,7 +793,62 @@ async function closeWorkspace(): Promise<void> {
   await clearWorkspace();
   revokeObjectUrls();
   outlinePanel.close();
+  clearFileTreeExpandState();
   showEmpty();
+}
+
+/** Focus first focusable control inside a dialog card */
+function focusDialog(dialogId: string): void {
+  const dlg = document.getElementById(dialogId);
+  if (!dlg || dlg.hidden) {
+    return;
+  }
+  const focusable = dlg.querySelector<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  );
+  // Prefer first text/select field over cancel
+  const preferred =
+    dlg.querySelector<HTMLElement>(
+      'select:not([disabled]), input:not([disabled]):not([type="hidden"]):not([type="file"])',
+    ) ?? focusable;
+  preferred?.focus({ preventScroll: true });
+}
+
+function wireModalKeyboard(): void {
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') {
+      // Enter to submit focused dialog
+      if (e.key === 'Enter' && !e.isComposing) {
+        const t = e.target as HTMLElement;
+        if (t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON') {
+          return;
+        }
+        const wsl = document.getElementById('wsl-dialog');
+        const ssh = document.getElementById('ssh-dialog');
+        if (wsl && !wsl.hidden && wsl.contains(t)) {
+          e.preventDefault();
+          void connectWslFromDialog();
+          return;
+        }
+        if (ssh && !ssh.hidden && ssh.contains(t)) {
+          e.preventDefault();
+          void connectSshFromDialog();
+        }
+      }
+      return;
+    }
+    const wsl = document.getElementById('wsl-dialog');
+    if (wsl && !wsl.hidden) {
+      e.preventDefault();
+      showWslDialog(false);
+      return;
+    }
+    const ssh = document.getElementById('ssh-dialog');
+    if (ssh && !ssh.hidden) {
+      e.preventDefault();
+      showSshDialog(false);
+    }
+  });
 }
 
 /* —— SSH dialog —— */
@@ -845,6 +874,7 @@ function showSshDialog(show: boolean): void {
         err.hidden = true;
         err.textContent = '';
       }
+      requestAnimationFrame(() => focusDialog('ssh-dialog'));
     })();
   }
 }
@@ -948,6 +978,7 @@ function showWslDialog(show: boolean): void {
         }
       }
       setWslDialogMode('select');
+      requestAnimationFrame(() => focusDialog('wsl-dialog'));
     })();
   }
 }
@@ -1025,7 +1056,11 @@ async function connectWslFromDialog(): Promise<void> {
     return;
   }
 
-  if (btn) btn.disabled = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.label = btn.textContent || '';
+    btn.textContent = '连接中…';
+  }
   try {
     const meta = await wslConnect(distro, root);
     await saveWslFormDefaults({ distro, root: meta.root });
@@ -1045,7 +1080,10 @@ async function connectWslFromDialog(): Promise<void> {
   } catch (e) {
     showErr(e instanceof Error ? e.message : String(e));
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.label || '连接工作区';
+    }
   }
 }
 
@@ -1111,7 +1149,11 @@ async function connectSshFromDialog(): Promise<void> {
     return;
   }
 
-  if (connectBtn) connectBtn.disabled = true;
+  if (connectBtn) {
+    connectBtn.disabled = true;
+    connectBtn.dataset.label = connectBtn.textContent || '';
+    connectBtn.textContent = '连接中…';
+  }
   try {
     const meta = await sshConnect({
       host,
@@ -1137,7 +1179,10 @@ async function connectSshFromDialog(): Promise<void> {
   } catch (e) {
     showErr(e instanceof Error ? e.message : String(e));
   } finally {
-    if (connectBtn) connectBtn.disabled = false;
+    if (connectBtn) {
+      connectBtn.disabled = false;
+      connectBtn.textContent = connectBtn.dataset.label || '连接';
+    }
   }
 }
 

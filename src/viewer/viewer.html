@@ -40,7 +40,12 @@
         padding: 40px 28px;
         text-align: center;
         background: var(--vscode-editorWidget-background, #252526);
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      }
+
+      .dropzone:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 2px;
       }
 
       .dropzone.dragover {
@@ -300,8 +305,24 @@
       }
 
       .ws-sidebar-actions button {
-        padding: 4px 8px;
+        padding: 5px 9px;
         font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .ws-sidebar-actions button:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+      }
+
+      .ws-row:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: -1px;
+        background: var(--vscode-list-hoverBackground, #2a2d2e);
+      }
+
+      .ws-file-row.active {
+        font-weight: 600;
       }
 
       #ws-file-tree {

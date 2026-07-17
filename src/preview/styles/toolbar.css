@@ -4,11 +4,15 @@
   right: 12px;
   z-index: 2147483646;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
   align-items: center;
-  padding: 6px 8px;
+  justify-content: flex-end;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 5px 7px;
   border-radius: 8px;
-  background: var(--vscode-editorWidget-background, #252526);
+  background: color-mix(in srgb, var(--vscode-editorWidget-background, #252526) 94%, transparent);
+  backdrop-filter: blur(8px);
   color: var(--vscode-editor-foreground, #d4d4d4);
   border: 1px solid var(--vscode-editorWidget-border, #454545);
   box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
@@ -16,12 +20,20 @@
   font-size: 12px;
   line-height: 1.2;
   user-select: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#vscode-md-preview-toolbar.vsc-toolbar-ready {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 #vscode-md-preview-toolbar .vsc-md-label {
-  opacity: 0.75;
-  margin-right: 4px;
-  padding: 0 4px;
+  opacity: 0.9;
+  margin-right: 2px;
+  padding: 2px 4px;
 }
 
 #vscode-md-preview-toolbar button {
@@ -33,10 +45,15 @@
   padding: 4px 8px;
   cursor: pointer;
   font: inherit;
+  white-space: nowrap;
 }
 
 #vscode-md-preview-toolbar button:hover {
   background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+#vscode-md-preview-toolbar button:active {
+  transform: translateY(0.5px);
 }
 
 #vscode-md-preview-toolbar button.active {
@@ -47,4 +64,8 @@
 #vscode-md-preview-toolbar button:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: 1px;
+}
+
+#vscode-md-preview-toolbar button[hidden] {
+  display: none !important;
 }
