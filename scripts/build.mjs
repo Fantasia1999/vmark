@@ -46,11 +46,14 @@ function copyStatic() {
     }
   }
 
-  // Options page
-  const optionsHtml = join(root, 'src/options/options.html');
-  if (existsSync(optionsHtml)) {
-    mkdirSync(join(outdir, 'options'), { recursive: true });
-    cpSync(optionsHtml, join(outdir, 'options/options.html'));
+  // Static HTML pages
+  for (const page of ['options/options.html', 'popup/popup.html', 'viewer/viewer.html']) {
+    const src = join(root, 'src', page);
+    if (existsSync(src)) {
+      const dest = join(outdir, page);
+      mkdirSync(dirname(dest), { recursive: true });
+      cpSync(src, dest);
+    }
   }
 }
 
@@ -80,6 +83,8 @@ async function build() {
       'content/content': join(root, 'src/content/index.ts'),
       'content/mermaidChunk': join(root, 'src/content/mermaidChunk.ts'),
       'options/options': join(root, 'src/options/options.ts'),
+      'popup/popup': join(root, 'src/popup/popup.ts'),
+      'viewer/viewer': join(root, 'src/viewer/viewer.ts'),
     },
     outdir,
     splitting: false,

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VS Code Markdown Preview</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 13px;
+      }
+      body {
+        margin: 0;
+        min-width: 240px;
+        padding: 8px;
+        background: Canvas;
+        color: CanvasText;
+      }
+      h1 {
+        margin: 4px 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.7;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin: 0 0 4px;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      button:hover {
+        background: color-mix(in srgb, CanvasText 8%, transparent);
+      }
+      button:focus-visible {
+        outline: 2px solid #007fd4;
+        outline-offset: 1px;
+      }
+      button .icon {
+        width: 18px;
+        text-align: center;
+        opacity: 0.85;
+        flex-shrink: 0;
+      }
+      button.primary {
+        background: #0e639c;
+        color: #fff;
+        font-weight: 500;
+      }
+      button.primary:hover {
+        background: #1177bb;
+      }
+      .hint {
+        margin: 8px 8px 4px;
+        font-size: 11px;
+        line-height: 1.4;
+        opacity: 0.65;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+        margin: 6px 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Markdown Preview</h1>
+    <button type="button" class="primary" id="openLocal">
+      <span class="icon">📄</span>
+      <span>打开本地 Markdown…</span>
+    </button>
+    <button type="button" id="openViewer">
+      <span class="icon">🗂</span>
+      <span>打开预览工作台</span>
+    </button>
+    <hr />
+    <button type="button" id="togglePreview">
+      <span class="icon">👁</span>
+      <span>切换当前页预览</span>
+    </button>
+    <button type="button" id="openOptions">
+      <span class="icon">⚙</span>
+      <span>选项</span>
+    </button>
+    <p class="hint">
+      也可在预览工作台中拖放文件。访问 <code>file://</code> 时请在扩展详情中允许访问文件网址。
+    </p>
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>
