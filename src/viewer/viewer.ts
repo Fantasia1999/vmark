@@ -680,12 +680,8 @@ function wireUi(): void {
   document.querySelector('[data-wsl-dismiss]')?.addEventListener('click', () => showWslDialog(false));
   document.getElementById('wsl-connect')?.addEventListener('click', () => void connectWslFromDialog());
   document.getElementById('wsl-open-file')?.addEventListener('click', () => void openWslFileInTab());
-  document.getElementById('wsl-mode-select')?.addEventListener('change', () => setWslDialogMode('select'));
-  document.getElementById('wsl-mode-paste')?.addEventListener('change', () => setWslDialogMode('paste'));
-  // Clicking fields inside a mode option selects that mode
-  document.getElementById('wsl-path')?.addEventListener('focus', () => setWslDialogMode('paste'));
-  document.getElementById('wsl-distro')?.addEventListener('focus', () => setWslDialogMode('select'));
-  document.getElementById('wsl-root')?.addEventListener('focus', () => setWslDialogMode('select'));
+  document.getElementById('wsl-mode-select')?.addEventListener('click', () => setWslDialogMode('select'));
+  document.getElementById('wsl-mode-paste')?.addEventListener('click', () => setWslDialogMode('paste'));
 
   // Dropzone is drag-target only; explicit buttons open folder/file (avoids mis-clicks)
 
@@ -891,38 +887,50 @@ function setSshAuthMode(mode: 'password' | 'key'): void {
 type WslDialogMode = 'select' | 'paste';
 
 function getWslDialogMode(): WslDialogMode {
-  const checked = document.querySelector(
-    'input[name="wsl-mode"]:checked',
-  ) as HTMLInputElement | null;
-  return checked?.value === 'paste' ? 'paste' : 'select';
+  const pasteTab = document.getElementById('wsl-mode-paste');
+  return pasteTab?.classList.contains('active') ? 'paste' : 'select';
 }
 
 function setWslDialogMode(mode: WslDialogMode): void {
-  const selectRadio = document.getElementById('wsl-mode-select') as HTMLInputElement | null;
-  const pasteRadio = document.getElementById('wsl-mode-paste') as HTMLInputElement | null;
-  if (selectRadio) selectRadio.checked = mode === 'select';
-  if (pasteRadio) pasteRadio.checked = mode === 'paste';
-
-  const distro = document.getElementById('wsl-distro') as HTMLSelectElement | null;
-  const root = document.getElementById('wsl-root') as HTMLInputElement | null;
-  const path = document.getElementById('wsl-path') as HTMLInputElement | null;
+  const selectTab = document.getElementById('wsl-mode-select');
+  const pasteTab = document.getElementById('wsl-mode-paste');
+  const selectPanel = document.getElementById('wsl-panel-select');
+  const pastePanel = document.getElementById('wsl-panel-paste');
   const openFileBtn = document.getElementById('wsl-open-file') as HTMLButtonElement | null;
+  const path = document.getElementById('wsl-path') as HTMLInputElement | null;
 
-  if (distro) distro.disabled = mode !== 'select';
-  if (root) root.disabled = mode !== 'select';
-  if (path) path.disabled = mode !== 'paste';
+  selectTab?.classList.toggle('active', mode === 'select');
+  pasteTab?.classList.toggle('active', mode === 'paste');
+  selectTab?.setAttribute('aria-selected', mode === 'select' ? 'true' : 'false');
+  pasteTab?.setAttribute('aria-selected', mode === 'paste' ? 'true' : 'false');
+
+  if (selectPanel) selectPanel.hidden = mode !== 'select';
+  if (pastePanel) pastePanel.hidden = mode !== 'paste';
+
   if (openFileBtn) {
+    openFileBtn.hidden = mode !== 'paste';
     openFileBtn.disabled = mode !== 'paste';
     openFileBtn.title =
       mode === 'paste'
         ? '用 file://wsl.localhost 在新标签打开粘贴的 .md 文件'
-        : '请先选择「粘贴完整路径」并填入 .md 文件路径';
+        : '仅在「粘贴路径」模式下可用';
   }
 
-  // Clear the inactive side so values cannot conflict
+  // Clear inactive side so values cannot conflict
   if (mode === 'select' && path) {
     path.value = '';
   }
+
+  // Focus primary field of active panel
+  requestAnimationFrame(() => {
+    if (mode === 'select') {
+      (document.getElementById('wsl-distro') as HTMLElement | null)?.focus({
+        preventScroll: true,
+      });
+    } else {
+      path?.focus({ preventScroll: true });
+    }
+  });
 }
 
 function showWslDialog(show: boolean): void {
@@ -1098,7 +1106,7 @@ async function openWslFileInTab(): Promise<void> {
   };
 
   if (getWslDialogMode() !== 'paste') {
-    showErr('请先选择「粘贴完整路径」，并填入 .md 文件路径');
+    showErr('请切换到「粘贴路径」，并填入 .md 文件路径');
     return;
   }
 
