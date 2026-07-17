@@ -1,0 +1,132 @@
+/* VS Code-like color tokens for markdown preview outside of VS Code */
+
+:root,
+.vscode-md-preview-root[data-theme="light"] {
+  color-scheme: light;
+  --vscode-editor-background: #ffffff;
+  --vscode-editor-foreground: #333333;
+  --vscode-textLink-foreground: #006ab1;
+  --vscode-textPreformat-foreground: #a31515;
+  --vscode-textPreformat-background: rgba(0, 0, 0, 0.06);
+  --vscode-textCodeBlock-background: rgba(0, 0, 0, 0.04);
+  --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
+  --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
+  --vscode-editorWidget-background: #f3f3f3;
+  --vscode-editorWidget-border: #c8c8c8;
+  --vscode-editorHoverWidget-background: #f3f3f3;
+  --vscode-editorHoverWidget-border: #c8c8c8;
+  --vscode-editorIndentGuide-background: rgba(0, 0, 0, 0.1);
+  --vscode-button-background: #007acc;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #0062a3;
+  --vscode-focusBorder: #007fd4;
+  --vscode-input-background: #ffffff;
+  --vscode-input-foreground: #333333;
+  --vscode-input-border: #cecece;
+  --vscode-list-hoverBackground: #e8e8e8;
+  --vscode-toolbar-hoverBackground: rgba(184, 184, 184, 0.31);
+  --vscode-sideBar-background: #f3f3f3;
+  --vscode-sideBar-foreground: #616161;
+  --vscode-widget-shadow: rgba(0, 0, 0, 0.16);
+  --markdown-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
+  --markdown-font-size: 14px;
+  --markdown-line-height: 22px;
+}
+
+.vscode-md-preview-root[data-theme="dark"] {
+  color-scheme: dark;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-textLink-foreground: #3794ff;
+  --vscode-textPreformat-foreground: #d7ba7d;
+  --vscode-textPreformat-background: rgba(255, 255, 255, 0.1);
+  --vscode-textCodeBlock-background: rgba(10, 10, 10, 0.4);
+  --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
+  --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-border: #454545;
+  --vscode-editorHoverWidget-background: #252526;
+  --vscode-editorHoverWidget-border: #454545;
+  --vscode-editorIndentGuide-background: rgba(255, 255, 255, 0.1);
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-focusBorder: #007fd4;
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #3c3c3c;
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-toolbar-hoverBackground: rgba(90, 93, 94, 0.31);
+  --vscode-sideBar-background: #252526;
+  --vscode-sideBar-foreground: #cccccc;
+  --vscode-widget-shadow: rgba(0, 0, 0, 0.36);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vscode-md-preview-root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --vscode-editor-background: #1e1e1e;
+    --vscode-editor-foreground: #d4d4d4;
+    --vscode-textLink-foreground: #3794ff;
+    --vscode-textPreformat-foreground: #d7ba7d;
+    --vscode-textPreformat-background: rgba(255, 255, 255, 0.1);
+    --vscode-textCodeBlock-background: rgba(10, 10, 10, 0.4);
+    --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
+    --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
+    --vscode-editorWidget-background: #252526;
+    --vscode-editorWidget-border: #454545;
+    --vscode-editorHoverWidget-background: #252526;
+    --vscode-editorHoverWidget-border: #454545;
+    --vscode-editorIndentGuide-background: rgba(255, 255, 255, 0.1);
+    --vscode-button-background: #0e639c;
+    --vscode-button-foreground: #ffffff;
+    --vscode-button-hoverBackground: #1177bb;
+    --vscode-focusBorder: #007fd4;
+    --vscode-input-background: #3c3c3c;
+    --vscode-input-foreground: #cccccc;
+    --vscode-input-border: #3c3c3c;
+    --vscode-list-hoverBackground: #2a2d2e;
+    --vscode-toolbar-hoverBackground: rgba(90, 93, 94, 0.31);
+    --vscode-sideBar-background: #252526;
+    --vscode-sideBar-foreground: #cccccc;
+    --vscode-widget-shadow: rgba(0, 0, 0, 0.36);
+  }
+}
+
+html.vscode-md-preview-active,
+body.vscode-md-preview-active {
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+body.vscode-md-preview-active {
+  white-space: normal !important;
+  font-family: var(--markdown-font-family);
+}
+
+.markdown-body {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 45px;
+}
+
+@media (max-width: 767px) {
+  .markdown-body {
+    padding: 15px;
+  }
+}
+
+.vscode-md-preview-error {
+  color: #f48771;
+  background: rgba(244, 135, 113, 0.1);
+  border: 1px solid rgba(244, 135, 113, 0.4);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-family: var(--markdown-font-family);
+  font-size: 13px;
+}
