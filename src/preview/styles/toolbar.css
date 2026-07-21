@@ -1,3 +1,4 @@
+/* Floating toolbar (content-script page preview) */
 #vscode-md-preview-toolbar {
   position: fixed;
   top: 12px;
@@ -28,6 +29,28 @@
 #vscode-md-preview-toolbar.vsc-toolbar-ready {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Workbench: nest inside .ws-main-bar (path left, controls right) */
+#vscode-md-preview-toolbar.vsc-toolbar-embedded {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  max-width: none;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+  transition: none;
+  color: inherit;
 }
 
 #vscode-md-preview-toolbar .vsc-md-label {

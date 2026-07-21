@@ -51,12 +51,35 @@ function ensureButton(
 }
 
 /**
- * Mount or update the floating preview toolbar in place (avoids focus flash).
+ * Prefer embedding into the workbench main bar when the workspace shell is open;
+ * otherwise float on the page (content-script preview).
+ */
+function resolveToolbarParent(explicit?: HTMLElement | null): HTMLElement {
+  if (explicit) {
+    return explicit;
+  }
+  const shell = document.getElementById('workspace-shell');
+  if (shell && !shell.hidden) {
+    const mainBar = shell.querySelector('.ws-main-bar');
+    if (mainBar instanceof HTMLElement) {
+      return mainBar;
+    }
+  }
+  return document.documentElement;
+}
+
+/**
+ * Mount or update the preview toolbar in place (avoids focus flash).
+ * In the workbench viewer it nests inside `.ws-main-bar`; elsewhere it floats.
  */
 export function mountToolbar(
   mode: PreviewMode,
   handlers: ToolbarHandlers,
+  options?: { parent?: HTMLElement | null },
 ): HTMLElement {
+  const parent = resolveToolbarParent(options?.parent);
+  const embedded = parent.classList.contains('ws-main-bar');
+
   let bar = document.getElementById(TOOLBAR_ID) as HTMLElement | null;
   const created = !bar;
 
@@ -112,11 +135,20 @@ export function mountToolbar(
           break;
       }
     });
-
-    document.documentElement.appendChild(bar);
   }
 
+  if (bar.parentElement !== parent) {
+    parent.appendChild(bar);
+  }
+  bar.classList.toggle('vsc-toolbar-embedded', embedded);
+
   setRuntime(bar, { handlers, mode });
+
+  const brand = bar.querySelector<HTMLElement>('.vsc-md-label');
+  if (brand) {
+    // Brand mark only useful on the floating overlay
+    brand.hidden = embedded;
+  }
 
   // Mode buttons
   const previewBtn = ensureButton(bar, 'preview', () => {
@@ -163,8 +195,10 @@ export function mountToolbar(
     outlineBtn.hidden = true;
   }
 
-  // Optional workspace actions (viewer)
-  if (handlers.onOpenFile) {
+  // Optional open actions — skip when embedded (sidebar already has 文件/换夹)
+  const showOpenFile = Boolean(handlers.onOpenFile) && !embedded;
+  const showOpenFolder = Boolean(handlers.onOpenFolder) && !embedded;
+  if (showOpenFile) {
     ensureButton(bar, 'open-file', () => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -177,7 +211,7 @@ export function mountToolbar(
     if (b) b.hidden = true;
   }
 
-  if (handlers.onOpenFolder) {
+  if (showOpenFolder) {
     ensureButton(bar, 'open-folder', () => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -206,7 +240,7 @@ export function mountToolbar(
   bar.appendChild(optionsBtn);
 
   if (created) {
-    // subtle enter animation
+    // subtle enter animation (floating); embedded is static in the main bar
     bar.classList.add('vsc-toolbar-enter');
     requestAnimationFrame(() => bar!.classList.add('vsc-toolbar-ready'));
   }
