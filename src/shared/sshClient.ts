@@ -30,6 +30,14 @@ export interface SshSessionMeta {
   connectedAt: number;
 }
 
+/** Token probe result — independent of process online/offline. */
+export type BridgeAuthStatus =
+  | 'ok'
+  | 'missing'
+  | 'unauthorized'
+  | 'unchecked'
+  | 'error';
+
 export interface SshHealth {
   ok: boolean;
   connected: boolean;
@@ -38,6 +46,19 @@ export interface SshHealth {
   wslAvailable?: boolean;
   wslConnected?: boolean;
   wslMeta?: { distro: string; root: string; connectedAt: number } | null;
+  /** Whether a non-empty token is saved in extension settings */
+  tokenConfigured: boolean;
+  /**
+   * Token validity against the running bridge.
+   * - ok: /auth/check succeeded
+   * - missing: no token configured
+   * - unauthorized: token rejected (401)
+   * - unchecked: bridge offline (cannot probe)
+   * - error: probe failed for other reasons
+   */
+  auth: BridgeAuthStatus;
+  /** Masked token for UI confirmation, e.g. `a1b2…f9e0` (never full secret) */
+  tokenPreview?: string;
 }
 
 const STORAGE_KEYS = {
@@ -149,14 +170,223 @@ async function request<T>(
   return data;
 }
 
+async function probeBridgeAuth(
+  bridgeUrl: string,
+  token: string,
+): Promise<BridgeAuthStatus> {
+  if (!token) {
+    return 'missing';
+  }
+  try {
+    const res = await fetch(`${bridgeUrl}/auth/check`, {
+      method: 'GET',
+      headers: {
+        'X-Bridge-Token': token,
+      },
+    });
+    if (res.ok) {
+      return 'ok';
+    }
+    if (res.status === 401) {
+      return 'unauthorized';
+    }
+    return 'error';
+  } catch {
+    return 'error';
+  }
+}
+
+/**
+ * Mask a token for display so users can spot typos without exposing the full secret.
+ * Examples: `a1b2…9f0e` (len≥12), `ab…yz` (shorter), `***` (very short).
+ */
+export function maskBridgeToken(token: string, head = 4, tail = 4): string {
+  const t = token.trim();
+  if (!t) {
+    return '';
+  }
+  if (t.length <= 4) {
+    return '*'.repeat(t.length);
+  }
+  if (t.length <= head + tail) {
+    const h = Math.max(1, Math.floor(t.length / 3));
+    const end = Math.max(1, Math.floor(t.length / 3));
+    return `${t.slice(0, h)}…${t.slice(-end)}`;
+  }
+  return `${t.slice(0, head)}…${t.slice(-tail)}`;
+}
+
+/**
+ * Process liveness (`/health`, no token) + token validity (`/auth/check`).
+ * Online and auth are independent: bridge can be up while token is missing/invalid.
+ */
 export async function sshHealth(): Promise<SshHealth> {
   const settings = await loadSshBridgeSettings();
+  const token = settings.bridgeToken.trim();
+  const tokenConfigured = Boolean(token);
+  const tokenPreview = tokenConfigured ? maskBridgeToken(token) : undefined;
   try {
     const res = await fetch(`${settings.bridgeUrl}/health`);
-    return (await res.json()) as SshHealth;
+    if (!res.ok) {
+      return {
+        ok: false,
+        connected: false,
+        meta: null,
+        tokenConfigured,
+        tokenPreview,
+        auth: 'unchecked',
+      };
+    }
+    const data = (await res.json()) as Omit<
+      SshHealth,
+      'tokenConfigured' | 'auth' | 'tokenPreview'
+    >;
+    const auth = await probeBridgeAuth(settings.bridgeUrl, token);
+    return {
+      ok: true,
+      connected: Boolean(data.connected),
+      meta: data.meta ?? null,
+      platform: data.platform,
+      wslAvailable: data.wslAvailable,
+      wslConnected: data.wslConnected,
+      wslMeta: data.wslMeta ?? null,
+      tokenConfigured,
+      tokenPreview,
+      auth,
+    };
   } catch {
-    return { ok: false, connected: false, meta: null };
+    return {
+      ok: false,
+      connected: false,
+      meta: null,
+      tokenConfigured,
+      tokenPreview,
+      auth: 'unchecked',
+    };
   }
+}
+
+export type BridgeStatusLocale = 'zh' | 'en';
+
+/**
+ * Shared status line for options UI: process online + token auth + session extras.
+ */
+export function formatBridgeStatus(
+  h: SshHealth,
+  locale: BridgeStatusLocale = 'zh',
+): { tone: 'online' | 'offline' | 'warn'; html: string } {
+  const zh = locale === 'zh';
+
+  if (!h.ok) {
+    const offlinePreview =
+      h.tokenPreview &&
+      ` · Token：<code class="bridge-token-preview">${escapeHtml(h.tokenPreview)}</code>`;
+    return {
+      tone: 'offline',
+      html: zh
+        ? `Bridge：<span class="bridge-state">离线</span>（请启动 ssh-bridge）${offlinePreview || (h.tokenConfigured ? '' : ' · Token：未配置')}`
+        : `Bridge status: <span class="bridge-state">offline</span> (start ssh-bridge)${offlinePreview || (h.tokenConfigured ? '' : ' · Token: not set')}`,
+    };
+  }
+
+  const parts: string[] = [];
+  parts.push(
+    zh
+      ? 'Bridge：<span class="bridge-state">在线</span>'
+      : 'Bridge status: <span class="bridge-state">online</span>',
+  );
+
+  let authWarn = false;
+  const preview =
+    h.tokenPreview && h.auth !== 'missing'
+      ? `<code class="bridge-token-preview" title="${zh ? '已保存 Token 的首尾片段' : 'Saved token head/tail'}">${escapeHtml(
+          h.tokenPreview,
+        )}</code>`
+      : '';
+
+  switch (h.auth) {
+    case 'ok':
+      parts.push(
+        zh
+          ? `Token：<span class="bridge-auth ok">已授权</span>${preview ? ` ${preview}` : ''}`
+          : `Token: <span class="bridge-auth ok">authorized</span>${preview ? ` ${preview}` : ''}`,
+      );
+      break;
+    case 'missing':
+      authWarn = true;
+      parts.push(
+        zh
+          ? 'Token：<span class="bridge-auth bad">未配置</span>'
+          : 'Token: <span class="bridge-auth bad">not set</span>',
+      );
+      break;
+    case 'unauthorized':
+      authWarn = true;
+      parts.push(
+        zh
+          ? `Token：<span class="bridge-auth bad">无效/未授权</span>${preview ? ` ${preview}` : ''}`
+          : `Token: <span class="bridge-auth bad">invalid / unauthorized</span>${preview ? ` ${preview}` : ''}`,
+      );
+      break;
+    case 'error':
+      authWarn = true;
+      parts.push(
+        zh
+          ? `Token：<span class="bridge-auth bad">校验失败</span>${preview ? ` ${preview}` : ''}`
+          : `Token: <span class="bridge-auth bad">check failed</span>${preview ? ` ${preview}` : ''}`,
+      );
+      break;
+    default:
+      parts.push(
+        zh
+          ? `Token：<span class="bridge-auth">未校验</span>${preview ? ` ${preview}` : ''}`
+          : `Token: <span class="bridge-auth">unchecked</span>${preview ? ` ${preview}` : ''}`,
+      );
+  }
+
+  if (h.wslAvailable) {
+    parts.push(zh ? 'WSL 可用' : 'WSL ready');
+  } else if (h.platform && h.platform !== 'win32') {
+    parts.push(zh ? 'WSL 不可用' : 'WSL n/a (not Windows)');
+  }
+  if (h.connected && h.meta) {
+    parts.push(`SSH ${h.meta.username}@${h.meta.host}`);
+  }
+  if (h.wslConnected && h.wslMeta) {
+    parts.push(
+      zh
+        ? `WSL ${h.wslMeta.distro}`
+        : `WSL ${h.wslMeta.distro}:${h.wslMeta.root}`,
+    );
+  }
+
+  return {
+    tone: authWarn ? 'warn' : 'online',
+    html: parts.join(' · '),
+  };
+}
+
+/** Apply tone classes on a status element (online / offline / warn). */
+export function applyBridgeStatusTone(
+  el: HTMLElement,
+  tone: 'online' | 'offline' | 'warn',
+): void {
+  el.classList.remove('bridge-online', 'bridge-offline', 'bridge-warn');
+  if (tone === 'online') {
+    el.classList.add('bridge-online');
+  } else if (tone === 'offline') {
+    el.classList.add('bridge-offline');
+  } else {
+    el.classList.add('bridge-online', 'bridge-warn');
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 export async function sshConnect(params: SshConnectParams): Promise<SshSessionMeta> {

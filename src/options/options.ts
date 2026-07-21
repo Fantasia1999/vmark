@@ -8,7 +8,9 @@ import {
   type ThemeMode,
 } from '../preview/config';
 import {
+  applyBridgeStatusTone,
   DEFAULT_SSH_BRIDGE_URL,
+  formatBridgeStatus,
   loadSshBridgeSettings,
   saveSshBridgeSettings,
   sshHealth,
@@ -38,29 +40,9 @@ async function refreshBridgeStatus(): Promise<void> {
     return;
   }
   const h = await sshHealth();
-  if (!h.ok) {
-    el.classList.remove('bridge-online');
-    el.classList.add('bridge-offline');
-    el.innerHTML =
-      'Bridge status: <span class="bridge-state">offline</span> (start ssh-bridge)';
-    return;
-  }
-  const extras: string[] = [];
-  if (h.wslAvailable) {
-    extras.push('WSL ready');
-  } else if (h.platform && h.platform !== 'win32') {
-    extras.push('WSL n/a (not Windows)');
-  }
-  if (h.connected && h.meta) {
-    extras.push(`SSH ${h.meta.username}@${h.meta.host}`);
-  }
-  if (h.wslConnected && h.wslMeta) {
-    extras.push(`WSL ${h.wslMeta.distro}:${h.wslMeta.root}`);
-  }
-  el.classList.remove('bridge-offline');
-  el.classList.add('bridge-online');
-  const suffix = extras.length ? ` · ${extras.join(' · ')}` : '';
-  el.innerHTML = `Bridge status: <span class="bridge-state">online</span>${suffix}`;
+  const { tone, html } = formatBridgeStatus(h, 'en');
+  applyBridgeStatusTone(el, tone);
+  el.innerHTML = html;
 }
 
 async function init(): Promise<void> {
