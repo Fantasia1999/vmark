@@ -7,12 +7,13 @@
     <style>
       :root {
         color-scheme: light dark;
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         font-size: 13px;
       }
       body {
         margin: 0;
-        min-width: 272px;
+        min-width: 300px;
+        max-width: 360px;
         padding: 8px;
         background: Canvas;
         color: CanvasText;
@@ -48,15 +49,19 @@
         text-align: left;
         cursor: pointer;
       }
-      button:hover {
+      button:hover:not(:disabled) {
         background: color-mix(in srgb, CanvasText 8%, transparent);
       }
-      button:active {
+      button:active:not(:disabled) {
         transform: scale(0.99);
       }
       button:focus-visible {
         outline: 2px solid #007fd4;
         outline-offset: 1px;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: default;
       }
       .popup-icon {
         display: inline-flex;
@@ -79,7 +84,7 @@
         padding: 10px 12px;
         margin-bottom: 6px;
       }
-      button.primary:hover {
+      button.primary:hover:not(:disabled) {
         background: #1177bb;
       }
       button.primary .popup-icon {
@@ -104,6 +109,22 @@
       button.primary .btn-sub {
         opacity: 0.85;
       }
+      button.secondary {
+        justify-content: center;
+        background: color-mix(in srgb, CanvasText 8%, transparent);
+      }
+      button.secondary:hover:not(:disabled) {
+        background: color-mix(in srgb, CanvasText 14%, transparent);
+      }
+      button.action-primary {
+        justify-content: center;
+        background: #0e639c;
+        color: #fff;
+        font-weight: 500;
+      }
+      button.action-primary:hover:not(:disabled) {
+        background: #1177bb;
+      }
       .hint {
         margin: 8px 8px 4px;
         font-size: 11px;
@@ -115,49 +136,277 @@
         border-top: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
         margin: 6px 4px;
       }
+      .panel[hidden] {
+        display: none !important;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0 0 10px;
+      }
+      .panel-header h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+      }
+      .panel-header .back-btn {
+        width: auto;
+        margin: 0;
+        padding: 6px 8px;
+        flex-shrink: 0;
+      }
+      .panel-sub {
+        margin: -4px 4px 12px;
+        font-size: 11px;
+        line-height: 1.4;
+        opacity: 0.65;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin: 0 4px 10px;
+      }
+      .field-label {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.7;
+      }
+      .field input,
+      .field select {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 7px 8px;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+        border-radius: 6px;
+        background: Field;
+        color: FieldText;
+        font: inherit;
+      }
+      .field input:focus,
+      .field select:focus {
+        outline: 2px solid #007fd4;
+        outline-offset: 0;
+        border-color: transparent;
+      }
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1.5fr;
+        gap: 8px;
+        margin: 0 4px 10px;
+      }
+      .field-row .field {
+        margin: 0;
+      }
+      .field-hint {
+        margin: -4px 4px 10px;
+        font-size: 11px;
+        line-height: 1.35;
+        opacity: 0.55;
+      }
+      .field-hint code {
+        font-size: 10px;
+      }
+      .error {
+        margin: 0 4px 10px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: color-mix(in srgb, #f14c4c 14%, transparent);
+        color: #f14c4c;
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .error[hidden] {
+        display: none !important;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin: 12px 4px 4px;
+      }
+      .actions button {
+        flex: 1;
+        margin: 0;
+      }
+      .tabs {
+        display: flex;
+        gap: 2px;
+        margin: 0 4px 12px;
+        padding: 2px;
+        border-radius: 8px;
+        background: color-mix(in srgb, CanvasText 6%, transparent);
+      }
+      .tabs button {
+        flex: 1;
+        justify-content: center;
+        margin: 0;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .tabs button.active {
+        background: color-mix(in srgb, CanvasText 12%, transparent);
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
-    <h1>Markdown Preview</h1>
+    <!-- Main menu -->
+    <div id="panel-main" class="panel">
+      <h1>Markdown Preview</h1>
 
-    <button type="button" class="primary" id="openWorkbench" title="打开 Markdown 工作台">
-      <span class="popup-icon" data-icon="workbench"></span>
-      <span class="btn-text">
-        <span class="btn-title">Markdown 工作台</span>
-        <span class="btn-sub">打开入口、最近工作区与文件</span>
-      </span>
-    </button>
+      <button type="button" class="primary" id="openWorkbench" title="打开 Markdown 工作台">
+        <span class="popup-icon" data-icon="workbench"></span>
+        <span class="btn-text">
+          <span class="btn-title">Markdown 工作台</span>
+          <span class="btn-sub">最近工作区、文件与预览</span>
+        </span>
+      </button>
 
-    <div class="section-label">打开</div>
-    <button type="button" id="openWorkspace">
-      <span class="popup-icon" data-icon="folder"></span>
-      <span>打开工作区文件夹…</span>
-    </button>
-    <button type="button" id="openSsh">
-      <span class="popup-icon" data-icon="ssh"></span>
-      <span>打开 SSH 工作区…</span>
-    </button>
-    <button type="button" id="openWsl">
-      <span class="popup-icon" data-icon="folder"></span>
-      <span>打开 WSL 工作区…</span>
-    </button>
-    <button type="button" id="openLocal">
-      <span class="popup-icon" data-icon="file"></span>
-      <span>打开本地 Markdown…</span>
-    </button>
+      <div class="section-label">打开</div>
+      <button type="button" id="openWorkspace">
+        <span class="popup-icon" data-icon="folder"></span>
+        <span>打开工作区文件夹…</span>
+      </button>
+      <button type="button" id="openSsh">
+        <span class="popup-icon" data-icon="ssh"></span>
+        <span>打开 SSH 工作区…</span>
+      </button>
+      <button type="button" id="openWsl">
+        <span class="popup-icon" data-icon="folder"></span>
+        <span>打开 WSL 工作区…</span>
+      </button>
+      <button type="button" id="openLocal">
+        <span class="popup-icon" data-icon="file"></span>
+        <span>打开本地 Markdown…</span>
+      </button>
 
-    <hr />
-    <button type="button" id="togglePreview">
-      <span class="popup-icon" data-icon="preview"></span>
-      <span>切换当前页预览</span>
-    </button>
-    <button type="button" id="openOptions">
-      <span class="popup-icon" data-icon="settings"></span>
-      <span>选项</span>
-    </button>
-    <p class="hint">
-      工作台可浏览目录内全部 Markdown，并解析相对路径图片与站内链接。
-    </p>
+      <hr />
+      <button type="button" id="togglePreview">
+        <span class="popup-icon" data-icon="preview"></span>
+        <span>切换当前页预览</span>
+      </button>
+      <button type="button" id="openOptions">
+        <span class="popup-icon" data-icon="settings"></span>
+        <span>选项</span>
+      </button>
+      <p class="hint">
+        SSH / WSL 在弹窗内填写后连接；成功后再打开工作台。本地文件夹/文件会先弹出系统选择框。
+      </p>
+      <p class="error" id="main-error" hidden></p>
+    </div>
+
+    <!-- SSH settings -->
+    <div id="panel-ssh" class="panel" hidden>
+      <div class="panel-header">
+        <button type="button" class="back-btn secondary" data-back title="返回">←</button>
+        <h2>SSH 工作区</h2>
+      </div>
+      <p class="panel-sub">经本机 Bridge 连接；凭证只发到 127.0.0.1。</p>
+
+      <label class="field">
+        <span class="field-label">主机</span>
+        <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" />
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">端口</span>
+          <input id="ssh-port" type="number" value="22" min="1" max="65535" />
+        </label>
+        <label class="field">
+          <span class="field-label">用户名</span>
+          <input id="ssh-user" type="text" autocomplete="username" />
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">远程根目录</span>
+        <input id="ssh-root" type="text" placeholder="." value="." />
+      </label>
+      <label class="field">
+        <span class="field-label">认证方式</span>
+        <select id="ssh-auth">
+          <option value="password">密码</option>
+          <option value="key">私钥</option>
+        </select>
+      </label>
+      <label class="field" id="ssh-password-row">
+        <span class="field-label">密码</span>
+        <input id="ssh-password" type="password" autocomplete="current-password" />
+      </label>
+      <div id="ssh-key-row" hidden>
+        <label class="field">
+          <span class="field-label">私钥文件</span>
+          <input id="ssh-key-file" type="file" />
+        </label>
+        <label class="field">
+          <span class="field-label">私钥口令（可选）</span>
+          <input id="ssh-passphrase" type="password" autocomplete="off" />
+        </label>
+      </div>
+      <p class="error" id="ssh-error" hidden></p>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>取消</button>
+        <button type="button" class="action-primary" id="ssh-connect">连接</button>
+      </div>
+    </div>
+
+    <!-- WSL settings -->
+    <div id="panel-wsl" class="panel" hidden>
+      <div class="panel-header">
+        <button type="button" class="back-btn secondary" data-back title="返回">←</button>
+        <h2>WSL 工作区</h2>
+      </div>
+      <p class="panel-sub">需 Windows + 本机 Bridge；目录是发行版内 Linux 路径。</p>
+
+      <div class="tabs" role="tablist" aria-label="打开方式">
+        <button type="button" role="tab" id="wsl-tab-select" class="active" aria-selected="true">
+          选择目录
+        </button>
+        <button type="button" role="tab" id="wsl-tab-paste" aria-selected="false">粘贴路径</button>
+      </div>
+
+      <div id="wsl-panel-select">
+        <label class="field">
+          <span class="field-label">发行版</span>
+          <select id="wsl-distro" aria-label="WSL 发行版">
+            <option value="">—</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Linux 根目录</span>
+          <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
+        </label>
+        <p class="field-hint">例如 <code>~/workspace/dev/repo</code> 或绝对路径，不是 Windows 盘符。</p>
+      </div>
+
+      <div id="wsl-panel-paste" hidden>
+        <label class="field">
+          <span class="field-label">完整路径或 URI</span>
+          <input
+            id="wsl-path"
+            type="text"
+            spellcheck="false"
+            placeholder="\\wsl.localhost\Debian\home\user\proj"
+          />
+        </label>
+        <p class="field-hint">
+          支持 <code>\\wsl$\…</code>、<code>wsl://Distro/…</code>、
+          <code>file://wsl.localhost/…</code>
+        </p>
+      </div>
+
+      <p class="error" id="wsl-error" hidden></p>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>取消</button>
+        <button type="button" class="action-primary" id="wsl-connect">连接</button>
+      </div>
+    </div>
+
     <script type="module" src="./popup.js"></script>
   </body>
 </html>

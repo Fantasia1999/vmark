@@ -9,6 +9,7 @@ import { runMermaid } from '../content/mermaidRunner';
 import { mountToolbar, type PreviewMode } from '../content/toolbar';
 import {
   isMarkdownFileName,
+  loadLocalDoc,
   MD_ACCEPT,
   readFileAsLocalDoc,
   saveLocalDoc,
@@ -21,12 +22,14 @@ import {
   ensureReadPermission,
   isDirectoryPickerSupported,
   listMarkdownFiles,
+  loadWorkspaceHandle,
   pickWorkspaceDirectory,
   readWorkspaceTextFile,
   resolveRelativePath,
   saveWorkspaceHandle,
   type WorkspaceFileEntry,
 } from '../shared/workspaceFs';
+import { takePendingEnter } from '../shared/pendingEnter';
 import {
   loadSshFormDefaults,
   saveSshFormDefaults,
@@ -80,6 +83,7 @@ import {
 } from '../shared/previewZoom';
 import { renderSourceWithLineNumbers } from '../shared/sourceView';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
+import { isOptionsDialogOpen, showOptionsDialog } from './optionsDialog';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -647,6 +651,59 @@ async function openWorkspaceFolder(): Promise<void> {
   }
 }
 
+/**
+ * Resume after extension popup configured a workspace/file (no blank intermediate page).
+ * SSH/WSL session already lives on the local bridge.
+ */
+async function resumePendingEnterFromPopup(): Promise<void> {
+  const pending = await takePendingEnter();
+  if (!pending) {
+    return;
+  }
+  try {
+    if (pending.kind === 'local') {
+      const handle = await loadWorkspaceHandle();
+      if (!handle) {
+        alert('未找到已选择的工作区文件夹，请重新打开。');
+        return;
+      }
+      await enterWorkspace(handle);
+      return;
+    }
+    if (pending.kind === 'doc') {
+      const docPayload = await loadLocalDoc();
+      if (!docPayload) {
+        alert('未找到已打开的 Markdown 文件，请重新选择。');
+        return;
+      }
+      await openSingleDoc(docPayload);
+      return;
+    }
+    if (pending.kind === 'ssh') {
+      const health = await sshHealth();
+      if (!health.ok || !health.connected || !health.meta) {
+        alert('SSH 会话不可用。请确认 Bridge 仍在运行，并在弹窗中重新连接。');
+        showSshDialog(true);
+        return;
+      }
+      await enterSshWorkspace(health.meta);
+      return;
+    }
+    if (pending.kind === 'wsl') {
+      const health = await sshHealth();
+      if (!health.ok || !health.wslConnected || !health.wslMeta) {
+        alert('WSL 会话不可用。请确认 Bridge 仍在运行，并在弹窗中重新连接。');
+        showWslDialog(true);
+        return;
+      }
+      await enterWslWorkspace(health.wslMeta, pending.preferredPath);
+    }
+  } catch (e) {
+    console.error(e);
+    alert(e instanceof Error ? e.message : String(e));
+  }
+}
+
 async function openWorkspaceFile(path: string): Promise<void> {
   if (workspaceKind === 'ssh') {
     try {
@@ -915,7 +972,7 @@ function mountToolbarExtras(): void {
   }
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
-    onOpenOptions: () => void chrome.runtime.openOptionsPage(),
+    onOpenOptions: () => showOptionsDialog(true),
     onToggleOutline:
       mode === 'preview'
         ? () => {
@@ -1011,7 +1068,7 @@ function wireUi(): void {
   $('btn-open-folder')?.addEventListener('click', () => void openWorkspaceFolder());
   $('btn-open-ssh')?.addEventListener('click', () => showSshDialog(true));
   $('btn-open-wsl')?.addEventListener('click', () => showWslDialog(true));
-  $('btn-options').addEventListener('click', () => void chrome.runtime.openOptionsPage());
+  $('btn-options').addEventListener('click', () => showOptionsDialog(true));
 
   $('ws-btn-refresh')?.addEventListener('click', () => void refreshWorkspace());
   $('ws-btn-open-file')?.addEventListener('click', () => pickFile());
@@ -1209,6 +1266,11 @@ function wireModalKeyboard(): void {
           void connectSshFromDialog();
         }
       }
+      return;
+    }
+    if (isOptionsDialogOpen()) {
+      e.preventDefault();
+      showOptionsDialog(false);
       return;
     }
     const wsl = document.getElementById('wsl-dialog');
@@ -1589,8 +1651,9 @@ async function init(): Promise<void> {
   const shouldPickFolder = params.get('workspace') === '1' || params.get('folder') === '1';
   const shouldSsh = params.get('ssh') === '1';
   const shouldWsl = params.get('wsl') === '1';
+  const shouldEnter = params.get('enter') === '1';
 
-  if (shouldPickFile || shouldPickFolder || shouldSsh || shouldWsl) {
+  if (shouldPickFile || shouldPickFolder || shouldSsh || shouldWsl || shouldEnter) {
     history.replaceState(null, '', location.pathname);
   }
 
@@ -1599,7 +1662,10 @@ async function init(): Promise<void> {
   showEmpty();
   applyThemeClass();
 
-  if (shouldWsl) {
+  if (shouldEnter) {
+    // Popup already configured the source (picker / SSH / WSL); enter immediately.
+    setTimeout(() => void resumePendingEnterFromPopup(), 0);
+  } else if (shouldWsl) {
     setTimeout(() => showWslDialog(true), 50);
   } else if (shouldSsh) {
     setTimeout(() => showSshDialog(true), 50);
@@ -1610,7 +1676,7 @@ async function init(): Promise<void> {
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'sync' || !doc) {
+    if (area !== 'sync') {
       return;
     }
     let dirty = false;
@@ -1621,9 +1687,19 @@ async function init(): Promise<void> {
         dirty = true;
       }
     }
-    if (dirty && mode === 'preview') {
+    if (!dirty) {
+      return;
+    }
+    // Theme / width apply even on empty workbench
+    applyThemeClass();
+    applyPreviewWidth(settings.previewWidth);
+    if (doc && mode === 'preview') {
       engine.updateSettings(settings);
       void showPreviewView();
+    } else if (doc && mode === 'source') {
+      engine.updateSettings(settings);
+    } else {
+      engine.updateSettings(settings);
     }
   });
 }

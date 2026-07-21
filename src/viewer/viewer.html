@@ -331,7 +331,8 @@
 
       /* SSH / WSL dialogs (shared overlay) */
       #ssh-dialog,
-      #wsl-dialog {
+      #wsl-dialog,
+      #options-dialog {
         position: fixed;
         inset: 0;
         z-index: 2147483640;
@@ -342,7 +343,8 @@
         box-sizing: border-box;
       }
       #ssh-dialog[hidden],
-      #wsl-dialog[hidden] {
+      #wsl-dialog[hidden],
+      #options-dialog[hidden] {
         display: none !important;
       }
       .ssh-dialog-backdrop {
@@ -403,7 +405,7 @@
         text-transform: uppercase;
         opacity: 0.55;
       }
-      .ssh-dialog-card input,
+      .ssh-dialog-card input:not([type='checkbox']),
       .ssh-dialog-card select {
         font: inherit;
         font-size: 13px;
@@ -415,11 +417,70 @@
         width: 100%;
         box-sizing: border-box;
       }
-      .ssh-dialog-card input:focus,
+      .ssh-dialog-card input:not([type='checkbox']):focus,
       .ssh-dialog-card select:focus {
         outline: 1px solid var(--vscode-focusBorder, #007fd4);
         outline-offset: -1px;
         border-color: var(--vscode-focusBorder, #007fd4);
+      }
+      #options-dialog .ssh-dialog-card {
+        width: min(520px, 100%);
+        max-height: min(92vh, 760px);
+      }
+      #options-dialog .opt-fieldset {
+        margin: 0 0 14px;
+        padding: 10px 12px 6px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 8px;
+      }
+      #options-dialog .opt-fieldset legend {
+        padding: 0 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        opacity: 0.55;
+      }
+      #options-dialog .opt-check {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 8px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #options-dialog .opt-check input[type='checkbox'] {
+        width: auto;
+        margin: 0;
+        accent-color: var(--vscode-focusBorder, #007fd4);
+      }
+      #options-dialog .opt-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 0 0 10px;
+        font-size: 12px;
+      }
+      #options-dialog .opt-status {
+        min-height: 1.2em;
+        margin: 0 22px 4px;
+        font-size: 12px;
+        opacity: 0.75;
+        color: var(--vscode-charts-green, #89d185);
+      }
+      #options-dialog .opt-bridge-status {
+        margin: 4px 0 8px;
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      #options-dialog .opt-bridge-status .bridge-state {
+        font-weight: 600;
+      }
+      #options-dialog .opt-bridge-status.bridge-online .bridge-state {
+        color: var(--vscode-charts-green, #3dd68c);
+      }
+      #options-dialog .opt-bridge-status.bridge-offline .bridge-state {
+        color: var(--vscode-errorForeground, #f48771);
       }
       .ssh-dialog-card input::placeholder {
         opacity: 0.45;
@@ -902,6 +963,110 @@
           </button>
           <button type="button" class="secondary" id="wsl-cancel">取消</button>
           <button type="button" id="wsl-connect">连接</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings dialog (in-page; avoids jumping to options.html) -->
+    <div id="options-dialog" hidden>
+      <div class="ssh-dialog-backdrop" data-options-dismiss></div>
+      <div
+        class="ssh-dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="options-dialog-title"
+      >
+        <div class="dlg-header">
+          <h2 id="options-dialog-title">选项</h2>
+          <p class="dlg-sub">修改会立即保存；已打开的预览会自动应用主题与布局。</p>
+        </div>
+        <div class="dlg-body">
+          <fieldset class="opt-fieldset">
+            <legend>常规</legend>
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-autoPreview" /> 检测到 Markdown 时自动预览</label
+            >
+            <label class="opt-row">
+              <span class="dlg-field-label">主题</span>
+              <select id="opt-theme">
+                <option value="auto">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+              </select>
+            </label>
+            <label class="opt-row">
+              <span class="dlg-field-label">预览宽度</span>
+              <select id="opt-previewWidth">
+                <option value="comfortable">舒适（~980px）</option>
+                <option value="wide">宽屏（~1280px，推荐）</option>
+                <option value="fluid">更宽（~1600px / 96vw）</option>
+                <option value="full">铺满内容区</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset class="opt-fieldset">
+            <legend>Markdown</legend>
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-breaks" /> Breaks（换行 → &lt;br&gt;）</label
+            >
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-linkify" /> 自动识别 URL 链接</label
+            >
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-typographer" /> 排版增强（智能引号等）</label
+            >
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-sanitizeHtml" /> 禁用 Markdown 中的原始 HTML</label
+            >
+          </fieldset>
+
+          <fieldset class="opt-fieldset">
+            <legend>扩展</legend>
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-mathEnabled" /> KaTeX 公式</label
+            >
+            <label class="opt-check"
+              ><input type="checkbox" id="opt-mermaidEnabled" /> Mermaid 图表</label
+            >
+            <label class="opt-row">
+              <span class="dlg-field-label">Mermaid 主题</span>
+              <select id="opt-mermaidTheme">
+                <option value="vscode">VS Code（推荐）</option>
+                <option value="default">Mermaid default</option>
+                <option value="dark">Mermaid dark</option>
+                <option value="forest">Mermaid forest</option>
+                <option value="neutral">Mermaid neutral</option>
+                <option value="base">Mermaid base</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset class="opt-fieldset">
+            <legend>Local Bridge（SSH / WSL）</legend>
+            <p class="dlg-field-hint" style="margin-bottom: 10px">
+              本机运行 <code>npm run ssh-bridge</code>，把 Token 填到下方。WSL 需 Bridge 跑在
+              Windows 上。
+            </p>
+            <label class="opt-row">
+              <span class="dlg-field-label">Bridge URL</span>
+              <input id="opt-sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" />
+            </label>
+            <label class="opt-row">
+              <span class="dlg-field-label">Bridge Token</span>
+              <input id="opt-sshBridgeToken" type="password" autocomplete="off" />
+            </label>
+            <p class="opt-bridge-status" id="opt-bridge-status">
+              Bridge：<span class="bridge-state">—</span>
+            </p>
+          </fieldset>
+        </div>
+        <p class="opt-status" id="opt-status" aria-live="polite"></p>
+        <div class="ssh-actions">
+          <button type="button" class="secondary dlg-actions-left" id="opt-open-full" title="在独立标签打开完整选项页">
+            独立选项页…
+          </button>
+          <button type="button" id="opt-close">完成</button>
         </div>
       </div>
     </div>
