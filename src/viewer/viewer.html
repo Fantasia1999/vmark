@@ -808,7 +808,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 6px 12px;
+        padding: 4px 10px 4px 12px;
         border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
         background: var(--vscode-editorWidget-background, #252526);
         font-size: 12px;
@@ -817,7 +817,8 @@
       }
 
       #ws-current-path {
-        flex: 1;
+        flex: 1 1 auto;
+        min-width: 0;
         opacity: 0.85;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -825,8 +826,14 @@
       }
 
       .ws-main-bar .hint {
+        flex: 0 0 auto;
         opacity: 0.5;
         font-size: 11px;
+      }
+
+      /* Preview/Source/zoom/options live in the main bar via mountToolbar */
+      .ws-main-bar #vscode-md-preview-toolbar {
+        flex-shrink: 0;
       }
 
       .ws-content {
@@ -860,11 +867,6 @@
       /* display:flex above would otherwise override the UA [hidden] rule */
       .ws-empty-preview[hidden] {
         display: none !important;
-      }
-
-      /* toolbar in workspace sits top-right of content */
-      #workspace-shell #vscode-md-preview-toolbar {
-        top: 48px;
       }
 
       @media (max-width: 720px) {
