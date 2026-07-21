@@ -69,19 +69,39 @@ function shellQuote(s) {
   return `'${String(s).replace(/'/g, `'\\''`)}'`;
 }
 
-/** Drop known noisy WSL warnings from stderr. */
+/**
+ * Drop known noisy WSL warnings from stderr (EN + localized/mojibake).
+ *
+ * wsl.exe often writes UTF-16LE diagnostics while the inner bash writes UTF-8,
+ * so Node's utf8 decode leaves NULs between ASCII chars of the WSL line.
+ * Strip NULs first so token filters can match.
+ */
 function cleanWslText(s) {
   return String(s || '')
+    .replace(/\0/g, '')
     .split(/\r?\n/)
     .filter((line) => {
       const t = line.trim();
       if (!t) {
         return false;
       }
+      // English WSL proxy notices
       if (/localhost proxy configuration was detected/i.test(t)) {
         return false;
       }
       if (/WSL in NAT mode does not support localhost proxies/i.test(t)) {
+        return false;
+      }
+      // Localized / garbled variants still contain these ASCII tokens
+      // e.g. "wsl: … localhost … WSL … NAT … localhost …"
+      if (/^wsl:\s*/i.test(t) && /localhost/i.test(t) && /NAT/i.test(t)) {
+        return false;
+      }
+      if (/^wsl:\s*/i.test(t) && /localhost/i.test(t) && /proxy/i.test(t)) {
+        return false;
+      }
+      // Any leftover wsl.exe chrome that is mostly non-printable after decode
+      if (/^wsl:\s*/i.test(t) && /localhost/i.test(t)) {
         return false;
       }
       return true;
@@ -94,9 +114,12 @@ function formatExecError(prefix, e) {
   const err = e && typeof e === 'object' ? e : {};
   const stderr = cleanWslText(err.stderr);
   const stdout = cleanWslText(err.stdout);
-  const msg = err.message ? String(err.message) : String(e);
+  // Node's "Command failed: …" often re-embeds the same mixed-encoding stderr
+  const msg = cleanWslText(err.message ? String(err.message) : String(e))
+    .replace(/^Command failed:.*$/m, '')
+    .trim();
   // Prefer bash's own error over Node's "Command failed: ..."
-  const detail = stderr || stdout || msg;
+  const detail = stderr || stdout || msg || String(err.message || e);
   return `${prefix}: ${detail}`;
 }
 
@@ -134,16 +157,19 @@ async function wslBash(distro, script) {
  */
 export async function resolveRoot(distro, root) {
   const r = (root || '~').trim() || '~';
-  // Expand ~ without eval; support realpath or readlink -f or pwd -P fallback
+  // Expand ~ without eval. IMPORTANT: quote '~' in case/parameter patterns —
+  // bash tilde-expands unquoted patterns, so ~/* becomes $HOME/* and never
+  // matches a literal "~/path" input.
+  // Support realpath or readlink -f or pwd -P fallback.
   const script = `
 set -e
 input=${shellQuote(r)}
 case "$input" in
-  "~"|"")
+  '~'|'')
     p="$HOME"
     ;;
-  ~/*)
-    p="$HOME/\${input#~/}"
+  '~/'*)
+    p="$HOME/\${input#"~/"}"
     ;;
   *)
     p="$input"
