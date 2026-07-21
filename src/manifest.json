@@ -24,7 +24,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
+  "permissions": ["storage", "contextMenus", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["file:///*", "http://*/*", "https://*/*"],
   "content_scripts": [
     {

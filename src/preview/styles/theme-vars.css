@@ -188,21 +188,30 @@ body.vscode-md-preview-active {
 }
 
 /* Mermaid diagram container polish (subset of VS Code diagramStyles) */
-.markdown-body .mermaid {
-  position: relative;
+.markdown-body .mermaid,
+.markdown-body pre.mermaid {
+  position: relative !important;
+  display: block;
   margin: 1em 0;
+  padding: 0;
   text-align: center;
   overflow: auto;
+  /* Undo default <pre> code-block look so fences match ::: mermaid containers */
+  background: transparent !important;
+  border: none !important;
+  white-space: normal !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  tab-size: inherit;
 }
 
 .markdown-body .mermaid svg {
   max-width: 100%;
   height: auto;
-}
-
-/* Transparent mermaid background so editor bg shows through like VS Code */
-.markdown-body .mermaid svg {
   background: transparent;
+  display: block;
+  margin: 0 auto;
 }
 
 /* Export PNG/JPG controls — top-right of each diagram */
@@ -210,25 +219,19 @@ body.vscode-md-preview-active {
   position: absolute;
   top: 6px;
   right: 6px;
-  z-index: 3;
+  z-index: 5;
   display: inline-flex;
   gap: 4px;
-  opacity: 0;
-  pointer-events: none;
+  /* Slightly visible so users discover the feature; full opacity on hover */
+  opacity: 0.55;
+  pointer-events: auto;
   transition: opacity 0.15s ease;
 }
 
 .markdown-body .mermaid:hover .mermaid-export,
 .markdown-body .mermaid:focus-within .mermaid-export,
-.markdown-body .mermaid.mermaid-has-export:hover .mermaid-export {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Keep buttons usable when focused via keyboard */
 .markdown-body .mermaid .mermaid-export:focus-within {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .markdown-body .mermaid .mermaid-export-btn {
