@@ -153,7 +153,8 @@ export function extendMarkdownItWithMermaid(
       'i',
     );
     if (lang && reg.test(lang)) {
-      return `<pre class="${mermaidLanguageId}" style="all: unset;">${preProcess(code)}</pre>`;
+      // Do NOT use style="all: unset" — it kills position:relative and breaks export UI.
+      return `<pre class="${mermaidLanguageId}">${preProcess(code)}</pre>`;
     }
     return highlight?.(code, lang, attrs) ?? code;
   };

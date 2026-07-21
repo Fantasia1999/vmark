@@ -11,6 +11,14 @@ function resolveExportSize(svg: SVGSVGElement): { width: number; height: number 
   let width = rect.width;
   let height = rect.height;
 
+  // CSS zoom on preview root shrinks getBoundingClientRect — prefer intrinsic size
+  const attrW = Number(svg.getAttribute('width'));
+  const attrH = Number(svg.getAttribute('height'));
+  if ((!width || !height) && attrW > 0 && attrH > 0) {
+    width = attrW;
+    height = attrH;
+  }
+
   if (!width || !height) {
     const vb = svg.viewBox?.baseVal;
     if (vb && vb.width && vb.height) {
@@ -28,6 +36,13 @@ function resolveExportSize(svg: SVGSVGElement): { width: number; height: number 
     }
   }
 
+  // If zoom distorted rect, prefer larger of viewBox vs rect
+  const vb = svg.viewBox?.baseVal;
+  if (vb && vb.width > 0 && vb.height > 0) {
+    width = Math.max(width || 0, vb.width);
+    height = Math.max(height || 0, vb.height);
+  }
+
   width = Math.max(1, Math.ceil(width || 800));
   height = Math.max(1, Math.ceil(height || 600));
   return { width, height };
@@ -39,11 +54,17 @@ function pageBackgroundColor(): string {
   if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
     return bg;
   }
-  const rootBg = getComputedStyle(document.documentElement).backgroundColor;
-  if (rootBg && rootBg !== 'rgba(0, 0, 0, 0)' && rootBg !== 'transparent') {
-    return rootBg;
+  const root = document.getElementById('vscode-md-preview-root');
+  if (root) {
+    const rootBg = getComputedStyle(root).backgroundColor;
+    if (rootBg && rootBg !== 'rgba(0, 0, 0, 0)' && rootBg !== 'transparent') {
+      return rootBg;
+    }
   }
-  // Fallbacks matching extension themes
+  const htmlBg = getComputedStyle(document.documentElement).backgroundColor;
+  if (htmlBg && htmlBg !== 'rgba(0, 0, 0, 0)' && htmlBg !== 'transparent') {
+    return htmlBg;
+  }
   if (
     body.classList.contains('vscode-dark') ||
     document.documentElement.dataset.theme === 'dark'
@@ -72,8 +93,36 @@ function prepareSvgClone(svg: SVGSVGElement, width: number, height: number): str
       'system-ui, -apple-system, "Segoe UI", sans-serif';
   }
 
+  // Inline currentColor / CSS custom props that often fail after clone → canvas
+  try {
+    const computed = getComputedStyle(svg);
+    if (!clone.style.color && computed.color) {
+      clone.style.color = computed.color;
+    }
+    if (!clone.getAttribute('color') && computed.color) {
+      clone.setAttribute('color', computed.color);
+    }
+  } catch {
+    // ignore
+  }
+
   const xml = new XMLSerializer().serializeToString(clone);
+  // XMLSerializer sometimes omits xmlns on root in edge cases
+  if (!/\sxmlns=/.test(xml)) {
+    return xml.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
   return xml;
+}
+
+function loadImageFromSvgXml(xml: string): Promise<HTMLImageElement> {
+  // data: URL is more reliable than blob: for SVG→canvas across Chromium builds
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
+  const img = new Image();
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('无法将 Mermaid SVG 转为位图'));
+    img.src = url;
+  });
 }
 
 async function svgToBlob(
@@ -83,48 +132,29 @@ async function svgToBlob(
 ): Promise<Blob> {
   const { width, height } = resolveExportSize(svg);
   const xml = prepareSvgClone(svg, width, height);
-  const svgBlob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
+  const img = await loadImageFromSvgXml(xml);
 
-  try {
-    const img = new Image();
-    // blob: URL is same-origin for canvas
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('无法将 Mermaid SVG 转为位图'));
-      img.src = url;
-    });
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Canvas 不可用');
-    }
-
-    // JPEG has no alpha — fill solid background; PNG keeps transparency unless we fill
-    if (type === 'image/jpeg') {
-      ctx.fillStyle = pageBackgroundColor();
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      // Optional light backdrop for PNG so dark-theme diagrams stay clear on white pages
-      // Keep transparent for PNG so it matches preview.
-    }
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('导出图片失败'))),
-        type,
-        type === 'image/jpeg' ? 0.92 : undefined,
-      );
-    });
-    return blob;
-  } finally {
-    URL.revokeObjectURL(url);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Canvas 不可用');
   }
+
+  // JPEG has no alpha — always fill. PNG: fill page bg so paste targets look solid.
+  ctx.fillStyle = pageBackgroundColor();
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('导出图片失败'))),
+      type,
+      type === 'image/jpeg' ? 0.92 : undefined,
+    );
+  });
+  return blob;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -139,31 +169,61 @@ function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function copyImageBlob(blob: Blob): Promise<'clipboard' | 'download'> {
-  // Chromium clipboard write typically supports image/png well; jpeg is flaky.
-  if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+/**
+ * Chromium clipboard image write is reliable only for image/png.
+ * Prefer ClipboardItem with a Promise blob (required by some Chrome versions).
+ */
+async function writePngToClipboard(png: Blob): Promise<void> {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+    throw new Error('clipboard API unavailable');
+  }
+  const item = new ClipboardItem({
+    'image/png': Promise.resolve(png),
+  });
+  await navigator.clipboard.write([item]);
+}
+
+async function copyImageBlob(
+  blob: Blob,
+  preferredDownloadExt: 'png' | 'jpg',
+): Promise<'clipboard' | 'download'> {
+  // Always try PNG on clipboard (JPEG type key is rejected by most browsers)
+  let png = blob;
+  if (blob.type !== 'image/png') {
+    // Re-encode via bitmap if we somehow got jpeg for clipboard attempt
     try {
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      return 'clipboard';
-    } catch {
-      // fall through
-    }
-    // If jpeg failed, try converting path: some browsers only accept png type key
-    if (blob.type === 'image/jpeg') {
-      try {
-        // Re-wrap as png is wrong content-type; skip — download instead
-      } catch {
-        // ignore
+      const bmp = await createImageBitmap(blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width;
+      c.height = bmp.height;
+      const ctx = c.getContext('2d');
+      if (!ctx) {
+        throw new Error('no ctx');
       }
+      ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      png = await new Promise<Blob>((resolve, reject) => {
+        c.toBlob((b) => (b ? resolve(b) : reject(new Error('png convert failed'))), 'image/png');
+      });
+    } catch {
+      png = blob;
     }
   }
 
-  const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
-  downloadBlob(blob, `mermaid-diagram.${ext}`);
+  try {
+    await writePngToClipboard(png.type === 'image/png' ? png : blob);
+    return 'clipboard';
+  } catch (e) {
+    console.warn('[vscode-md-preview] clipboard write failed, falling back to download', e);
+  }
+
+  const ext = preferredDownloadExt;
+  const name = `mermaid-diagram.${ext}`;
+  downloadBlob(blob, name);
   return 'download';
 }
 
-function setButtonFeedback(btn: HTMLButtonElement, text: string, ms = 1600): void {
+function setButtonFeedback(btn: HTMLButtonElement, text: string, ms = 1800): void {
   const prev = btn.dataset.label || btn.textContent || '';
   if (!btn.dataset.label) {
     btn.dataset.label = prev;
@@ -191,7 +251,7 @@ async function exportDiagram(
   try {
     const type = format === 'jpg' ? 'image/jpeg' : 'image/png';
     const blob = await svgToBlob(svg, type, 2);
-    const how = await copyImageBlob(blob);
+    const how = await copyImageBlob(blob, format === 'jpg' ? 'jpg' : 'png');
     if (how === 'clipboard') {
       setButtonFeedback(btn, '已复制');
     } else {
@@ -208,9 +268,9 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     if (!(node instanceof HTMLElement)) {
       continue;
     }
-    if (node.querySelector(':scope > .mermaid-export')) {
-      continue;
-    }
+    // Remove stale bars if re-rendering the same node identity is reused
+    node.querySelectorAll(':scope > .mermaid-export').forEach((el) => el.remove());
+
     const svg = findSvg(node);
     if (!svg) {
       continue;
@@ -227,7 +287,7 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     pngBtn.type = 'button';
     pngBtn.className = 'mermaid-export-btn';
     pngBtn.textContent = 'PNG';
-    pngBtn.title = '复制为 PNG（不支持剪贴板时将下载）';
+    pngBtn.title = '复制为 PNG 图片（剪贴板不可用时下载）';
     pngBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -238,7 +298,7 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     jpgBtn.type = 'button';
     jpgBtn.className = 'mermaid-export-btn';
     jpgBtn.textContent = 'JPG';
-    jpgBtn.title = '复制为 JPG（不支持剪贴板时将下载）';
+    jpgBtn.title = '复制为图片（剪贴板使用 PNG；失败时下载 JPG）';
     jpgBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -246,6 +306,7 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     });
 
     bar.append(pngBtn, jpgBtn);
-    node.appendChild(bar);
+    // Place bar as first child so it paints above SVG in some stacking contexts
+    node.insertBefore(bar, node.firstChild);
   }
 }
