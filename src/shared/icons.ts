@@ -37,11 +37,15 @@ export const iconPreview = svg(`
   <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.25"/>
 `);
 
-/** Settings gear */
+/** Settings gear (toothed cog — not a sun/theme control) */
 export const iconSettings = svg(`
-  <circle cx="8" cy="8" r="2.25" stroke="currentColor" stroke-width="1.25"/>
-  <path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.2 3.2l1.06 1.06M11.74 11.74l1.06 1.06M12.8 3.2l-1.06 1.06M4.26 11.74l-1.06 1.06"
-    stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+  <path
+    d="M6.4 1.6h3.2l.4 1.7c.45.15.88.38 1.25.66l1.6-.55 1.6 1.6-.55 1.6c.28.37.51.8.66 1.25l1.7.4v3.2l-1.7.4c-.15.45-.38.88-.66 1.25l.55 1.6-1.6 1.6-1.6-.55c-.37.28-.8.51-1.25.66l-.4 1.7H6.4l-.4-1.7a5.6 5.6 0 0 1-1.25-.66l-1.6.55-1.6-1.6.55-1.6A5.6 5.6 0 0 1 2.04 9.6L.34 9.2V6l1.7-.4c.15-.45.38-.88.66-1.25l-.55-1.6 1.6-1.6 1.6.55c.37-.28.8-.51 1.25-.66L6.4 1.6z"
+    stroke="currentColor"
+    stroke-width="1.15"
+    stroke-linejoin="round"
+  />
+  <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.2"/>
 `);
 
 /** Outline / TOC list */
