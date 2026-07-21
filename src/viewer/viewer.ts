@@ -78,6 +78,7 @@ import {
   savePreviewZoom,
   stepPreviewZoom,
 } from '../shared/previewZoom';
+import { renderSourceWithLineNumbers } from '../shared/sourceView';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
 
 import markdownCss from '../preview/styles/markdown.css';
@@ -842,16 +843,9 @@ function showSourceView(): void {
   const root = $(ROOT_ID);
   root.hidden = true;
 
-  const pre = $(SOURCE_ID) as HTMLPreElement;
-  pre.hidden = false;
-  pre.style.whiteSpace = 'pre-wrap';
-  pre.style.wordBreak = 'break-word';
-  pre.style.margin = '0';
-  pre.style.padding = '16px';
-  pre.style.fontFamily =
-    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-  pre.style.fontSize = '13px';
-  pre.textContent = doc.content;
+  const sourceEl = $(SOURCE_ID);
+  sourceEl.hidden = false;
+  renderSourceWithLineNumbers(sourceEl, doc.content);
 
   applyThemeClass();
   applyPreviewZoom(previewZoom);

@@ -19,6 +19,7 @@ import {
   savePreviewZoom,
   stepPreviewZoom,
 } from '../shared/previewZoom';
+import { renderSourceWithLineNumbers } from '../shared/sourceView';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -180,6 +181,7 @@ function remountToolbar(): void {
 
 function showSource(): void {
   mode = 'source';
+  injectStyles();
   if (outlinePanel.isOpen && !outlinePanel.isPinned) {
     outlinePanel.close();
   }
@@ -189,23 +191,16 @@ function showSource(): void {
   document.documentElement.classList.add('vscode-md-preview-active');
   document.body.classList.add('vscode-md-preview-active');
 
-  let pre = document.getElementById(SOURCE_ID) as HTMLPreElement | null;
-  if (!pre) {
+  let sourceEl = document.getElementById(SOURCE_ID);
+  if (!sourceEl) {
     document.body.innerHTML = '';
-    pre = document.createElement('pre');
-    pre.id = SOURCE_ID;
-    pre.style.whiteSpace = 'pre-wrap';
-    pre.style.wordBreak = 'break-word';
-    pre.style.margin = '0';
-    pre.style.padding = '16px';
-    pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    pre.style.fontSize = '13px';
-    pre.textContent = sourceText;
-    document.body.appendChild(pre);
+    sourceEl = document.createElement('div');
+    sourceEl.id = SOURCE_ID;
+    document.body.appendChild(sourceEl);
   } else {
-    pre.hidden = false;
-    pre.textContent = sourceText;
+    sourceEl.hidden = false;
   }
+  renderSourceWithLineNumbers(sourceEl, sourceText);
 
   applyPreviewZoom(previewZoom);
   remountToolbar();

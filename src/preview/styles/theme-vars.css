@@ -337,6 +337,64 @@ html[data-preview-width="full"],
   zoom: var(--preview-zoom, 1);
 }
 
+/* Source mode: editor-like line numbers */
+#vscode-md-preview-source.md-source-view,
+.md-source-view {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 0 24px;
+  overflow: auto;
+  font-family: var(
+    --vscode-editor-font-family,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace
+  );
+  font-size: var(--vscode-editor-font-size, 13px);
+  line-height: 1.55;
+  tab-size: 4;
+  color: var(--vscode-editor-foreground, var(--vscode-foreground, #ccc));
+  background-color: var(--vscode-editor-background, transparent);
+}
+
+.md-source-view .md-source-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: max(100%, max-content);
+  font: inherit;
+  color: inherit;
+}
+
+.md-source-view .md-source-row {
+  font: inherit;
+}
+
+.md-source-view .md-source-ln {
+  user-select: none;
+  -webkit-user-select: none;
+  text-align: right;
+  vertical-align: top;
+  white-space: nowrap;
+  min-width: 3ch;
+  padding: 0 16px 0 20px;
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  border-right: 1px solid var(--vscode-editorGroup-border, rgba(127, 127, 127, 0.25));
+}
+
+.md-source-view .md-source-line {
+  vertical-align: top;
+  padding: 0 20px 0 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: inherit;
+  width: 100%;
+}
+
 /* Ultra-wide: slightly wider default column when still on "wide" */
 @media (min-width: 1800px) {
   html[data-preview-width="wide"] ,
