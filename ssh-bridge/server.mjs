@@ -316,6 +316,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    // Lightweight token probe (health stays public; this confirms X-Bridge-Token)
+    if (req.method === 'GET' && url.pathname === '/auth/check') {
+      json(res, 200, { ok: true, authorized: true });
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/connect') {
       const body = JSON.parse((await readBody(req)) || '{}');
       if (!body.host || !body.username) {
