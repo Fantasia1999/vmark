@@ -1129,9 +1129,21 @@ function setEmptyPreviewVisible(visible: boolean): void {
   }
 }
 
+/** Scroll host for tall SVG: compare pane scroller or workbench content. */
+function findSvgScrollParent(frame: HTMLElement): HTMLElement {
+  const pane = frame.closest('.svg-compare-pane-scroll');
+  if (pane instanceof HTMLElement) {
+    return pane;
+  }
+  return document.getElementById('ws-content') ?? document.documentElement;
+}
+
 /**
  * Mount an interactive SVG into a host via the extension sandbox page
  * (relaxed CSP so FlameGraph click-zoom scripts run).
+ *
+ * Tall SVGs expand the iframe height; scrolling happens on the outer pane
+ * (not inside the iframe) so moving the mouse away does not reset position.
  */
 function mountSvgSandboxFrame(
   host: HTMLElement,
@@ -1143,6 +1155,8 @@ function mountSvgSandboxFrame(
   frame.title = title;
   // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
   frame.setAttribute('referrerpolicy', 'no-referrer');
+  // Placeholder until sandbox reports content height
+  frame.style.height = '50vh';
   frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
 
   let posted = false;
@@ -1150,30 +1164,73 @@ function mountSvgSandboxFrame(
     if (posted) {
       return;
     }
+    if (!frame.contentWindow) {
+      return;
+    }
     posted = true;
-    window.removeEventListener('message', onReady);
     try {
-      frame.contentWindow?.postMessage({ type: 'load-svg', content: svgContent }, '*');
+      frame.contentWindow.postMessage({ type: 'load-svg', content: svgContent }, '*');
     } catch (e) {
       console.error('[svg-preview] postMessage failed', e);
       posted = false;
     }
   };
 
-  const onReady = (event: MessageEvent): void => {
+  const onMessage = (event: MessageEvent): void => {
     if (event.source !== frame.contentWindow) {
       return;
     }
-    if (event.data?.type !== 'svg-sandbox-ready') {
+    const data = event.data as
+      | { type?: string; height?: number; deltaX?: number; deltaY?: number; deltaMode?: number }
+      | null;
+    if (!data || typeof data !== 'object') {
       return;
     }
-    postSvg();
+
+    if (data.type === 'svg-sandbox-ready') {
+      postSvg();
+      return;
+    }
+
+    if (data.type === 'svg-sandbox-size' && typeof data.height === 'number') {
+      const h = Math.max(1, Math.ceil(data.height));
+      frame.style.height = `${h}px`;
+      return;
+    }
+
+    if (data.type === 'svg-sandbox-wheel') {
+      const scroller = findSvgScrollParent(frame);
+      let dx = Number(data.deltaX) || 0;
+      let dy = Number(data.deltaY) || 0;
+      const mode = Number(data.deltaMode) || 0;
+      // 0: pixel, 1: line, 2: page
+      if (mode === 1) {
+        dx *= 16;
+        dy *= 16;
+      } else if (mode === 2) {
+        dx *= scroller.clientWidth;
+        dy *= scroller.clientHeight;
+      }
+      scroller.scrollLeft += dx;
+      scroller.scrollTop += dy;
+    }
   };
-  window.addEventListener('message', onReady);
+
+  window.addEventListener('message', onMessage);
+
+  // Drop listener when the frame is removed (file switch / close compare)
+  const mo = new MutationObserver(() => {
+    if (!frame.isConnected) {
+      window.removeEventListener('message', onMessage);
+      mo.disconnect();
+    }
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
 
   frame.addEventListener(
     'load',
     () => {
+      // Fallback if ready message was missed
       window.setTimeout(() => postSvg(), 80);
     },
     { once: true },
@@ -1219,11 +1276,11 @@ function buildComparePane(side: 'left' | 'right', slot: SvgCompareSlot): HTMLEle
   pathEl.title = slot.path;
   bar.append(tag, pathEl);
 
-  const frameHost = document.createElement('div');
-  frameHost.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column;';
-  mountSvgSandboxFrame(frameHost, slot.name, slot.content);
+  const scroll = document.createElement('div');
+  scroll.className = 'svg-compare-pane-scroll';
+  mountSvgSandboxFrame(scroll, slot.name, slot.content);
 
-  pane.append(bar, frameHost);
+  pane.append(bar, scroll);
   return pane;
 }
 

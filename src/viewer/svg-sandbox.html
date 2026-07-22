@@ -5,16 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SVG Preview Sandbox</title>
     <style>
+      /*
+       * No internal scrolling. Tall SVGs expand this document; the parent
+       * workbench pane scrolls. Avoids Chrome iframe scroll-reset when the
+       * pointer leaves the frame.
+       */
       html,
       body {
         margin: 0;
         padding: 0;
         width: 100%;
-        height: 100%;
+        height: auto;
+        overflow: hidden;
         background: #fff;
-        overflow: auto;
       }
-      /* FlameGraph SVGs are fixed width/height; allow scroll when larger than pane */
       body > svg {
         display: block;
         max-width: none;
@@ -25,13 +29,15 @@
     <script>
       /**
        * Extension sandbox page (relaxed CSP: inline + eval).
-       * Hosts interactive SVGs (FlameGraph click-zoom / search) that cannot run
-       * under the normal extension-page CSP.
+       * Hosts interactive SVGs (FlameGraph click-zoom / search).
        */
       (function () {
         'use strict';
 
-        /** Patch history so FlameGraph URL state updates never throw in sandboxed docs. */
+        var lastContentKey = '';
+        var resizeObserver = null;
+
+        /** Patch history so FlameGraph URL state updates never throw. */
         function patchHistory() {
           try {
             var origReplace = history.replaceState.bind(history);
@@ -39,7 +45,7 @@
               try {
                 return origReplace(state, title, url);
               } catch (_e) {
-                /* opaque / restricted history — ignore */
+                /* ignore */
               }
             };
             var origPush = history.pushState.bind(history);
@@ -55,13 +61,19 @@
           }
         }
 
+        function contentKey(content) {
+          // Cheap identity: length + edges (full hash unnecessary)
+          if (typeof content !== 'string') return '';
+          var n = content.length;
+          return n + ':' + content.slice(0, 64) + ':' + content.slice(Math.max(0, n - 64));
+        }
+
         function extractScripts(svgEl) {
           var scripts = [];
           var nodes = svgEl.querySelectorAll('script');
           for (var i = 0; i < nodes.length; i++) {
             var s = nodes[i];
             var text = s.textContent || '';
-            // Strip CDATA wrappers if present
             text = text.replace(/^\s*<!\[CDATA\[/, '').replace(/\]\]>\s*$/, '');
             scripts.push(text);
             s.parentNode.removeChild(s);
@@ -69,10 +81,6 @@
           return scripts;
         }
 
-        /**
-         * Inject as real classic <script> tags so FlameGraph's function
-         * declarations land on window (eval in a strict IIFE would not).
-         */
         function injectClassicScripts(list) {
           for (var i = 0; i < list.length; i++) {
             var code = list[i];
@@ -94,15 +102,80 @@
           }
         }
 
+        function measureHeight() {
+          var svg = document.querySelector('body > svg');
+          var h = 0;
+          if (svg) {
+            var rect = svg.getBoundingClientRect();
+            var attrH = parseFloat(svg.getAttribute('height') || '');
+            var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+            var vbH = vb.length === 4 && Number.isFinite(vb[3]) ? vb[3] : 0;
+            h = Math.max(rect.height || 0, svg.scrollHeight || 0, attrH || 0, vbH || 0);
+          }
+          h = Math.max(
+            h,
+            document.documentElement.scrollHeight || 0,
+            document.body.scrollHeight || 0,
+          );
+          // Floor so short icons still show; cap absurd values
+          if (!Number.isFinite(h) || h < 1) h = 200;
+          return Math.ceil(h);
+        }
+
+        function reportSize() {
+          try {
+            parent.postMessage(
+              { type: 'svg-sandbox-size', height: measureHeight() },
+              '*',
+            );
+          } catch (_e) {
+            /* ignore */
+          }
+        }
+
+        function watchSize(svgEl) {
+          if (resizeObserver) {
+            try {
+              resizeObserver.disconnect();
+            } catch (_e) {
+              /* ignore */
+            }
+            resizeObserver = null;
+          }
+          if (typeof ResizeObserver === 'function' && svgEl) {
+            resizeObserver = new ResizeObserver(function () {
+              reportSize();
+            });
+            resizeObserver.observe(svgEl);
+          }
+          // FlameGraph zoom mutates attributes — remeasure after click
+          window.addEventListener(
+            'click',
+            function () {
+              requestAnimationFrame(function () {
+                requestAnimationFrame(reportSize);
+              });
+            },
+            true,
+          );
+        }
+
         function loadSvg(content) {
           if (typeof content !== 'string' || !content.trim()) {
             document.body.textContent = 'Empty SVG';
+            reportSize();
             return;
           }
 
-          patchHistory();
+          var key = contentKey(content);
+          // Ignore duplicate posts (ready + load fallback) so we don't wipe scroll state
+          if (key && key === lastContentKey && document.querySelector('body > svg')) {
+            reportSize();
+            return;
+          }
+          lastContentKey = key;
 
-          // Drop previous SVG + injected scripts (keep only this loader bootstrap)
+          patchHistory();
           document.body.replaceChildren();
 
           var parser = new DOMParser();
@@ -111,16 +184,17 @@
           if (parseErr) {
             document.body.textContent =
               'Invalid SVG: ' + (parseErr.textContent || 'parse error');
+            reportSize();
             return;
           }
 
           var svg = doc.documentElement;
           if (!svg || svg.tagName.toLowerCase() !== 'svg') {
             document.body.textContent = 'Not an SVG document';
+            reportSize();
             return;
           }
 
-          // Capture and strip onload= (e.g. FlameGraph: onload="init(evt)")
           var onloadAttr = svg.getAttribute('onload') || svg.getAttribute('onLoad') || '';
           svg.removeAttribute('onload');
           svg.removeAttribute('onLoad');
@@ -129,10 +203,8 @@
           var imported = document.importNode(svg, true);
           document.body.appendChild(imported);
 
-          // Run embedded scripts in global scope
           injectClassicScripts(scripts);
 
-          // Honor original onload / FlameGraph init
           if (onloadAttr && /init\s*\(/.test(onloadAttr)) {
             callInit(imported);
           } else if (onloadAttr) {
@@ -146,6 +218,16 @@
           } else {
             callInit(imported);
           }
+
+          watchSize(imported);
+          // Layout may settle after fonts / script init
+          reportSize();
+          requestAnimationFrame(function () {
+            reportSize();
+            requestAnimationFrame(reportSize);
+          });
+          setTimeout(reportSize, 100);
+          setTimeout(reportSize, 400);
         }
 
         window.addEventListener('message', function (event) {
@@ -154,7 +236,33 @@
           loadSvg(data.content);
         });
 
-        // Tell the viewer we are ready for content
+        /*
+         * Forward wheel to the parent scroll container. The iframe document
+         * itself does not scroll; without this, wheel over the SVG does nothing
+         * (or fights nested scroll and resets).
+         */
+        window.addEventListener(
+          'wheel',
+          function (e) {
+            try {
+              parent.postMessage(
+                {
+                  type: 'svg-sandbox-wheel',
+                  deltaX: e.deltaX,
+                  deltaY: e.deltaY,
+                  deltaZ: e.deltaZ,
+                  deltaMode: e.deltaMode,
+                },
+                '*',
+              );
+            } catch (_err) {
+              /* ignore */
+            }
+            e.preventDefault();
+          },
+          { passive: false },
+        );
+
         try {
           parent.postMessage({ type: 'svg-sandbox-ready' }, '*');
         } catch (_e) {
