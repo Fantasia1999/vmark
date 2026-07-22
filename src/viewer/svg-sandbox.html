@@ -106,10 +106,48 @@
           }
         }
 
+        /**
+         * FlameGraph / wide SVG default when width is missing or only "%".
+         * Avoids HTML iframe intrinsic fallback (300×150).
+         */
+        var DEFAULT_SVG_WIDTH = 1200;
+
+        function isPercentLength(raw) {
+          return raw != null && raw !== '' && /%\s*$/.test(String(raw));
+        }
+
+        /** Absolute length only (px / unitless). Percent → 0 (cyclic vs iframe). */
         function parseSvgLength(raw) {
           if (raw == null || raw === '') return 0;
+          if (isPercentLength(raw)) return 0;
           var n = parseFloat(String(raw).replace(/px$/i, ''));
-          return Number.isFinite(n) ? n : 0;
+          return Number.isFinite(n) && n > 0 ? n : 0;
+        }
+
+        function viewBoxSize(svg) {
+          var vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+          return {
+            w: vb.length === 4 && Number.isFinite(vb[2]) && vb[2] > 0 ? vb[2] : 0,
+            h: vb.length === 4 && Number.isFinite(vb[3]) && vb[3] > 0 ? vb[3] : 0,
+          };
+        }
+
+        /**
+         * Prefer width attr (absolute) or viewBox width. No reliable width → 0.
+         */
+        function absoluteSvgWidth(svg) {
+          var attrW = parseSvgLength(svg.getAttribute('width'));
+          if (attrW > 0) return attrW;
+          return viewBoxSize(svg).w;
+        }
+
+        /**
+         * If the SVG has no absolute width (missing or width="100%"), pin to
+         * DEFAULT_SVG_WIDTH so FlameGraph layout and parent iframe sizing work.
+         */
+        function ensureSvgWidth(svg) {
+          if (absoluteSvgWidth(svg) > 0) return;
+          svg.setAttribute('width', String(DEFAULT_SVG_WIDTH));
         }
 
         /** Content box of the SVG (width + height) for parent iframe sizing. */
@@ -121,20 +159,24 @@
             var rect = svg.getBoundingClientRect();
             var attrW = parseSvgLength(svg.getAttribute('width'));
             var attrH = parseSvgLength(svg.getAttribute('height'));
-            var vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
-            var vbW = vb.length === 4 && Number.isFinite(vb[2]) ? vb[2] : 0;
-            var vbH = vb.length === 4 && Number.isFinite(vb[3]) ? vb[3] : 0;
-            w = Math.max(
-              rect.width || 0,
-              svg.scrollWidth || 0,
-              attrW || 0,
-              vbW || 0,
-            );
+            var vb = viewBoxSize(svg);
+            var absW = Math.max(attrW, vb.w);
+            // Layout rect is only trusted when we already have an absolute width;
+            // otherwise it is often the iframe default (~300) and must not win.
+            if (absW > 0) {
+              w = Math.max(
+                absW,
+                rect.width || 0,
+                svg.scrollWidth || 0,
+              );
+            } else {
+              w = DEFAULT_SVG_WIDTH;
+            }
             h = Math.max(
               rect.height || 0,
               svg.scrollHeight || 0,
               attrH || 0,
-              vbH || 0,
+              vb.h || 0,
             );
           }
           w = Math.max(
@@ -147,7 +189,7 @@
             document.documentElement.scrollHeight || 0,
             document.body.scrollHeight || 0,
           );
-          if (!Number.isFinite(w) || w < 1) w = 200;
+          if (!Number.isFinite(w) || w < 1) w = DEFAULT_SVG_WIDTH;
           if (!Number.isFinite(h) || h < 1) h = 200;
           return { width: Math.ceil(w), height: Math.ceil(h) };
         }
@@ -236,6 +278,8 @@
 
           var scripts = extractScripts(svg);
           var imported = document.importNode(svg, true);
+          // Missing / % width → 1200 (single preview + L/R compare)
+          ensureSvgWidth(imported);
           document.body.appendChild(imported);
 
           injectClassicScripts(scripts);
