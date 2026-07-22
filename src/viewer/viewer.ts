@@ -1211,10 +1211,12 @@ function mountSvgSandboxFrame(
         frame.style.height = `${Math.max(1, Math.ceil(data.height))}px`;
       }
       if (typeof data.width === 'number') {
-        // Sandbox already defaults missing width to 1200; keep min 100% to fill pane
-        const w = Math.max(1, Math.ceil(data.width));
+        // Floor at 1200 so missing/% width SVGs never collapse to iframe 300px
+        // (single preview + left/right compare share this path).
+        const w = Math.max(DEFAULT_SVG_FRAME_WIDTH, Math.ceil(data.width));
         frame.style.width = `${w}px`;
         frame.style.minWidth = '100%';
+        frame.style.maxWidth = 'none';
       }
       return;
     }
