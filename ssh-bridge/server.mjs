@@ -69,7 +69,7 @@ const SKIP = new Set([
   'target',
 ]);
 
-const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt)$/i;
+const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i;
 const MAX_MD = 2000;
 const MAX_DEPTH = 12;
 

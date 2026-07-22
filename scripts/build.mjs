@@ -48,7 +48,12 @@ function copyStatic() {
   }
 
   // Static HTML pages
-  for (const page of ['options/options.html', 'popup/popup.html', 'viewer/viewer.html']) {
+  for (const page of [
+    'options/options.html',
+    'popup/popup.html',
+    'viewer/viewer.html',
+    'viewer/svg-sandbox.html',
+  ]) {
     const src = join(root, 'src', page);
     if (existsSync(src)) {
       const dest = join(outdir, page);

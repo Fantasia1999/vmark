@@ -3,7 +3,7 @@
  * Handles are persisted in IndexedDB so a folder can be reopened across reloads.
  */
 
-import { isMarkdownFileName } from './localDoc';
+import { isPreviewableFileName } from './localDoc';
 
 const DB_NAME = 'vscode-md-preview-workspace';
 const DB_VERSION = 1;
@@ -189,7 +189,7 @@ function joinPath(dir: string, name: string): string {
 }
 
 /**
- * Recursively list markdown files under the workspace root.
+ * Recursively list previewable files (Markdown + SVG) under the workspace root.
  */
 export async function listMarkdownFiles(
   root: FileSystemDirectoryHandle,
@@ -214,7 +214,7 @@ export async function listMarkdownFiles(
           continue;
         }
         await walk(handle as FileSystemDirectoryHandle, joinPath(rel, handle.name), depth + 1);
-      } else if (handle.kind === 'file' && isMarkdownFileName(handle.name)) {
+      } else if (handle.kind === 'file' && isPreviewableFileName(handle.name)) {
         const path = joinPath(rel, handle.name);
         out.push({
           path,

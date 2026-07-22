@@ -14,13 +14,19 @@ function isGitHubRawHost(hostname: string = location.hostname): boolean {
  *
  * Policy:
  * - Local `file://` (incl. WSL): yes when path/content looks like Markdown
- * - GitHub / Gist raw hosts: yes
+ * - GitHub / Gist raw hosts: yes only for Markdown paths (not SVG — leave native)
  * - Other http(s) pages (GitHub blob, arbitrary sites): never auto-hijack
  */
 export function isMarkdownSourcePage(): boolean {
-  // GitHub / Gist raw — only remote web exception
+  const url = location.href;
+
+  // GitHub / Gist raw — Markdown only; SVG stays browser-native
   if (isGitHubRawHost()) {
-    return true;
+    return (
+      MD_EXT.test(url) ||
+      isMarkdownPath(url) ||
+      isMarkdownPath(location.pathname)
+    );
   }
 
   // General web pages: do not auto-preview
@@ -29,7 +35,6 @@ export function isMarkdownSourcePage(): boolean {
   }
 
   // file:// (and other non-http schemes we may inject on)
-  const url = location.href;
   if (MD_EXT.test(url) || isMarkdownPath(url) || isMarkdownPath(location.pathname)) {
     return true;
   }

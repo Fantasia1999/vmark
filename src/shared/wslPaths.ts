@@ -17,9 +17,18 @@ export interface WslLocation {
 }
 
 const MD_EXT = /\.(md|markdown|mdown|mkd|mdx|txt)$/i;
+const SVG_EXT = /\.svg$/i;
 
 export function isMarkdownPath(path: string): boolean {
   return MD_EXT.test(path.split('?')[0].split('#')[0]);
+}
+
+export function isSvgPath(path: string): boolean {
+  return SVG_EXT.test(path.split('?')[0].split('#')[0]);
+}
+
+export function isPreviewablePath(path: string): boolean {
+  return isMarkdownPath(path) || isSvgPath(path);
 }
 
 /** Hostnames Chrome uses for WSL UNC shares */

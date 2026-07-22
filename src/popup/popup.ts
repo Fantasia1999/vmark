@@ -5,8 +5,8 @@
 
 import { iconHtml, type IconName } from '../shared/icons';
 import {
-  isMarkdownFileName,
-  MD_ACCEPT,
+  isPreviewableFileName,
+  PREVIEW_ACCEPT,
   readFileAsLocalDoc,
   saveLocalDoc,
 } from '../shared/localDoc';
@@ -22,7 +22,7 @@ import {
   wslConnect,
   wslListDistros,
 } from '../shared/wslClient';
-import { isMarkdownPath, parseWslLocation, wslParentDir } from '../shared/wslPaths';
+import { isPreviewablePath, parseWslLocation, wslParentDir } from '../shared/wslPaths';
 import {
   isDirectoryPickerSupported,
   pickWorkspaceDirectory,
@@ -123,16 +123,17 @@ document.getElementById('openLocal')?.addEventListener('click', () => {
           multiple: false,
           types: [
             {
-              description: 'Markdown',
+              description: 'Markdown / SVG',
               accept: {
                 'text/markdown': ['.md', '.markdown', '.mdown', '.mkd', '.mdx'],
                 'text/plain': ['.txt'],
+                'image/svg+xml': ['.svg'],
               },
             },
           ],
         });
         const file = await handle.getFile();
-        if (!isMarkdownFileName(file.name)) {
+        if (!isPreviewableFileName(file.name)) {
           showError('main-error', `不支持的文件类型: ${file.name}`);
           return;
         }
@@ -145,7 +146,7 @@ document.getElementById('openLocal')?.addEventListener('click', () => {
       // Fallback: hidden <input type=file>
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = MD_ACCEPT;
+      input.accept = PREVIEW_ACCEPT;
       input.style.display = 'none';
       document.body.appendChild(input);
       const file = await new Promise<File | null>((resolve) => {
@@ -162,7 +163,7 @@ document.getElementById('openLocal')?.addEventListener('click', () => {
       if (!file) {
         return;
       }
-      if (!isMarkdownFileName(file.name)) {
+      if (!isPreviewableFileName(file.name)) {
         showError('main-error', `不支持的文件类型: ${file.name}`);
         return;
       }
@@ -334,7 +335,7 @@ function parseWslPaste(pathPaste: string):
   | { error: string } {
   const loc = parseWslLocation(pathPaste);
   if (loc) {
-    if (isMarkdownPath(loc.linuxPath)) {
+    if (isPreviewablePath(loc.linuxPath)) {
       return {
         distro: loc.distro,
         root: wslParentDir(loc.linuxPath),

@@ -34,8 +34,21 @@ export async function clearLocalDoc(): Promise<void> {
 export const MD_ACCEPT =
   '.md,.markdown,.mdown,.mkd,.mdx,.txt,text/markdown,text/x-markdown,text/plain';
 
+/** File picker accept for Markdown + SVG (flame graphs, diagrams). */
+export const PREVIEW_ACCEPT =
+  '.md,.markdown,.mdown,.mkd,.mdx,.txt,.svg,text/markdown,text/x-markdown,text/plain,image/svg+xml';
+
 export function isMarkdownFileName(name: string): boolean {
   return /\.(md|markdown|mdown|mkd|mdx|txt)$/i.test(name);
+}
+
+export function isSvgFileName(name: string): boolean {
+  return /\.svg$/i.test(name.split(/[?#]/)[0] ?? name);
+}
+
+/** Markdown, plain text notes, or SVG previews. */
+export function isPreviewableFileName(name: string): boolean {
+  return isMarkdownFileName(name) || isSvgFileName(name);
 }
 
 export async function readFileAsLocalDoc(file: File): Promise<LocalMarkdownDoc> {
