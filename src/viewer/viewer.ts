@@ -61,6 +61,7 @@ import {
   renderFileTree,
   setWorkspaceChrome,
 } from './workspaceUi';
+import { closeContextMenu, showContextMenu, type ContextMenuItem } from './contextMenu';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import {
   clearAllHistory,
@@ -113,6 +114,17 @@ let wslMeta: WslSessionMeta | null = null;
 let workspaceFiles: WorkspaceFileEntry[] = [];
 let objectUrls: string[] = [];
 let sshPrivateKeyText = '';
+
+/** Beyond Compare-style SVG left/right slots (workspace paths). */
+interface SvgCompareSlot {
+  path: string;
+  name: string;
+  content: string;
+}
+let compareLeft: SvgCompareSlot | null = null;
+let compareRight: SvgCompareSlot | null = null;
+/** True while the dual-pane SVG compare view is showing. */
+let inSvgCompareMode = false;
 
 const outlinePanel = new OutlineFloatingPanel({
   getScrollRoot: () => document.getElementById('ws-content') ?? document.documentElement,
@@ -473,12 +485,28 @@ function updatePathBar(): void {
   const pathEl = document.getElementById('ws-current-path');
   const countEl = document.getElementById('ws-file-count');
   if (pathEl) {
-    pathEl.textContent = currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
+    if (inSvgCompareMode && compareLeft && compareRight) {
+      pathEl.textContent = `比较: ${compareLeft.name}  |  ${compareRight.name}`;
+      pathEl.title = `L: ${compareLeft.path}\nR: ${compareRight.path}`;
+    } else if (compareLeft || compareRight) {
+      const l = compareLeft ? `L=${compareLeft.name}` : 'L=?';
+      const r = compareRight ? `R=${compareRight.name}` : 'R=?';
+      pathEl.textContent =
+        currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
+      pathEl.title = `比较选择: ${l} · ${r}（右键 SVG 继续选择）`;
+    } else {
+      pathEl.textContent =
+        currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
+      pathEl.title = pathEl.textContent;
+    }
   }
   if (countEl) {
-    countEl.textContent = workspaceFiles.length
-      ? `${workspaceFiles.length} 个 Markdown`
-      : '';
+    const n = workspaceFiles.length;
+    let extra = '';
+    if (compareLeft || compareRight) {
+      extra = ` · 比较 ${compareLeft ? 'L' : ''}${compareLeft && compareRight ? '+' : ''}${compareRight ? 'R' : ''}`;
+    }
+    countEl.textContent = n ? `${n} 个文件${extra}` : extra.trim();
   }
 }
 
@@ -488,10 +516,188 @@ function refreshTree(): void {
     return;
   }
   const tree = buildFileTree(workspaceFiles);
-  renderFileTree(treeEl, tree, currentPath, {
-    onOpenFile: (path) => void openWorkspaceFile(path),
-  });
+  renderFileTree(
+    treeEl,
+    tree,
+    inSvgCompareMode ? undefined : currentPath,
+    {
+      onOpenFile: (path) => void openWorkspaceFile(path),
+      onFileContextMenu: (info) => void handleFileContextMenu(info),
+    },
+    {
+      leftPath: compareLeft?.path,
+      rightPath: compareRight?.path,
+    },
+  );
   updatePathBar();
+}
+
+/** Read a workspace file's text without switching the active preview doc. */
+async function readWorkspaceText(path: string): Promise<string | null> {
+  try {
+    if (workspaceKind === 'ssh') {
+      return await sshReadText(path);
+    }
+    if (workspaceKind === 'wsl') {
+      return await wslReadText(path);
+    }
+    if (workspaceRoot) {
+      const result = await readWorkspaceTextFile(workspaceRoot, path);
+      return result?.text ?? null;
+    }
+  } catch (e) {
+    console.error(e);
+    alert(`无法读取文件: ${path}\n${e instanceof Error ? e.message : String(e)}`);
+  }
+  return null;
+}
+
+async function loadCompareSlot(path: string): Promise<SvgCompareSlot | null> {
+  if (!isSvgFileName(path)) {
+    alert('仅支持对 .svg 文件做左右比较');
+    return null;
+  }
+  const content = await readWorkspaceText(path);
+  if (content === null) {
+    return null;
+  }
+  return {
+    path,
+    name: path.split('/').pop() || path,
+    content,
+  };
+}
+
+function clearCompareSelection(): void {
+  compareLeft = null;
+  compareRight = null;
+  if (inSvgCompareMode) {
+    inSvgCompareMode = false;
+  }
+  refreshTree();
+}
+
+async function setCompareSide(side: 'left' | 'right', path: string): Promise<void> {
+  const slot = await loadCompareSlot(path);
+  if (!slot) {
+    return;
+  }
+  if (side === 'left') {
+    compareLeft = slot;
+  } else {
+    compareRight = slot;
+  }
+  refreshTree();
+  // When both sides ready, open compare (Beyond Compare "both selected")
+  if (compareLeft && compareRight) {
+    await openSvgCompareView();
+  }
+}
+
+/** Mark this path as right and compare against the current left (BC "Compare to Left"). */
+async function comparePathToLeft(path: string): Promise<void> {
+  if (!compareLeft) {
+    alert('请先右键另一个 SVG，选择「选为左侧文件」');
+    return;
+  }
+  const slot = await loadCompareSlot(path);
+  if (!slot) {
+    return;
+  }
+  compareRight = slot;
+  refreshTree();
+  await openSvgCompareView();
+}
+
+async function handleFileContextMenu(info: {
+  path: string;
+  name: string;
+  clientX: number;
+  clientY: number;
+}): Promise<void> {
+  const isSvg = isSvgFileName(info.path);
+  const items: ContextMenuItem[] = [
+    { id: 'open', label: '打开' },
+  ];
+
+  if (isSvg) {
+    items.push(
+      { id: 'left', label: '选为左侧文件', separatorBefore: true },
+      { id: 'right', label: '选为右侧文件' },
+    );
+    if (compareLeft && compareLeft.path !== info.path) {
+      items.push({
+        id: 'compare-to-left',
+        label: `与左侧比较: ${compareLeft.name}`,
+      });
+    }
+    if (compareRight && compareRight.path !== info.path) {
+      items.push({
+        id: 'compare-to-right',
+        label: `与右侧比较: ${compareRight.name}`,
+      });
+    }
+    if (compareLeft && compareRight) {
+      items.push({
+        id: 'open-compare',
+        label: '打开左右比较',
+        separatorBefore: true,
+      });
+    }
+    if (compareLeft || compareRight) {
+      items.push({
+        id: 'clear-compare',
+        label: '清除比较选择',
+        separatorBefore: !compareLeft || !compareRight,
+        danger: true,
+      });
+    }
+  }
+
+  const choice = await showContextMenu(info.clientX, info.clientY, items);
+  if (!choice) {
+    return;
+  }
+  switch (choice) {
+    case 'open':
+      await openWorkspaceFile(info.path);
+      break;
+    case 'left':
+      await setCompareSide('left', info.path);
+      break;
+    case 'right':
+      await setCompareSide('right', info.path);
+      break;
+    case 'compare-to-left':
+      await comparePathToLeft(info.path);
+      break;
+    case 'compare-to-right': {
+      // Treat current as left, existing right stays
+      const slot = await loadCompareSlot(info.path);
+      if (slot && compareRight) {
+        compareLeft = slot;
+        refreshTree();
+        await openSvgCompareView();
+      }
+      break;
+    }
+    case 'open-compare':
+      if (compareLeft && compareRight) {
+        await openSvgCompareView();
+      }
+      break;
+    case 'clear-compare':
+      clearCompareSelection();
+      if (!doc) {
+        setEmptyPreviewVisible(true);
+        $(ROOT_ID).hidden = true;
+      } else {
+        await showPreviewView();
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 async function showWorkspaceShell(
@@ -706,6 +912,12 @@ async function resumePendingEnterFromPopup(): Promise<void> {
 }
 
 async function openWorkspaceFile(path: string): Promise<void> {
+  // Single-file open leaves dual-pane compare (selection badges stay)
+  if (inSvgCompareMode) {
+    inSvgCompareMode = false;
+  }
+  closeContextMenu();
+
   if (workspaceKind === 'ssh') {
     try {
       const text = await sshReadText(path);
@@ -918,32 +1130,21 @@ function setEmptyPreviewVisible(visible: boolean): void {
 }
 
 /**
- * Interactive SVG preview (FlameGraph click-zoom / search).
- *
- * Extension pages block inline SVG scripts via CSP. We host the SVG in a
- * dedicated manifest `sandbox` page (relaxed CSP), then post the source in.
- * That keeps FlameGraph's embedded JS working like a native browser tab.
+ * Mount an interactive SVG into a host via the extension sandbox page
+ * (relaxed CSP so FlameGraph click-zoom scripts run).
  */
-function showSvgPreview(root: HTMLElement): void {
-  revokeObjectUrls();
-
-  // SVG uses the full pane — no markdown column padding/max-width
-  root.className = 'vscode-md-preview-root is-svg-preview';
-  root.dataset.theme = resolveTheme(settings.theme);
-  root.dataset.previewWidth = 'full';
-  applyPreviewWidth('full');
-  // FlameGraph uses attribute math, not pointer coords — CSS zoom is fine.
-  applyPreviewZoom(previewZoom);
-
-  root.replaceChildren();
+function mountSvgSandboxFrame(
+  host: HTMLElement,
+  title: string,
+  svgContent: string,
+): HTMLIFrameElement {
   const frame = document.createElement('iframe');
   frame.className = 'svg-preview-frame';
-  frame.title = doc!.name;
+  frame.title = title;
   // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
   frame.setAttribute('referrerpolicy', 'no-referrer');
   frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
 
-  const svgContent = doc!.content;
   let posted = false;
   const postSvg = (): void => {
     if (posted) {
@@ -970,7 +1171,6 @@ function showSvgPreview(root: HTMLElement): void {
   };
   window.addEventListener('message', onReady);
 
-  // Fallback if ready message was missed (rare race)
   frame.addEventListener(
     'load',
     () => {
@@ -979,12 +1179,125 @@ function showSvgPreview(root: HTMLElement): void {
     { once: true },
   );
 
-  root.appendChild(frame);
+  host.appendChild(frame);
+  return frame;
+}
 
-  // Outline is for Markdown headings only
+/**
+ * Interactive SVG preview (FlameGraph click-zoom / search).
+ */
+function showSvgPreview(root: HTMLElement): void {
+  revokeObjectUrls();
+
+  // SVG uses the full pane — no markdown column padding/max-width
+  root.className = 'vscode-md-preview-root is-svg-preview';
+  root.dataset.theme = resolveTheme(settings.theme);
+  root.dataset.previewWidth = 'full';
+  applyPreviewWidth('full');
+  applyPreviewZoom(previewZoom);
+
+  root.replaceChildren();
+  mountSvgSandboxFrame(root, doc!.name, doc!.content);
+
   if (outlinePanel.isOpen) {
     outlinePanel.close();
   }
+}
+
+function buildComparePane(side: 'left' | 'right', slot: SvgCompareSlot): HTMLElement {
+  const pane = document.createElement('div');
+  pane.className = 'svg-compare-pane';
+
+  const bar = document.createElement('div');
+  bar.className = 'svg-compare-pane-bar';
+  const tag = document.createElement('span');
+  tag.className = `side-tag ${side}`;
+  tag.textContent = side === 'left' ? 'Left' : 'Right';
+  const pathEl = document.createElement('span');
+  pathEl.className = 'side-path';
+  pathEl.textContent = slot.path;
+  pathEl.title = slot.path;
+  bar.append(tag, pathEl);
+
+  const frameHost = document.createElement('div');
+  frameHost.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column;';
+  mountSvgSandboxFrame(frameHost, slot.name, slot.content);
+
+  pane.append(bar, frameHost);
+  return pane;
+}
+
+/**
+ * Side-by-side SVG viewers (no content diff) — Beyond Compare-style dual pane.
+ */
+async function openSvgCompareView(): Promise<void> {
+  if (!compareLeft || !compareRight) {
+    return;
+  }
+  injectStyles();
+  applyThemeClass();
+  inSvgCompareMode = true;
+  setEmptyPreviewVisible(false);
+  $(SOURCE_ID).hidden = true;
+
+  const root = $(ROOT_ID);
+  root.hidden = false;
+  revokeObjectUrls();
+
+  root.className = 'vscode-md-preview-root is-svg-compare';
+  root.dataset.theme = resolveTheme(settings.theme);
+  root.dataset.previewWidth = 'full';
+  applyPreviewWidth('full');
+  // Keep both panes at 100% so each FlameGraph has stable layout
+  applyPreviewZoom(1);
+
+  root.replaceChildren();
+  const wrap = document.createElement('div');
+  wrap.className = 'svg-compare';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'svg-compare-toolbar';
+  const title = document.createElement('span');
+  title.className = 'svg-compare-title';
+  title.textContent = `SVG Compare · ${compareLeft.name}  ↔  ${compareRight.name}`;
+  title.title = `L: ${compareLeft.path}\nR: ${compareRight.path}`;
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.textContent = '关闭比较';
+  closeBtn.title = '关闭并排比较（保留 L/R 选择）';
+  closeBtn.addEventListener('click', () => void closeSvgCompareView());
+  toolbar.append(title, closeBtn);
+
+  const panes = document.createElement('div');
+  panes.className = 'svg-compare-panes';
+  panes.append(
+    buildComparePane('left', compareLeft),
+    buildComparePane('right', compareRight),
+  );
+
+  wrap.append(toolbar, panes);
+  root.appendChild(wrap);
+
+  if (outlinePanel.isOpen) {
+    outlinePanel.close();
+  }
+  document.getElementById('vscode-md-preview-toolbar')?.remove();
+  refreshTree();
+  setDocumentTitle(`${compareLeft.name} ↔ ${compareRight.name}`);
+}
+
+async function closeSvgCompareView(): Promise<void> {
+  inSvgCompareMode = false;
+  if (doc) {
+    setDocumentTitle(doc.name);
+    await showPreviewView();
+  } else {
+    $(ROOT_ID).hidden = true;
+    $(ROOT_ID).replaceChildren();
+    setEmptyPreviewVisible(true);
+    setDocumentTitle();
+  }
+  refreshTree();
 }
 
 async function showPreviewView(): Promise<void> {
@@ -1312,6 +1625,10 @@ async function closeWorkspace(): Promise<void> {
   revokeObjectUrls();
   outlinePanel.close();
   clearFileTreeExpandState();
+  compareLeft = null;
+  compareRight = null;
+  inSvgCompareMode = false;
+  closeContextMenu();
   showEmpty();
 }
 

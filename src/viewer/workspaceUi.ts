@@ -7,6 +7,18 @@ export interface WorkspaceUiHandlers {
   onRefresh: () => void;
   onCloseWorkspace: () => void;
   onOpenSingleFile: () => void;
+  /** Right-click a file row (for compare, etc.) */
+  onFileContextMenu?: (info: {
+    path: string;
+    name: string;
+    clientX: number;
+    clientY: number;
+  }) => void;
+}
+
+export interface FileTreeCompareState {
+  leftPath?: string;
+  rightPath?: string;
 }
 
 /** Persist expand/collapse across re-renders (path → expanded). */
@@ -65,7 +77,8 @@ export function renderFileTree(
   container: HTMLElement,
   tree: WorkspaceTreeNode[],
   activePath: string | undefined,
-  handlers: Pick<WorkspaceUiHandlers, 'onOpenFile'>,
+  handlers: Pick<WorkspaceUiHandlers, 'onOpenFile' | 'onFileContextMenu'>,
+  compare?: FileTreeCompareState,
 ): void {
   seedExpandAll(tree);
   ensureAncestorsExpanded(activePath);
@@ -73,7 +86,7 @@ export function renderFileTree(
   const ul = document.createElement('ul');
   ul.className = 'ws-tree';
   ul.setAttribute('role', 'tree');
-  appendNodes(ul, tree, activePath, handlers, 0);
+  appendNodes(ul, tree, activePath, handlers, 0, compare);
   container.appendChild(ul);
 
   requestAnimationFrame(() => {
@@ -103,8 +116,9 @@ function appendNodes(
   parent: HTMLElement,
   nodes: WorkspaceTreeNode[],
   activePath: string | undefined,
-  handlers: Pick<WorkspaceUiHandlers, 'onOpenFile'>,
+  handlers: Pick<WorkspaceUiHandlers, 'onOpenFile' | 'onFileContextMenu'>,
   depth: number,
+  compare?: FileTreeCompareState,
 ): void {
   for (const node of nodes) {
     const li = document.createElement('li');
@@ -138,14 +152,14 @@ function appendNodes(
       count.className = 'ws-dir-count';
       const fileCount = countFiles(node);
       count.textContent = String(fileCount);
-      count.title = `${fileCount} 个 Markdown`;
+      count.title = `${fileCount} 个文件`;
 
       row.append(twisty, folderIcon, label, count);
 
       const childUl = document.createElement('ul');
       childUl.className = 'ws-tree ws-tree-children';
       childUl.setAttribute('role', 'group');
-      appendNodes(childUl, node.children, activePath, handlers, depth + 1);
+      appendNodes(childUl, node.children, activePath, handlers, depth + 1, compare);
 
       setDirRowUi(li, row, twisty, childUl, isOpen);
 
@@ -169,6 +183,13 @@ function appendNodes(
         row.classList.add('active');
         row.setAttribute('aria-current', 'page');
       }
+      if (compare?.leftPath === node.path) {
+        row.classList.add('compare-left');
+      }
+      if (compare?.rightPath === node.path) {
+        row.classList.add('compare-right');
+      }
+
       const icon = document.createElement('span');
       icon.className = 'ws-file-icon';
       icon.appendChild(createIconEl('mdFile'));
@@ -176,12 +197,45 @@ function appendNodes(
       label.className = 'ws-label';
       label.textContent = node.name;
       row.append(icon, label);
+
+      if (compare?.leftPath === node.path || compare?.rightPath === node.path) {
+        const badge = document.createElement('span');
+        badge.className = 'ws-compare-badge';
+        if (compare.leftPath === node.path && compare.rightPath === node.path) {
+          badge.textContent = 'L+R';
+          badge.title = '比较左侧与右侧';
+          badge.classList.add('both');
+        } else if (compare.leftPath === node.path) {
+          badge.textContent = 'L';
+          badge.title = '比较左侧';
+          badge.classList.add('left');
+        } else {
+          badge.textContent = 'R';
+          badge.title = '比较右侧';
+          badge.classList.add('right');
+        }
+        row.appendChild(badge);
+      }
+
       row.addEventListener('click', (e) => {
         e.stopPropagation();
         if (node.path === activePath) {
           return;
         }
         handlers.onOpenFile(node.path);
+      });
+      row.addEventListener('contextmenu', (e) => {
+        if (!handlers.onFileContextMenu) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        handlers.onFileContextMenu({
+          path: node.path,
+          name: node.name,
+          clientX: e.clientX,
+          clientY: e.clientY,
+        });
       });
       li.append(row);
     }
