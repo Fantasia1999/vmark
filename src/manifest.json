@@ -30,12 +30,6 @@
     {
       "matches": [
         "file:///*",
-        "*://*/*.md",
-        "*://*/*.md?*",
-        "*://*/*.markdown",
-        "*://*/*.markdown?*",
-        "*://*/*.mdx",
-        "*://*/*.mdx?*",
         "https://raw.githubusercontent.com/*",
         "https://gist.githubusercontent.com/*"
       ],

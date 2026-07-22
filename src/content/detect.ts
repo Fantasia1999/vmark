@@ -1,31 +1,41 @@
-import { isMarkdownPath, isWslFileUrl, parseWslLocation } from '../shared/wslPaths';
+import { isMarkdownPath, isWslFileUrl } from '../shared/wslPaths';
 
 const MD_EXT = /\.(md|markdown|mdown|mkd|mdx)(?:$|[?#])/i;
 
+function isGitHubRawHost(hostname: string = location.hostname): boolean {
+  return (
+    hostname === 'raw.githubusercontent.com' ||
+    hostname === 'gist.githubusercontent.com'
+  );
+}
+
 /**
- * Heuristic: is this page a raw markdown source we should preview?
+ * Heuristic: is this page a raw markdown source we should auto-preview?
+ *
+ * Policy:
+ * - Local `file://` (incl. WSL): yes when path/content looks like Markdown
+ * - GitHub / Gist raw hosts: yes
+ * - Other http(s) pages (GitHub blob, arbitrary sites): never auto-hijack
  */
 export function isMarkdownSourcePage(): boolean {
+  // GitHub / Gist raw — only remote web exception
+  if (isGitHubRawHost()) {
+    return true;
+  }
+
+  // General web pages: do not auto-preview
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    return false;
+  }
+
+  // file:// (and other non-http schemes we may inject on)
   const url = location.href;
-
-  if (MD_EXT.test(url) || isMarkdownPath(url)) {
+  if (MD_EXT.test(url) || isMarkdownPath(url) || isMarkdownPath(location.pathname)) {
     return true;
   }
 
-  // WSL file:// pages (\\wsl$\ / wsl.localhost) — even without extension, check content
-  if (isWslFileUrl(url) || parseWslLocation(url)) {
-    if (MD_EXT.test(url) || isMarkdownPath(location.pathname)) {
-      return true;
-    }
-    // fall through to content heuristics
-  }
-
-  // GitHub / Gist raw
-  if (
-    location.hostname === 'raw.githubusercontent.com' ||
-    location.hostname === 'gist.githubusercontent.com'
-  ) {
-    return true;
+  if (location.protocol !== 'file:') {
+    return false;
   }
 
   // Browser often wraps plain text in <pre>

@@ -19,7 +19,7 @@ export type MermaidThemeSetting =
 export type PreviewWidthSetting = 'comfortable' | 'wide' | 'fluid' | 'full';
 
 export interface PreviewSettings {
-  /** Auto-render when a markdown page is detected */
+  /** Auto-render on local file:// and GitHub/Gist raw pages when detected */
   autoPreview: boolean;
   breaks: boolean;
   linkify: boolean;
