@@ -1155,7 +1155,8 @@ function mountSvgSandboxFrame(
   frame.title = title;
   // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  // Placeholder until sandbox reports content height
+  // Placeholder until sandbox reports content size
+  frame.style.width = '100%';
   frame.style.height = '50vh';
   frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
 
@@ -1181,7 +1182,15 @@ function mountSvgSandboxFrame(
       return;
     }
     const data = event.data as
-      | { type?: string; height?: number; deltaX?: number; deltaY?: number; deltaMode?: number }
+      | {
+          type?: string;
+          width?: number;
+          height?: number;
+          deltaX?: number;
+          deltaY?: number;
+          deltaMode?: number;
+          shiftKey?: boolean;
+        }
       | null;
     if (!data || typeof data !== 'object') {
       return;
@@ -1192,9 +1201,16 @@ function mountSvgSandboxFrame(
       return;
     }
 
-    if (data.type === 'svg-sandbox-size' && typeof data.height === 'number') {
-      const h = Math.max(1, Math.ceil(data.height));
-      frame.style.height = `${h}px`;
+    if (data.type === 'svg-sandbox-size') {
+      if (typeof data.height === 'number') {
+        frame.style.height = `${Math.max(1, Math.ceil(data.height))}px`;
+      }
+      if (typeof data.width === 'number') {
+        // At least as wide as the SVG; min 100% so short diagrams still fill the pane
+        const w = Math.max(1, Math.ceil(data.width));
+        frame.style.width = `${w}px`;
+        frame.style.minWidth = '100%';
+      }
       return;
     }
 
@@ -1211,8 +1227,13 @@ function mountSvgSandboxFrame(
         dx *= scroller.clientWidth;
         dy *= scroller.clientHeight;
       }
-      scroller.scrollLeft += dx;
-      scroller.scrollTop += dy;
+      // Shift+wheel → horizontal (common trackpad/mouse convention)
+      if (data.shiftKey && dx === 0 && dy !== 0) {
+        scroller.scrollLeft += dy;
+      } else {
+        scroller.scrollLeft += dx;
+        scroller.scrollTop += dy;
+      }
     }
   };
 

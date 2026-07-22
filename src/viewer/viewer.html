@@ -947,8 +947,8 @@
       }
 
       /*
-       * SVG / flame graph: iframe grows to content height; .ws-content scrolls.
-       * Do not scroll inside the iframe (pointer leaving the frame used to jump to top).
+       * SVG / flame graph: iframe grows to content width+height; .ws-content
+       * scrolls both axes. Do not scroll inside the iframe (avoids jump-to-top).
        */
       .ws-content:has(#vscode-md-preview-root.is-svg-preview:not([hidden])) {
         overflow: auto;
@@ -956,6 +956,9 @@
 
       .ws-content #vscode-md-preview-root.is-svg-preview {
         display: block;
+        /* Expand with wide SVGs so horizontal scrollbar appears on .ws-content */
+        width: max-content;
+        min-width: 100%;
         height: auto;
         min-height: 100%;
         max-width: none;
@@ -966,12 +969,12 @@
       }
 
       .ws-content #vscode-md-preview-root.is-svg-preview .svg-preview-frame {
-        width: 100%;
+        min-width: 100%;
         min-height: 200px;
         border: 0;
         display: block;
         background: #fff;
-        /* height set in JS from sandbox content measure */
+        /* width/height set in JS from sandbox content measure */
       }
 
       /* Side-by-side SVG compare (no pixel/text diff — dual interactive viewers) */
@@ -1095,17 +1098,18 @@
       .svg-compare-pane-scroll {
         flex: 1 1 auto;
         min-height: 0;
+        min-width: 0;
         overflow: auto;
         background: #fff;
       }
 
       .svg-compare-pane-scroll .svg-preview-frame {
-        width: 100%;
+        min-width: 100%;
         min-height: 200px;
         border: 0;
         display: block;
         background: #fff;
-        /* height set in JS from sandbox content measure */
+        /* width/height set in JS from sandbox content measure */
       }
 
       @media (max-width: 900px) {

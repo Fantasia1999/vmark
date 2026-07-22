@@ -14,7 +14,9 @@
       body {
         margin: 0;
         padding: 0;
-        width: 100%;
+        /* Grow with wide flame graphs so the parent can show a horizontal scrollbar */
+        width: max-content;
+        min-width: 100%;
         height: auto;
         overflow: hidden;
         background: #fff;
@@ -22,6 +24,8 @@
       body > svg {
         display: block;
         max-width: none;
+        width: auto;
+        height: auto;
       }
     </style>
   </head>
@@ -102,30 +106,61 @@
           }
         }
 
-        function measureHeight() {
+        function parseSvgLength(raw) {
+          if (raw == null || raw === '') return 0;
+          var n = parseFloat(String(raw).replace(/px$/i, ''));
+          return Number.isFinite(n) ? n : 0;
+        }
+
+        /** Content box of the SVG (width + height) for parent iframe sizing. */
+        function measureSize() {
           var svg = document.querySelector('body > svg');
+          var w = 0;
           var h = 0;
           if (svg) {
             var rect = svg.getBoundingClientRect();
-            var attrH = parseFloat(svg.getAttribute('height') || '');
-            var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+            var attrW = parseSvgLength(svg.getAttribute('width'));
+            var attrH = parseSvgLength(svg.getAttribute('height'));
+            var vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+            var vbW = vb.length === 4 && Number.isFinite(vb[2]) ? vb[2] : 0;
             var vbH = vb.length === 4 && Number.isFinite(vb[3]) ? vb[3] : 0;
-            h = Math.max(rect.height || 0, svg.scrollHeight || 0, attrH || 0, vbH || 0);
+            w = Math.max(
+              rect.width || 0,
+              svg.scrollWidth || 0,
+              attrW || 0,
+              vbW || 0,
+            );
+            h = Math.max(
+              rect.height || 0,
+              svg.scrollHeight || 0,
+              attrH || 0,
+              vbH || 0,
+            );
           }
+          w = Math.max(
+            w,
+            document.documentElement.scrollWidth || 0,
+            document.body.scrollWidth || 0,
+          );
           h = Math.max(
             h,
             document.documentElement.scrollHeight || 0,
             document.body.scrollHeight || 0,
           );
-          // Floor so short icons still show; cap absurd values
+          if (!Number.isFinite(w) || w < 1) w = 200;
           if (!Number.isFinite(h) || h < 1) h = 200;
-          return Math.ceil(h);
+          return { width: Math.ceil(w), height: Math.ceil(h) };
         }
 
         function reportSize() {
           try {
+            var size = measureSize();
             parent.postMessage(
-              { type: 'svg-sandbox-size', height: measureHeight() },
+              {
+                type: 'svg-sandbox-size',
+                width: size.width,
+                height: size.height,
+              },
               '*',
             );
           } catch (_e) {
@@ -252,6 +287,7 @@
                   deltaY: e.deltaY,
                   deltaZ: e.deltaZ,
                   deltaMode: e.deltaMode,
+                  shiftKey: !!e.shiftKey,
                 },
                 '*',
               );
