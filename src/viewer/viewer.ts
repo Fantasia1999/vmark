@@ -1145,6 +1145,9 @@ function findSvgScrollParent(frame: HTMLElement): HTMLElement {
  * Tall SVGs expand the iframe height; scrolling happens on the outer pane
  * (not inside the iframe) so moving the mouse away does not reset position.
  */
+/** When SVG has no absolute width, sandbox + iframe use this (FlameGraph default). */
+const DEFAULT_SVG_FRAME_WIDTH = 1200;
+
 function mountSvgSandboxFrame(
   host: HTMLElement,
   title: string,
@@ -1155,8 +1158,10 @@ function mountSvgSandboxFrame(
   frame.title = title;
   // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  // Placeholder until sandbox reports content size
-  frame.style.width = '100%';
+  // 1200 avoids HTML iframe intrinsic 300px before sandbox measures content
+  // (also used for left/right SVG compare panes).
+  frame.style.width = `${DEFAULT_SVG_FRAME_WIDTH}px`;
+  frame.style.minWidth = '100%';
   frame.style.height = '50vh';
   frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
 
@@ -1206,7 +1211,7 @@ function mountSvgSandboxFrame(
         frame.style.height = `${Math.max(1, Math.ceil(data.height))}px`;
       }
       if (typeof data.width === 'number') {
-        // At least as wide as the SVG; min 100% so short diagrams still fill the pane
+        // Sandbox already defaults missing width to 1200; keep min 100% to fill pane
         const w = Math.max(1, Math.ceil(data.width));
         frame.style.width = `${w}px`;
         frame.style.minWidth = '100%';
