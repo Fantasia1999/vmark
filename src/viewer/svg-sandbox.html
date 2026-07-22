@@ -23,9 +23,9 @@
       }
       body > svg {
         display: block;
+        /* Do not set width/height here — presentation attrs + JS must control size.
+         * `width: auto` would override width="1200" and collapse to iframe ~300. */
         max-width: none;
-        width: auto;
-        height: auto;
       }
     </style>
   </head>
@@ -141,13 +141,46 @@
           return viewBoxSize(svg).w;
         }
 
+        function absoluteSvgHeight(svg) {
+          var attrH = parseSvgLength(svg.getAttribute('height'));
+          if (attrH > 0) return attrH;
+          return viewBoxSize(svg).h;
+        }
+
         /**
-         * If the SVG has no absolute width (missing or width="100%"), pin to
-         * DEFAULT_SVG_WIDTH so FlameGraph layout and parent iframe sizing work.
+         * Materialize a real pixel width on the SVG so it actually paints wide.
+         * - missing / width="100%" / only viewBox → use viewBox or DEFAULT 1200
+         * - always set attribute + inline style (beats any stylesheet)
+         * Returns the display width used.
          */
         function ensureSvgWidth(svg) {
-          if (absoluteSvgWidth(svg) > 0) return;
-          svg.setAttribute('width', String(DEFAULT_SVG_WIDTH));
+          var rawW = svg.getAttribute('width');
+          var absW = absoluteSvgWidth(svg);
+          var w = absW > 0 ? absW : DEFAULT_SVG_WIDTH;
+
+          // Replace missing or percentage width with absolute pixels
+          if (!rawW || isPercentLength(rawW) || absW <= 0) {
+            w = absW > 0 ? absW : DEFAULT_SVG_WIDTH;
+            svg.setAttribute('width', String(w));
+          } else {
+            w = absW > 0 ? absW : DEFAULT_SVG_WIDTH;
+          }
+
+          // Inline style so display matches attribute (FlameGraph uses baseVal too)
+          svg.style.setProperty('width', w + 'px');
+          svg.style.setProperty('max-width', 'none');
+
+          var rawH = svg.getAttribute('height');
+          var absH = absoluteSvgHeight(svg);
+          if (absH > 0) {
+            if (!rawH || isPercentLength(rawH)) {
+              svg.setAttribute('height', String(absH));
+            }
+            svg.style.setProperty('height', absH + 'px');
+          }
+          svg.style.setProperty('max-height', 'none');
+
+          return w;
         }
 
         /** Content box of the SVG (width + height) for parent iframe sizing. */
@@ -160,16 +193,19 @@
             var attrW = parseSvgLength(svg.getAttribute('width'));
             var attrH = parseSvgLength(svg.getAttribute('height'));
             var vb = viewBoxSize(svg);
+            // Prefer attribute/viewBox; do not let a collapsed layout rect win
             var absW = Math.max(attrW, vb.w);
-            // Layout rect is only trusted when we already have an absolute width;
-            // otherwise it is often the iframe default (~300) and must not win.
             if (absW > 0) {
-              w = Math.max(
-                absW,
-                rect.width || 0,
-                svg.scrollWidth || 0,
-              );
+              w = Math.max(absW, svg.scrollWidth || 0);
+              // rect only if it is not the iframe intrinsic collapse (~300)
+              if ((rect.width || 0) >= absW * 0.9) {
+                w = Math.max(w, rect.width);
+              }
             } else {
+              w = DEFAULT_SVG_WIDTH;
+            }
+            // Never report narrower than our display default when we pinned width
+            if (w < DEFAULT_SVG_WIDTH && absW <= 0) {
               w = DEFAULT_SVG_WIDTH;
             }
             h = Math.max(
@@ -278,7 +314,8 @@
 
           var scripts = extractScripts(svg);
           var imported = document.importNode(svg, true);
-          // Missing / % width → 1200 (single preview + L/R compare)
+          // Missing / % width → absolute pixels (default 1200). Must run before
+          // FlameGraph init() so svg.width.baseVal is the real display width.
           ensureSvgWidth(imported);
           document.body.appendChild(imported);
 
@@ -297,6 +334,9 @@
           } else {
             callInit(imported);
           }
+
+          // Scripts may rewrite attrs; re-pin width after init
+          ensureSvgWidth(imported);
 
           watchSize(imported);
           // Layout may settle after fonts / script init

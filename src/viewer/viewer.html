@@ -971,10 +971,11 @@
       .ws-content #vscode-md-preview-root.is-svg-preview .svg-preview-frame {
         min-width: 100%;
         min-height: 200px;
+        max-width: none;
         border: 0;
         display: block;
         background: #fff;
-        /* width/height set in JS from sandbox content measure */
+        /* width/height set in JS from sandbox content measure (floor 1200) */
       }
 
       /* Side-by-side SVG compare (no pixel/text diff — dual interactive viewers) */
@@ -1106,10 +1107,11 @@
       .svg-compare-pane-scroll .svg-preview-frame {
         min-width: 100%;
         min-height: 200px;
+        max-width: none;
         border: 0;
         display: block;
         background: #fff;
-        /* width/height set in JS from sandbox content measure */
+        /* width/height set in JS from sandbox content measure (floor 1200) */
       }
 
       @media (max-width: 900px) {
