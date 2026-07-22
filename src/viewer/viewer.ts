@@ -8,9 +8,10 @@ import { MarkdownPreviewEngine } from '../preview/engine';
 import { runMermaid } from '../content/mermaidRunner';
 import { mountToolbar, type PreviewMode } from '../content/toolbar';
 import {
-  isMarkdownFileName,
+  isPreviewableFileName,
+  isSvgFileName,
   loadLocalDoc,
-  MD_ACCEPT,
+  PREVIEW_ACCEPT,
   readFileAsLocalDoc,
   saveLocalDoc,
   type LocalMarkdownDoc,
@@ -54,7 +55,7 @@ import {
   wslReadText,
   type WslSessionMeta,
 } from '../shared/wslClient';
-import { isMarkdownPath } from '../shared/wslPaths';
+import { isPreviewablePath } from '../shared/wslPaths';
 import {
   clearFileTreeExpandState,
   renderFileTree,
@@ -472,7 +473,7 @@ function updatePathBar(): void {
   const pathEl = document.getElementById('ws-current-path');
   const countEl = document.getElementById('ws-file-count');
   if (pathEl) {
-    pathEl.textContent = currentPath ?? (doc ? doc.name : '选择左侧 Markdown 文件开始预览');
+    pathEl.textContent = currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
   }
   if (countEl) {
     countEl.textContent = workspaceFiles.length
@@ -852,7 +853,7 @@ async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
 }
 
 /**
- * Intercept clicks on relative .md links to open within the workspace.
+ * Intercept clicks on relative .md / .svg links to open within the workspace.
  * Bound once on the content host (not per render).
  */
 function onPreviewClick(e: MouseEvent): void {
@@ -874,14 +875,14 @@ function onPreviewClick(e: MouseEvent): void {
     return;
   }
   const pathOnly = href.split('#')[0].split('?')[0];
-  if (!isMarkdownFileName(pathOnly)) {
+  if (!isPreviewableFileName(pathOnly)) {
     return;
   }
   e.preventDefault();
   const targetPath = resolveRelativePath(currentPath, pathOnly);
   const hash = href.includes('#') ? href.slice(href.indexOf('#')) : '';
   void openWorkspaceFile(targetPath).then(() => {
-    if (hash) {
+    if (hash && !isSvgFileName(pathOnly)) {
       const id = decodeURIComponent(hash.slice(1));
       document.getElementById(id)?.scrollIntoView();
     }
@@ -916,6 +917,76 @@ function setEmptyPreviewVisible(visible: boolean): void {
   }
 }
 
+/**
+ * Interactive SVG preview (FlameGraph click-zoom / search).
+ *
+ * Extension pages block inline SVG scripts via CSP. We host the SVG in a
+ * dedicated manifest `sandbox` page (relaxed CSP), then post the source in.
+ * That keeps FlameGraph's embedded JS working like a native browser tab.
+ */
+function showSvgPreview(root: HTMLElement): void {
+  revokeObjectUrls();
+
+  // SVG uses the full pane — no markdown column padding/max-width
+  root.className = 'vscode-md-preview-root is-svg-preview';
+  root.dataset.theme = resolveTheme(settings.theme);
+  root.dataset.previewWidth = 'full';
+  applyPreviewWidth('full');
+  // FlameGraph uses attribute math, not pointer coords — CSS zoom is fine.
+  applyPreviewZoom(previewZoom);
+
+  root.replaceChildren();
+  const frame = document.createElement('iframe');
+  frame.className = 'svg-preview-frame';
+  frame.title = doc!.name;
+  // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
+
+  const svgContent = doc!.content;
+  let posted = false;
+  const postSvg = (): void => {
+    if (posted) {
+      return;
+    }
+    posted = true;
+    window.removeEventListener('message', onReady);
+    try {
+      frame.contentWindow?.postMessage({ type: 'load-svg', content: svgContent }, '*');
+    } catch (e) {
+      console.error('[svg-preview] postMessage failed', e);
+      posted = false;
+    }
+  };
+
+  const onReady = (event: MessageEvent): void => {
+    if (event.source !== frame.contentWindow) {
+      return;
+    }
+    if (event.data?.type !== 'svg-sandbox-ready') {
+      return;
+    }
+    postSvg();
+  };
+  window.addEventListener('message', onReady);
+
+  // Fallback if ready message was missed (rare race)
+  frame.addEventListener(
+    'load',
+    () => {
+      window.setTimeout(() => postSvg(), 80);
+    },
+    { once: true },
+  );
+
+  root.appendChild(frame);
+
+  // Outline is for Markdown headings only
+  if (outlinePanel.isOpen) {
+    outlinePanel.close();
+  }
+}
+
 async function showPreviewView(): Promise<void> {
   if (!doc) {
     return;
@@ -932,6 +1003,13 @@ async function showPreviewView(): Promise<void> {
 
   const root = $(ROOT_ID);
   root.hidden = false;
+
+  if (isSvgFileName(doc.name)) {
+    showSvgPreview(root);
+    mountToolbarExtras();
+    return;
+  }
+
   root.className = 'vscode-md-preview-root';
   root.dataset.theme = resolveTheme(settings.theme);
   root.dataset.previewWidth = settings.previewWidth || 'wide';
@@ -970,11 +1048,12 @@ function mountToolbarExtras(): void {
   if (!doc) {
     return;
   }
+  const svg = isSvgFileName(doc.name);
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
     onOpenOptions: () => showOptionsDialog(true),
     onToggleOutline:
-      mode === 'preview'
+      !svg && mode === 'preview'
         ? () => {
             const root = document.getElementById(ROOT_ID);
             outlinePanel.toggle(root);
@@ -1042,9 +1121,17 @@ async function openSingleDoc(
 
 async function openFile(file: File): Promise<void> {
   if (
-    !isMarkdownFileName(file.name) &&
+    !isPreviewableFileName(file.name) &&
     file.type &&
-    !/markdown|text\/plain|text\//i.test(file.type)
+    !/markdown|text\/plain|text\/|svg/i.test(file.type)
+  ) {
+    alert(`不支持的文件类型: ${file.name}`);
+    return;
+  }
+  if (
+    !isPreviewableFileName(file.name) &&
+    !file.type &&
+    !/\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i.test(file.name)
   ) {
     alert(`不支持的文件类型: ${file.name}`);
     return;
@@ -1055,7 +1142,7 @@ async function openFile(file: File): Promise<void> {
 
 function pickFile(): void {
   const input = $('file-input') as HTMLInputElement;
-  input.accept = MD_ACCEPT;
+  input.accept = PREVIEW_ACCEPT;
   input.value = '';
   input.click();
 }
@@ -1352,7 +1439,7 @@ function setWslDialogMode(mode: WslDialogMode): void {
     openFileBtn.disabled = mode !== 'paste';
     openFileBtn.title =
       mode === 'paste'
-        ? '用 file://wsl.localhost 在新标签打开粘贴的 .md 文件'
+        ? '用 file://wsl.localhost 在新标签打开粘贴的 .md / .svg 文件'
         : '仅在「粘贴路径」模式下可用';
   }
 
@@ -1438,7 +1525,7 @@ function parseWslPasteInput(pathPaste: string): {
 } | { error: string } {
   const loc = parseWslLocation(pathPaste);
   if (loc) {
-    if (isMarkdownPath(loc.linuxPath)) {
+    if (isPreviewablePath(loc.linuxPath)) {
       const parent = loc.linuxPath.includes('/')
         ? loc.linuxPath.slice(0, loc.linuxPath.lastIndexOf('/')) || '/'
         : '/';
@@ -1535,7 +1622,7 @@ async function connectWslFromDialog(): Promise<void> {
   }
 }
 
-/** Open a single WSL markdown file in Chrome via file://wsl.localhost/... */
+/** Open a single WSL markdown/SVG file in Chrome via file://wsl.localhost/... */
 async function openWslFileInTab(): Promise<void> {
   const errEl = document.getElementById('wsl-error');
   const showErr = (msg: string) => {
@@ -1546,19 +1633,19 @@ async function openWslFileInTab(): Promise<void> {
   };
 
   if (getWslDialogMode() !== 'paste') {
-    showErr('请切换到「粘贴路径」，并填入 .md 文件路径');
+    showErr('请切换到「粘贴路径」，并填入 .md / .svg 文件路径');
     return;
   }
 
   const pathPaste = (document.getElementById('wsl-path') as HTMLInputElement)?.value.trim();
   if (!pathPaste) {
-    showErr('请粘贴完整 WSL 文件路径（.md）');
+    showErr('请粘贴完整 WSL 文件路径（.md 或 .svg）');
     return;
   }
 
   const loc = parseWslLocation(pathPaste);
-  if (!loc || !isMarkdownPath(loc.linuxPath)) {
-    showErr('请粘贴指向 .md 的完整路径，例如 \\\\wsl.localhost\\Debian\\home\\u\\a.md');
+  if (!loc || !isPreviewablePath(loc.linuxPath)) {
+    showErr('请粘贴指向 .md / .svg 的完整路径，例如 \\\\wsl.localhost\\Debian\\home\\u\\a.md');
     return;
   }
   const url = toWslFileUrl(loc, 'wsl.localhost');

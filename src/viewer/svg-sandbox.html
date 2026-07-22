@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SVG Preview Sandbox</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        overflow: auto;
+      }
+      /* FlameGraph SVGs are fixed width/height; allow scroll when larger than pane */
+      body > svg {
+        display: block;
+        max-width: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      /**
+       * Extension sandbox page (relaxed CSP: inline + eval).
+       * Hosts interactive SVGs (FlameGraph click-zoom / search) that cannot run
+       * under the normal extension-page CSP.
+       */
+      (function () {
+        'use strict';
+
+        /** Patch history so FlameGraph URL state updates never throw in sandboxed docs. */
+        function patchHistory() {
+          try {
+            var origReplace = history.replaceState.bind(history);
+            history.replaceState = function (state, title, url) {
+              try {
+                return origReplace(state, title, url);
+              } catch (_e) {
+                /* opaque / restricted history — ignore */
+              }
+            };
+            var origPush = history.pushState.bind(history);
+            history.pushState = function (state, title, url) {
+              try {
+                return origPush(state, title, url);
+              } catch (_e) {
+                /* ignore */
+              }
+            };
+          } catch (_e) {
+            /* ignore */
+          }
+        }
+
+        function extractScripts(svgEl) {
+          var scripts = [];
+          var nodes = svgEl.querySelectorAll('script');
+          for (var i = 0; i < nodes.length; i++) {
+            var s = nodes[i];
+            var text = s.textContent || '';
+            // Strip CDATA wrappers if present
+            text = text.replace(/^\s*<!\[CDATA\[/, '').replace(/\]\]>\s*$/, '');
+            scripts.push(text);
+            s.parentNode.removeChild(s);
+          }
+          return scripts;
+        }
+
+        /**
+         * Inject as real classic <script> tags so FlameGraph's function
+         * declarations land on window (eval in a strict IIFE would not).
+         */
+        function injectClassicScripts(list) {
+          for (var i = 0; i < list.length; i++) {
+            var code = list[i];
+            if (!code || !String(code).trim()) continue;
+            var el = document.createElement('script');
+            el.type = 'text/javascript';
+            el.text = code;
+            document.body.appendChild(el);
+          }
+        }
+
+        function callInit(svgEl) {
+          if (typeof window.init === 'function') {
+            try {
+              window.init({ target: svgEl, type: 'load' });
+            } catch (err) {
+              console.error('[svg-sandbox] init() failed', err);
+            }
+          }
+        }
+
+        function loadSvg(content) {
+          if (typeof content !== 'string' || !content.trim()) {
+            document.body.textContent = 'Empty SVG';
+            return;
+          }
+
+          patchHistory();
+
+          // Drop previous SVG + injected scripts (keep only this loader bootstrap)
+          document.body.replaceChildren();
+
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(content, 'image/svg+xml');
+          var parseErr = doc.querySelector('parsererror');
+          if (parseErr) {
+            document.body.textContent =
+              'Invalid SVG: ' + (parseErr.textContent || 'parse error');
+            return;
+          }
+
+          var svg = doc.documentElement;
+          if (!svg || svg.tagName.toLowerCase() !== 'svg') {
+            document.body.textContent = 'Not an SVG document';
+            return;
+          }
+
+          // Capture and strip onload= (e.g. FlameGraph: onload="init(evt)")
+          var onloadAttr = svg.getAttribute('onload') || svg.getAttribute('onLoad') || '';
+          svg.removeAttribute('onload');
+          svg.removeAttribute('onLoad');
+
+          var scripts = extractScripts(svg);
+          var imported = document.importNode(svg, true);
+          document.body.appendChild(imported);
+
+          // Run embedded scripts in global scope
+          injectClassicScripts(scripts);
+
+          // Honor original onload / FlameGraph init
+          if (onloadAttr && /init\s*\(/.test(onloadAttr)) {
+            callInit(imported);
+          } else if (onloadAttr) {
+            try {
+              var fn = new Function('evt', onloadAttr);
+              fn({ target: imported, type: 'load' });
+            } catch (err) {
+              console.error('[svg-sandbox] onload failed', err);
+              callInit(imported);
+            }
+          } else {
+            callInit(imported);
+          }
+        }
+
+        window.addEventListener('message', function (event) {
+          var data = event.data;
+          if (!data || data.type !== 'load-svg') return;
+          loadSvg(data.content);
+        });
+
+        // Tell the viewer we are ready for content
+        try {
+          parent.postMessage({ type: 'svg-sandbox-ready' }, '*');
+        } catch (_e) {
+          /* ignore */
+        }
+      })();
+    </script>
+  </body>
+</html>

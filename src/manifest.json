@@ -43,5 +43,8 @@
       "resources": ["styles/*", "icons/*", "content/mermaidChunk.js"],
       "matches": ["<all_urls>", "file:///*"]
     }
-  ]
+  ],
+  "sandbox": {
+    "pages": ["viewer/svg-sandbox.html"]
+  }
 }
