@@ -40,7 +40,8 @@ npm run build
 | 工作区内相对图片与 `.md` 链接 | 通过 File System Access API 解析 |
 | **大纲**（目录） | 紧凑悬浮窗（工具栏「大纲」）；可 **Pin 固定**、拖动标题栏；不占版面 |
 | 打开本地 `file://` 的 Markdown / GitHub·Gist **raw** | 页面内自动预览（普通网页、GitHub blob 等**不**劫持） |
-| 工作区 / 单文件 **SVG**（火焰图等） | iframe 原生渲染，保留脚本点击缩放；`file://` 的 `.svg` 不劫持 |
+| 工作区 / 单文件 **SVG**（火焰图等） | sandbox 渲染，保留脚本点击缩放；`file://` 的 `.svg` 不劫持 |
+| SVG **左右比较** | 文件树右键「选为左侧/右侧」或「与左侧比较」（类 Beyond Compare），同页并排显示，不做内容 diff |
 | 扩展图标 → 切换当前页预览 | 对当前标签页强制切换 |
 | 选项页 | breaks / linkify / 数学 / Mermaid / 主题 |
 
