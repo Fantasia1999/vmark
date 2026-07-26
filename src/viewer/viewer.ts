@@ -64,6 +64,7 @@ import {
   setWorkspaceChrome,
 } from './workspaceUi';
 import { closeContextMenu, showContextMenu, type ContextMenuItem } from './contextMenu';
+import { initSidebarUi } from './sidebar';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import {
   clearAllHistory,
@@ -1776,6 +1777,7 @@ function wireUi(): void {
     }
   });
 
+  initSidebarUi();
   wireModalKeyboard();
   wireHistoryClearButton(historyHandlersRef);
   void refreshHistoryPanel(historyHandlersRef);

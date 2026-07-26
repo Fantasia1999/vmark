@@ -608,11 +608,16 @@
       /* —— workspace shell —— */
       #workspace-shell {
         display: grid;
-        grid-template-columns: minmax(200px, 280px) 1fr;
+        /* JS-driven; drag resizer updates the variable, storage persists it */
+        grid-template-columns: var(--ws-sidebar-width, 280px) 1fr;
         grid-template-rows: 100vh;
         height: 100vh;
         background: var(--vscode-editor-background, #1e1e1e);
         color: var(--vscode-editor-foreground, #d4d4d4);
+      }
+
+      #workspace-shell.sidebar-collapsed {
+        grid-template-columns: 30px 1fr;
       }
 
       .ws-sidebar {
@@ -622,11 +627,86 @@
         background: var(--vscode-sideBar-background, #252526);
         color: var(--vscode-sideBar-foreground, #cccccc);
         min-width: 0;
+        position: relative;
+      }
+
+      .sidebar-collapsed .ws-sidebar-header,
+      .sidebar-collapsed .ws-sidebar-actions,
+      .sidebar-collapsed #ws-file-tree,
+      .sidebar-collapsed .ws-sidebar-resizer {
+        display: none;
+      }
+
+      /* Slim rail with the expand button when collapsed */
+      .ws-sidebar-rail {
+        display: none;
+      }
+      .sidebar-collapsed .ws-sidebar-rail {
+        display: flex;
+        justify-content: center;
+        padding-top: 8px;
+      }
+
+      .ws-sidebar-collapse-btn {
+        border: none;
+        background: transparent;
+        color: inherit;
+        opacity: 0.6;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+      .ws-sidebar-collapse-btn:hover {
+        opacity: 1;
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+      .ws-sidebar-collapse-btn:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+        opacity: 1;
+      }
+
+      /* Drag handle on the sidebar's right edge */
+      .ws-sidebar-resizer {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -3px;
+        width: 6px;
+        cursor: col-resize;
+        z-index: 40;
+        background: transparent;
+        touch-action: none;
+      }
+      .ws-sidebar-resizer:hover,
+      .ws-sidebar-resizer:focus-visible,
+      body.ws-resizing .ws-sidebar-resizer {
+        background: var(--vscode-focusBorder, #007fd4);
+        opacity: 0.55;
+        outline: none;
+      }
+
+      /* While dragging: no text selection; iframes must not eat pointer events */
+      body.ws-resizing {
+        user-select: none;
+        cursor: col-resize;
+      }
+      body.ws-resizing iframe {
+        pointer-events: none;
       }
 
       .ws-sidebar-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
         padding: 10px 12px 8px;
         border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+      }
+      .ws-sidebar-header .ws-header-text {
+        flex: 1;
+        min-width: 0;
       }
 
       .ws-sidebar-header .ws-caption {
@@ -1149,9 +1229,17 @@
           grid-template-columns: 1fr;
           grid-template-rows: 40vh 1fr;
         }
+        #workspace-shell.sidebar-collapsed {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr;
+        }
         .ws-sidebar {
           border-right: none;
           border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+        }
+        /* Stacked layout: width drag makes no sense */
+        .ws-sidebar-resizer {
+          display: none;
         }
       }
     </style>
@@ -1430,9 +1518,32 @@
 
     <div id="workspace-shell" hidden>
       <aside class="ws-sidebar">
+        <div class="ws-sidebar-rail">
+          <button
+            type="button"
+            id="ws-btn-expand"
+            class="ws-sidebar-collapse-btn"
+            title="展开侧边栏"
+            aria-label="展开侧边栏"
+          >
+            »
+          </button>
+        </div>
         <div class="ws-sidebar-header">
-          <div class="ws-caption">工作区</div>
-          <div id="ws-title">—</div>
+          <div class="ws-header-text">
+            <div class="ws-caption">工作区</div>
+            <div id="ws-title">—</div>
+          </div>
+          <button
+            type="button"
+            id="ws-btn-collapse"
+            class="ws-sidebar-collapse-btn"
+            title="收起侧边栏"
+            aria-label="收起侧边栏"
+            aria-expanded="true"
+          >
+            «
+          </button>
         </div>
         <div class="ws-sidebar-actions">
           <button type="button" id="ws-btn-refresh" class="secondary" title="重新扫描 Markdown / SVG 文件">刷新</button>
@@ -1441,6 +1552,15 @@
           <button type="button" id="ws-btn-close" class="secondary" title="关闭工作区">关闭</button>
         </div>
         <div id="ws-file-tree" aria-label="Markdown / SVG 文件列表"></div>
+        <div
+          id="ws-sidebar-resizer"
+          class="ws-sidebar-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整侧边栏宽度"
+          tabindex="0"
+          title="拖动调整宽度；双击复位；方向键微调"
+        ></div>
       </aside>
       <main class="ws-main">
         <div class="ws-main-bar">
