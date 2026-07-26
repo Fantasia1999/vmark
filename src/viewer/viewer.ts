@@ -73,7 +73,6 @@ import {
   type FileHistoryEntry,
   type WorkspaceHistoryEntry,
 } from '../shared/history';
-import { saveLastSession } from '../shared/lastSession';
 import {
   applyPreviewZoom,
   loadPreviewZoom,
@@ -797,11 +796,6 @@ async function enterWorkspace(
     localName: root.name,
     lastFilePath: pending,
   });
-  void saveLastSession({
-    kind: 'local',
-    localName: root.name,
-    lastFilePath: pending,
-  });
   await showWorkspaceShell(root.name, pending);
 }
 
@@ -836,11 +830,6 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
     ssh,
     lastFilePath: pending,
   });
-  void saveLastSession({
-    kind: 'ssh',
-    ssh,
-    lastFilePath: pending,
-  });
   await showWorkspaceShell(`${title}:${meta.root}`, pending);
 }
 
@@ -867,11 +856,6 @@ async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): 
     source: 'wsl',
     title,
     subtitle: meta.root,
-    wsl: { distro: meta.distro, root: meta.root },
-    lastFilePath: pending,
-  });
-  void saveLastSession({
-    kind: 'wsl',
     wsl: { distro: meta.distro, root: meta.root },
     lastFilePath: pending,
   });
@@ -1047,11 +1031,6 @@ async function openWorkspaceFile(path: string): Promise<void> {
       { source: 'local', localName: workspaceRoot.name },
       path,
     );
-    void saveLastSession({
-      kind: 'local',
-      localName: workspaceRoot.name,
-      lastFilePath: path,
-    });
   } else if (workspaceKind === 'ssh' && sshMeta) {
     const ssh = {
       host: sshMeta.host,
@@ -1067,7 +1046,6 @@ async function openWorkspaceFile(path: string): Promise<void> {
       ssh,
     });
     void touchWorkspaceLastFile({ source: 'ssh', ssh }, path);
-    void saveLastSession({ kind: 'ssh', ssh, lastFilePath: path });
   } else if (workspaceKind === 'wsl' && wslMeta) {
     const wsl = { distro: wslMeta.distro, root: wslMeta.root };
     void recordFileOpen({
@@ -1078,7 +1056,6 @@ async function openWorkspaceFile(path: string): Promise<void> {
       wsl,
     });
     void touchWorkspaceLastFile({ source: 'wsl', wsl }, path);
-    void saveLastSession({ kind: 'wsl', wsl, lastFilePath: path });
   }
 
   await showPreviewView();
@@ -1598,7 +1575,6 @@ async function openSingleDoc(
 
   if (!inWorkspace) {
     // True single-file mode — remember so next open does not force a workspace
-    void saveLastSession({ kind: 'standalone', name: next.name });
     setWorkspaceChrome(true, next.name);
     const treeEl = document.getElementById('ws-file-tree');
     if (treeEl) {
