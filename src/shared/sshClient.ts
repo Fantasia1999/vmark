@@ -77,7 +77,8 @@ export async function loadSshBridgeSettings(): Promise<SshBridgeSettings> {
       [STORAGE_KEYS.bridgeToken]: '',
     });
     return {
-      bridgeUrl: String(s[STORAGE_KEYS.bridgeUrl] || DEFAULT_SSH_BRIDGE_URL).replace(/\/+$/, ''),
+      bridgeUrl:
+        normalizeBridgeUrl(String(s[STORAGE_KEYS.bridgeUrl] || '')) || DEFAULT_SSH_BRIDGE_URL,
       bridgeToken: String(s[STORAGE_KEYS.bridgeToken] || ''),
     };
   } catch {
@@ -85,12 +86,21 @@ export async function loadSshBridgeSettings(): Promise<SshBridgeSettings> {
   }
 }
 
+/** Ensure an http(s) scheme so the URL is not fetched relative to the extension origin. */
+function normalizeBridgeUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return trimmed;
+  }
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+}
+
 export async function saveSshBridgeSettings(
   partial: Partial<SshBridgeSettings>,
 ): Promise<void> {
   const payload: Record<string, string> = {};
   if (partial.bridgeUrl !== undefined) {
-    payload[STORAGE_KEYS.bridgeUrl] = partial.bridgeUrl.replace(/\/+$/, '');
+    payload[STORAGE_KEYS.bridgeUrl] = normalizeBridgeUrl(partial.bridgeUrl);
   }
   if (partial.bridgeToken !== undefined) {
     payload[STORAGE_KEYS.bridgeToken] = partial.bridgeToken;
@@ -226,7 +236,11 @@ export async function sshHealth(): Promise<SshHealth> {
   const tokenConfigured = Boolean(token);
   const tokenPreview = tokenConfigured ? maskBridgeToken(token) : undefined;
   try {
-    const res = await fetch(`${settings.bridgeUrl}/health`);
+    // Send the token when configured: the bridge only reveals session details
+    // (SSH user/host, roots) to authenticated callers.
+    const res = await fetch(`${settings.bridgeUrl}/health`, {
+      headers: token ? { 'X-Bridge-Token': token } : undefined,
+    });
     if (!res.ok) {
       return {
         ok: false,
@@ -349,14 +363,16 @@ export function formatBridgeStatus(
   } else if (h.platform && h.platform !== 'win32') {
     parts.push(zh ? 'WSL 不可用' : 'WSL n/a (not Windows)');
   }
+  // Escape session strings — they come from whatever process answers on the
+  // configured bridge URL and are rendered via innerHTML.
   if (h.connected && h.meta) {
-    parts.push(`SSH ${h.meta.username}@${h.meta.host}`);
+    parts.push(`SSH ${escapeHtml(`${h.meta.username}@${h.meta.host}`)}`);
   }
   if (h.wslConnected && h.wslMeta) {
     parts.push(
       zh
-        ? `WSL ${h.wslMeta.distro}`
-        : `WSL ${h.wslMeta.distro}:${h.wslMeta.root}`,
+        ? `WSL ${escapeHtml(h.wslMeta.distro)}`
+        : `WSL ${escapeHtml(`${h.wslMeta.distro}:${h.wslMeta.root}`)}`,
     );
   }
 

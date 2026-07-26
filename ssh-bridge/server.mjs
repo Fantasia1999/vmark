@@ -90,10 +90,24 @@ function unauthorized(res) {
 }
 
 function checkAuth(req) {
-  const h =
+  const h = String(
     req.headers['x-bridge-token'] ||
-    (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  return h && h === TOKEN;
+      (req.headers.authorization || '').replace(/^Bearer\s+/i, ''),
+  );
+  if (!h) {
+    return false;
+  }
+  const a = Buffer.from(h);
+  const b = Buffer.from(TOKEN);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/** Reject DNS-rebinding: the bridge is loopback-only, so Host must be too. */
+function checkHost(req) {
+  const host = String(req.headers.host || '').replace(/:\d+$/, '');
+  return (
+    host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === HOST
+  );
 }
 
 function readBody(req) {
@@ -125,9 +139,13 @@ function disconnect() {
   }
 }
 
+/**
+ * Open a new SSH+SFTP connection WITHOUT touching the current session, so a
+ * failed reconnect cannot destroy a working one. The caller validates the
+ * root and then swaps it in via adoptSession().
+ */
 function connectSsh(opts) {
   return new Promise((resolve, reject) => {
-    disconnect();
     const client = new Client();
     const timeout = setTimeout(() => {
       client.end();
@@ -143,18 +161,7 @@ function connectSsh(opts) {
             reject(err);
             return;
           }
-          session = {
-            client,
-            sftp,
-            meta: {
-              host: opts.host,
-              port: opts.port,
-              username: opts.username,
-              root: opts.root || '.',
-              connectedAt: Date.now(),
-            },
-          };
-          resolve(session.meta);
+          resolve({ client, sftp });
         });
       })
       .on('error', (err) => {
@@ -169,10 +176,29 @@ function connectSsh(opts) {
         privateKey: opts.privateKey || undefined,
         passphrase: opts.passphrase || undefined,
         readyTimeout: opts.timeoutMs || 20000,
+        // Detect dead TCP connections (laptop sleep, NAT drop) instead of
+        // reporting connected:true forever.
+        keepaliveInterval: 15000,
+        keepaliveCountMax: 4,
         // Prefer modern algorithms; let ssh2 negotiate
         tryKeyboard: false,
       });
   });
+}
+
+/** Replace the active session and clear it again when this client dies. */
+function adoptSession(client, sftp, meta) {
+  disconnect();
+  session = { client, sftp, meta };
+  const clear = () => {
+    if (session && session.client === client) {
+      session = null;
+      console.error('[ssh-bridge] SSH connection lost; session cleared');
+    }
+  };
+  client.on('error', clear);
+  client.on('close', clear);
+  client.on('end', clear);
 }
 
 function joinRemote(root, rel) {
@@ -242,7 +268,12 @@ async function listMarkdown(rootRel) {
     let entries;
     try {
       entries = await listDir(sftp, absDir);
-    } catch {
+    } catch (e) {
+      if (depth === 0) {
+        // Root listing failure = dead connection or bad permissions; surface
+        // it instead of returning an empty tree that looks like "no files".
+        throw e;
+      }
       return;
     }
     for (const e of entries) {
@@ -287,9 +318,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (!checkHost(req)) {
+    json(res, 403, { error: 'forbidden host' });
+    return;
+  }
+
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
 
   if (url.pathname === '/health') {
+    if (!checkAuth(req)) {
+      // Liveness only. Session details (SSH identity, workspace roots) are
+      // token-gated — any webpage can reach 127.0.0.1 and must learn nothing.
+      json(res, 200, { ok: true, authRequired: true });
+      return;
+    }
     json(res, 200, {
       ok: true,
       platform: process.platform,
@@ -332,23 +374,40 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: 'password or privateKey required' });
         return;
       }
-      const meta = await connectSsh({
+      // SFTP has no tilde expansion (that is an ssh-client feature); '~'
+      // resolves against the login cwd, which realpath('.') reaches.
+      const rawRoot = body.root ? String(body.root) : '.';
+      const rootInput =
+        rawRoot === '~' ? '.' : rawRoot.startsWith('~/') ? rawRoot.slice(2) : rawRoot;
+      const { client, sftp } = await connectSsh({
         host: String(body.host),
         port: Number(body.port) || 22,
         username: String(body.username),
         password: body.password ? String(body.password) : undefined,
         privateKey: body.privateKey ? String(body.privateKey) : undefined,
         passphrase: body.passphrase ? String(body.passphrase) : undefined,
-        root: body.root ? String(body.root) : '.',
       });
-      // validate root
+      // validate root before replacing any existing working session
+      let rootAbs;
       try {
-        await realpath(session.sftp, joinRemote(meta.root, ''));
+        rootAbs = await realpath(sftp, joinRemote(rootInput, ''));
       } catch (e) {
-        disconnect();
-        json(res, 400, { error: `root path not found: ${meta.root}` });
+        try {
+          client.end();
+        } catch {
+          // ignore
+        }
+        json(res, 400, { error: `root path not found: ${rawRoot}` });
         return;
       }
+      const meta = {
+        host: String(body.host),
+        port: Number(body.port) || 22,
+        username: String(body.username),
+        root: rootAbs,
+        connectedAt: Date.now(),
+      };
+      adoptSession(client, sftp, meta);
       json(res, 200, { ok: true, meta });
       return;
     }
@@ -414,7 +473,9 @@ const server = http.createServer(async (req, res) => {
       wsl.assertUnderRoot(wslSession.root, abs);
       const encoding = url.searchParams.get('encoding') || 'utf8';
       if (encoding === 'base64') {
-        const content = await wsl.readFileBase64(wslSession.distro, abs);
+        // rootAbs re-checks containment after realpath inside the distro,
+        // so symlinks cannot escape the workspace (mirrors the SSH /read path).
+        const content = await wsl.readFileBase64(wslSession.distro, abs, wslSession.root);
         json(res, 200, {
           path: rel,
           encoding: 'base64',
@@ -422,7 +483,7 @@ const server = http.createServer(async (req, res) => {
           size: Buffer.from(content, 'base64').length,
         });
       } else {
-        const content = await wsl.readFileUtf8(wslSession.distro, abs);
+        const content = await wsl.readFileUtf8(wslSession.distro, abs, wslSession.root);
         json(res, 200, {
           path: rel,
           encoding: 'utf8',
