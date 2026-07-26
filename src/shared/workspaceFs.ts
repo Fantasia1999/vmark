@@ -10,6 +10,11 @@ const DB_VERSION = 1;
 const STORE = 'handles';
 const HANDLE_KEY = 'root';
 const META_KEY = 'workspaceMeta';
+/** Per-workspace handles so history entries can reopen without re-picking. */
+const RECENT_HANDLE_PREFIX = 'recent:';
+const RECENT_INDEX_KEY = 'recentIndex';
+/** Matches history MAX_WS — no point keeping handles history can't show. */
+const MAX_RECENT_HANDLES = 15;
 
 const SKIP_DIRS = new Set([
   'node_modules',
@@ -131,6 +136,11 @@ export async function saveWorkspaceHandle(
   };
   await idbSet(META_KEY, meta);
   try {
+    await saveRecentWorkspaceHandle(handle);
+  } catch {
+    // best-effort — history restore falls back to the picker
+  }
+  try {
     await chrome.storage.session.set({
       workspaceName: handle.name,
       workspaceLastFile: lastFilePath ?? null,
@@ -138,6 +148,50 @@ export async function saveWorkspaceHandle(
   } catch {
     // optional
   }
+}
+
+/**
+ * Remember this folder's handle under its name so a history click can restore
+ * it later (permission is re-requested on that click's user gesture). Keyed by
+ * folder name — the same identity history uses for local workspaces.
+ */
+export async function saveRecentWorkspaceHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  await idbSet(RECENT_HANDLE_PREFIX + handle.name, {
+    handle,
+    savedAt: Date.now(),
+  });
+  const index = (await idbGet<string[]>(RECENT_INDEX_KEY)) ?? [];
+  const next = [handle.name, ...index.filter((n) => n !== handle.name)];
+  for (const stale of next.slice(MAX_RECENT_HANDLES)) {
+    await idbDelete(RECENT_HANDLE_PREFIX + stale);
+  }
+  await idbSet(RECENT_INDEX_KEY, next.slice(0, MAX_RECENT_HANDLES));
+}
+
+export async function loadRecentWorkspaceHandle(
+  name: string,
+): Promise<FileSystemDirectoryHandle | null> {
+  if (!name) {
+    return null;
+  }
+  const record = await idbGet<{ handle?: FileSystemDirectoryHandle }>(
+    RECENT_HANDLE_PREFIX + name,
+  );
+  return record?.handle ?? null;
+}
+
+export async function removeRecentWorkspaceHandle(name: string): Promise<void> {
+  if (!name) {
+    return;
+  }
+  await idbDelete(RECENT_HANDLE_PREFIX + name);
+  const index = (await idbGet<string[]>(RECENT_INDEX_KEY)) ?? [];
+  await idbSet(
+    RECENT_INDEX_KEY,
+    index.filter((n) => n !== name),
+  );
 }
 
 export async function loadWorkspaceMeta(): Promise<WorkspaceMeta | null> {
