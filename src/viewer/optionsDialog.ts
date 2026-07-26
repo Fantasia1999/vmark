@@ -4,7 +4,6 @@
  */
 
 import {
-  DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   type MermaidThemeSetting,
@@ -82,23 +81,10 @@ async function refreshBridgeStatus(): Promise<void> {
   el.innerHTML = html;
 }
 
-async function readFormSettings(): Promise<PreviewSettings> {
-  const next: PreviewSettings = { ...DEFAULT_SETTINGS };
-  for (const id of CHECKBOX_IDS) {
-    const key = SETTING_BY_CHECKBOX[id];
-    next[key] = ($(id) as HTMLInputElement).checked as never;
-  }
-  next.theme = ($('opt-theme') as HTMLSelectElement).value as ThemeMode;
-  next.previewWidth = ($('opt-previewWidth') as HTMLSelectElement)
-    .value as PreviewWidthSetting;
-  next.mermaidTheme = ($('opt-mermaidTheme') as HTMLSelectElement)
-    .value as MermaidThemeSetting;
-  return next;
-}
-
-async function persistSettings(): Promise<void> {
-  const next = await readFormSettings();
-  await saveSettings(next);
+// Save only the changed key: writing the full form state would clobber
+// settings changed meanwhile from the full options page.
+async function persistSettings(partial: Partial<PreviewSettings>): Promise<void> {
+  await saveSettings(partial);
   setStatus('已保存');
 }
 
@@ -133,11 +119,28 @@ function wireOnce(): void {
   wired = true;
 
   for (const id of CHECKBOX_IDS) {
-    $(id).addEventListener('change', () => void persistSettings());
+    const key = SETTING_BY_CHECKBOX[id];
+    $(id).addEventListener('change', () =>
+      void persistSettings({ [key]: ($(id) as HTMLInputElement).checked }),
+    );
   }
-  $('opt-theme').addEventListener('change', () => void persistSettings());
-  $('opt-previewWidth').addEventListener('change', () => void persistSettings());
-  $('opt-mermaidTheme').addEventListener('change', () => void persistSettings());
+  $('opt-theme').addEventListener('change', () =>
+    void persistSettings({
+      theme: ($('opt-theme') as HTMLSelectElement).value as ThemeMode,
+    }),
+  );
+  $('opt-previewWidth').addEventListener('change', () =>
+    void persistSettings({
+      previewWidth: ($('opt-previewWidth') as HTMLSelectElement)
+        .value as PreviewWidthSetting,
+    }),
+  );
+  $('opt-mermaidTheme').addEventListener('change', () =>
+    void persistSettings({
+      mermaidTheme: ($('opt-mermaidTheme') as HTMLSelectElement)
+        .value as MermaidThemeSetting,
+    }),
+  );
   $('opt-sshBridgeUrl').addEventListener('change', () => void persistBridge());
   $('opt-sshBridgeToken').addEventListener('change', () => void persistBridge());
 

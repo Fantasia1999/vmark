@@ -159,6 +159,19 @@ export function fileWorkspaceGroupSub(entry: FileHistoryEntry): string | undefin
   return undefined;
 }
 
+/**
+ * Serialize read-modify-write cycles within this page. Without it, concurrent
+ * calls (e.g. recordWorkspaceOpen + touchWorkspaceLastFile during workspace
+ * entry) both read the same list and the last `set` silently drops the other.
+ */
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeQueue.then(fn);
+  writeQueue = run.catch(() => {});
+  return run;
+}
+
 async function loadList<T>(key: string): Promise<T[]> {
   try {
     const r = await chrome.storage.local.get(key);
@@ -192,23 +205,25 @@ export async function recordWorkspaceOpen(input: {
   wsl?: WslHistoryTarget;
   lastFilePath?: string;
 }): Promise<void> {
-  const list = await loadWorkspaceHistory();
-  const key = workspaceKey(input);
-  const filtered = list.filter((e) => workspaceKey(e) !== key);
-  const entry: WorkspaceHistoryEntry = {
-    id: uid('ws'),
-    kind: 'workspace',
-    source: input.source,
-    title: input.title,
-    subtitle: input.subtitle,
-    openedAt: Date.now(),
-    localName: input.localName,
-    ssh: input.ssh,
-    wsl: input.wsl,
-    lastFilePath: input.lastFilePath,
-  };
-  filtered.unshift(entry);
-  await saveList(WS_KEY, filtered.slice(0, MAX_WS));
+  await withWriteLock(async () => {
+    const list = await loadWorkspaceHistory();
+    const key = workspaceKey(input);
+    const filtered = list.filter((e) => workspaceKey(e) !== key);
+    const entry: WorkspaceHistoryEntry = {
+      id: uid('ws'),
+      kind: 'workspace',
+      source: input.source,
+      title: input.title,
+      subtitle: input.subtitle,
+      openedAt: Date.now(),
+      localName: input.localName,
+      ssh: input.ssh,
+      wsl: input.wsl,
+      lastFilePath: input.lastFilePath,
+    };
+    filtered.unshift(entry);
+    await saveList(WS_KEY, filtered.slice(0, MAX_WS));
+  });
 }
 
 export async function recordFileOpen(input: {
@@ -220,23 +235,25 @@ export async function recordFileOpen(input: {
   ssh?: SshHistoryTarget;
   wsl?: WslHistoryTarget;
 }): Promise<void> {
-  const list = await loadFileHistory();
-  const key = fileKey(input);
-  const filtered = list.filter((e) => fileKey(e) !== key);
-  const entry: FileHistoryEntry = {
-    id: uid('file'),
-    kind: 'file',
-    source: input.source,
-    title: input.title,
-    path: input.path,
-    openedAt: Date.now(),
-    workspaceTitle: input.workspaceTitle,
-    localName: input.localName,
-    ssh: input.ssh,
-    wsl: input.wsl,
-  };
-  filtered.unshift(entry);
-  await saveList(FILE_KEY, filtered.slice(0, MAX_FILES));
+  await withWriteLock(async () => {
+    const list = await loadFileHistory();
+    const key = fileKey(input);
+    const filtered = list.filter((e) => fileKey(e) !== key);
+    const entry: FileHistoryEntry = {
+      id: uid('file'),
+      kind: 'file',
+      source: input.source,
+      title: input.title,
+      path: input.path,
+      openedAt: Date.now(),
+      workspaceTitle: input.workspaceTitle,
+      localName: input.localName,
+      ssh: input.ssh,
+      wsl: input.wsl,
+    };
+    filtered.unshift(entry);
+    await saveList(FILE_KEY, filtered.slice(0, MAX_FILES));
+  });
 }
 
 /** Update lastFilePath on matching workspace entry */
@@ -249,37 +266,43 @@ export async function touchWorkspaceLastFile(
   },
   lastFilePath: string,
 ): Promise<void> {
-  const list = await loadWorkspaceHistory();
-  const key = workspaceKey(match);
-  let changed = false;
-  for (const e of list) {
-    if (workspaceKey(e) === key) {
-      e.lastFilePath = lastFilePath;
-      e.openedAt = Date.now();
-      changed = true;
-      break;
+  await withWriteLock(async () => {
+    const list = await loadWorkspaceHistory();
+    const key = workspaceKey(match);
+    let changed = false;
+    for (const e of list) {
+      if (workspaceKey(e) === key) {
+        e.lastFilePath = lastFilePath;
+        e.openedAt = Date.now();
+        changed = true;
+        break;
+      }
     }
-  }
-  if (changed) {
-    list.sort((a, b) => b.openedAt - a.openedAt);
-    await saveList(WS_KEY, list);
-  }
+    if (changed) {
+      list.sort((a, b) => b.openedAt - a.openedAt);
+      await saveList(WS_KEY, list);
+    }
+  });
 }
 
 export async function removeWorkspaceHistory(id: string): Promise<void> {
-  const list = await loadWorkspaceHistory();
-  await saveList(
-    WS_KEY,
-    list.filter((e) => e.id !== id),
-  );
+  await withWriteLock(async () => {
+    const list = await loadWorkspaceHistory();
+    await saveList(
+      WS_KEY,
+      list.filter((e) => e.id !== id),
+    );
+  });
 }
 
 export async function removeFileHistory(id: string): Promise<void> {
-  const list = await loadFileHistory();
-  await saveList(
-    FILE_KEY,
-    list.filter((e) => e.id !== id),
-  );
+  await withWriteLock(async () => {
+    const list = await loadFileHistory();
+    await saveList(
+      FILE_KEY,
+      list.filter((e) => e.id !== id),
+    );
+  });
 }
 
 export async function clearAllHistory(): Promise<void> {
