@@ -224,6 +224,20 @@
       .error[hidden] {
         display: none !important;
       }
+      .error .error-action {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 3px 10px;
+        border: 1px solid color-mix(in srgb, #f14c4c 45%, transparent);
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .error .error-action:hover {
+        background: color-mix(in srgb, #f14c4c 20%, transparent);
+      }
       .actions {
         display: flex;
         gap: 8px;

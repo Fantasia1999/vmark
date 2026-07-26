@@ -33,6 +33,16 @@
         "https://raw.githubusercontent.com/*",
         "https://gist.githubusercontent.com/*"
       ],
+      "js": ["content/prehide.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "file:///*",
+        "https://raw.githubusercontent.com/*",
+        "https://gist.githubusercontent.com/*"
+      ],
       "js": ["content/content.js"],
       "run_at": "document_idle",
       "all_frames": false

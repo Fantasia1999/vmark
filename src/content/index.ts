@@ -8,6 +8,7 @@ import {
 import { MarkdownPreviewEngine } from '../preview/engine';
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import { extractMarkdownSource, isMarkdownSourcePage } from './detect';
+import { removePrehideStyle } from './prehideStyle';
 import { runMermaid } from './mermaidRunner';
 import { mountToolbar, type PreviewMode } from './toolbar';
 import {
@@ -204,6 +205,7 @@ function showSource(): void {
     sourceEl.hidden = false;
   }
   renderSourceWithLineNumbers(sourceEl, sourceText);
+  removePrehideStyle();
 
   applyPreviewZoom(previewZoom);
   remountToolbar();
@@ -243,6 +245,8 @@ async function showPreview(): Promise<void> {
   if (!root.isConnected) {
     document.body.appendChild(root);
   }
+  // Preview DOM is in place — lift the document_start pre-hide (FOUC guard)
+  removePrehideStyle();
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
   if (gen !== renderGen) {
@@ -288,17 +292,22 @@ async function bootstrap(force = false): Promise<void> {
     return;
   }
 
+  // Every "no preview" exit must lift the document_start pre-hide, or the
+  // page would stay blank until its failsafe timer fires.
   if (!force && !isMarkdownSourcePage()) {
+    removePrehideStyle();
     return;
   }
 
   settings = await loadSettings();
   if (!force && !settings.autoPreview) {
+    removePrehideStyle();
     return;
   }
 
   sourceText = extractMarkdownSource();
   if (!sourceText.trim() && !force) {
+    removePrehideStyle();
     return;
   }
 

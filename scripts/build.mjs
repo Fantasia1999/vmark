@@ -87,6 +87,7 @@ async function build() {
     entryPoints: {
       'background/service-worker': join(root, 'src/background/service-worker.ts'),
       'content/content': join(root, 'src/content/index.ts'),
+      'content/prehide': join(root, 'src/content/prehide.ts'),
       'content/mermaidChunk': join(root, 'src/content/mermaidChunk.ts'),
       'options/options': join(root, 'src/options/options.ts'),
       'popup/popup': join(root, 'src/popup/popup.ts'),

@@ -28,6 +28,10 @@ import {
   pickWorkspaceDirectory,
 } from '../shared/workspaceFs';
 import { setPendingEnter, type PendingWorkbenchEnter } from '../shared/pendingEnter';
+import {
+  classifyPagePreviewSupport,
+  pageSupportMessage,
+} from '../shared/pageSupport';
 
 export {};
 
@@ -187,9 +191,57 @@ document.getElementById('openWsl')?.addEventListener('click', () => {
   void showWslPanel();
 });
 
+function isFileAccessAllowed(): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      if (chrome.extension?.isAllowedFileSchemeAccess) {
+        chrome.extension.isAllowedFileSchemeAccess(resolve);
+      } else {
+        resolve(true);
+      }
+    } catch {
+      resolve(true);
+    }
+  });
+}
+
 document.getElementById('togglePreview')?.addEventListener('click', () => {
-  void chrome.runtime.sendMessage({ type: 'togglePreview' }).finally(() => window.close());
+  void (async () => {
+    hideError('main-error');
+    // Explain unsupported pages instead of closing silently.
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const support = classifyPagePreviewSupport(tab?.url, await isFileAccessAllowed());
+    if (!support.ok) {
+      showError('main-error', pageSupportMessage(support.reason));
+      if (support.reason === 'file-access') {
+        appendErrorAction('main-error', '打开扩展设置', () => {
+          void chrome.tabs.create({
+            url: `chrome://extensions/?id=${chrome.runtime.id}`,
+          });
+          window.close();
+        });
+      }
+      return; // keep the popup open so the user sees why
+    }
+    await chrome.runtime.sendMessage({ type: 'togglePreview' });
+    window.close();
+  })();
 });
+
+/** Add a small action button inside an error box (e.g. open settings). */
+function appendErrorAction(errorId: string, label: string, onClick: () => void): void {
+  const el = document.getElementById(errorId);
+  if (!el) {
+    return;
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'error-action';
+  btn.textContent = label;
+  btn.addEventListener('click', onClick);
+  el.appendChild(document.createTextNode(' '));
+  el.appendChild(btn);
+}
 
 document.getElementById('openOptions')?.addEventListener('click', () => {
   void chrome.runtime.openOptionsPage();
