@@ -126,6 +126,27 @@ let compareRight: SvgCompareSlot | null = null;
 /** True while the dual-pane SVG compare view is showing. */
 let inSvgCompareMode = false;
 
+/**
+ * Navigation/render generation. Bumped on every file open and every preview
+ * render; async continuations compare against it so a slow read or render
+ * that lost the race cannot overwrite the newer document or revoke its
+ * freshly-created object URLs.
+ */
+let navGen = 0;
+
+/** Scroll position of the last rendered preview, keyed by document identity. */
+let previewScrollMemo: { key: string; top: number } | null = null;
+/** Document identity of the currently rendered preview (for scroll restore). */
+let renderedDocKey: string | null = null;
+
+function docKey(): string {
+  return currentPath ?? doc?.name ?? '';
+}
+
+function previewScroller(): HTMLElement {
+  return document.getElementById('ws-content') ?? document.documentElement;
+}
+
 const outlinePanel = new OutlineFloatingPanel({
   getScrollRoot: () => document.getElementById('ws-content') ?? document.documentElement,
   onStateChange: () => {
@@ -214,8 +235,9 @@ function wirePreviewZoomShortcuts(): void {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) {
         return;
       }
-      // Only when a document is open (preview or source)
-      if (!doc) {
+      // Only when a document is open (preview or source); compare view pins
+      // both panes at 100%, so zoom must not apply there.
+      if (!doc || inSvgCompareMode) {
         return;
       }
       const key = e.key;
@@ -237,7 +259,7 @@ function wirePreviewZoomShortcuts(): void {
   document.addEventListener(
     'wheel',
     (e) => {
-      if (!(e.ctrlKey || e.metaKey) || !doc) {
+      if (!(e.ctrlKey || e.metaKey) || !doc || inSvgCompareMode) {
         return;
       }
       const t = e.target as Node | null;
@@ -314,6 +336,8 @@ function showEmpty(): void {
   workspaceFiles = [];
   currentPath = undefined;
   doc = null;
+  renderedDocKey = null;
+  previewScrollMemo = null;
   outlinePanel.close();
   setWorkspaceChrome(false);
   $('empty-state').hidden = false;
@@ -415,14 +439,17 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
     if (
       sshMeta.host === entry.ssh.host &&
       sshMeta.port === entry.ssh.port &&
-      sshMeta.username === entry.ssh.username
+      sshMeta.username === entry.ssh.username &&
+      // entry.path is relative to the entry's root — a session on the same
+      // host with a different root would resolve it to the wrong file.
+      sshMeta.root === entry.ssh.root
     ) {
       await openWorkspaceFile(entry.path);
       return;
     }
   }
   if (workspaceKind === 'wsl' && entry.source === 'wsl' && wslMeta && entry.wsl) {
-    if (wslMeta.distro === entry.wsl.distro) {
+    if (wslMeta.distro === entry.wsl.distro && wslMeta.root === entry.wsl.root) {
       await openWorkspaceFile(entry.path);
       return;
     }
@@ -569,12 +596,15 @@ async function loadCompareSlot(path: string): Promise<SvgCompareSlot | null> {
 }
 
 function clearCompareSelection(): void {
+  resetCompareState();
+  refreshTree();
+}
+
+/** Drop compare slots without re-rendering (workspace switch / close). */
+function resetCompareState(): void {
   compareLeft = null;
   compareRight = null;
-  if (inSvgCompareMode) {
-    inSvgCompareMode = false;
-  }
-  refreshTree();
+  inSvgCompareMode = false;
 }
 
 async function setCompareSide(side: 'left' | 'right', path: string): Promise<void> {
@@ -753,12 +783,13 @@ async function enterWorkspace(
     wslMeta = null;
   }
 
+  resetCompareState();
   workspaceRoot = root;
   workspaceKind = 'local';
   workspaceFiles = await listMarkdownFiles(root);
-  await saveWorkspaceHandle(root, preferredPath);
   const pending = preferredPath ?? pendingHistoryFilePath;
   pendingHistoryFilePath = undefined;
+  await saveWorkspaceHandle(root, pending);
   void recordWorkspaceOpen({
     source: 'local',
     title: root.name,
@@ -778,6 +809,7 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
   if (workspaceKind === 'wsl') {
     void wslDisconnect();
   }
+  resetCompareState();
   workspaceRoot = null;
   workspaceKind = 'ssh';
   sshMeta = meta;
@@ -817,6 +849,7 @@ async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): 
     void sshDisconnect();
     sshMeta = null;
   }
+  resetCompareState();
   workspaceRoot = null;
   workspaceKind = 'wsl';
   wslMeta = meta;
@@ -850,6 +883,9 @@ async function openWorkspaceFolder(): Promise<void> {
     const root = await pickWorkspaceDirectory();
     await enterWorkspace(root);
   } catch (e) {
+    // Cancelled/failed: drop any queued history file path so it cannot leak
+    // into the next, unrelated workspace open.
+    pendingHistoryFilePath = undefined;
     if (e instanceof DOMException && e.name === 'AbortError') {
       return;
     }
@@ -918,9 +954,16 @@ async function openWorkspaceFile(path: string): Promise<void> {
   }
   closeContextMenu();
 
+  // Last click wins: a slower read that resolves after a newer navigation
+  // must not overwrite the newer document.
+  const gen = ++navGen;
+
   if (workspaceKind === 'ssh') {
     try {
       const text = await sshReadText(path);
+      if (gen !== navGen) {
+        return;
+      }
       currentPath = path;
       doc = {
         name: path.split('/').pop() || path,
@@ -929,12 +972,18 @@ async function openWorkspaceFile(path: string): Promise<void> {
         size: text.length,
       };
     } catch (e) {
+      if (gen !== navGen) {
+        return;
+      }
       alert(`无法读取远程文件: ${path}\n${e instanceof Error ? e.message : String(e)}`);
       return;
     }
   } else if (workspaceKind === 'wsl') {
     try {
       const text = await wslReadText(path);
+      if (gen !== navGen) {
+        return;
+      }
       currentPath = path;
       doc = {
         name: path.split('/').pop() || path,
@@ -943,11 +992,17 @@ async function openWorkspaceFile(path: string): Promise<void> {
         size: text.length,
       };
     } catch (e) {
+      if (gen !== navGen) {
+        return;
+      }
       alert(`无法读取 WSL 文件: ${path}\n${e instanceof Error ? e.message : String(e)}`);
       return;
     }
   } else if (workspaceRoot) {
     const result = await readWorkspaceTextFile(workspaceRoot, path);
+    if (gen !== navGen) {
+      return;
+    }
     if (!result) {
       alert(`无法读取文件: ${path}`);
       return;
@@ -965,7 +1020,15 @@ async function openWorkspaceFile(path: string): Promise<void> {
     return;
   }
 
+  // A stale in-page anchor must not re-scroll the next file (ids may collide).
+  if (location.hash) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
   await saveLocalDoc(doc);
+  if (gen !== navGen) {
+    return;
+  }
   setDocumentTitle(doc.name);
   refreshTree();
   setEmptyPreviewVisible(false);
@@ -1024,7 +1087,10 @@ async function openWorkspaceFile(path: string): Promise<void> {
 /**
  * Resolve relative images against local FS or SSH bridge.
  */
-async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
+async function resolveWorkspaceAssets(
+  rootEl: HTMLElement,
+  isStale?: () => boolean,
+): Promise<void> {
   if (
     !currentPath ||
     (workspaceKind !== 'local' && workspaceKind !== 'ssh' && workspaceKind !== 'wsl')
@@ -1038,6 +1104,10 @@ async function resolveWorkspaceAssets(rootEl: HTMLElement): Promise<void> {
 
   const imgs = rootEl.querySelectorAll('img');
   for (const img of imgs) {
+    // A newer render owns objectUrls now — stop before pushing stale blobs.
+    if (isStale?.()) {
+      return;
+    }
     const original =
       img.getAttribute('data-src') || img.getAttribute('src') || '';
     if (
@@ -1106,11 +1176,15 @@ function showSourceView(): void {
     return;
   }
   mode = 'source';
+  const root = $(ROOT_ID);
+  // Remember the preview reading position so toggling back does not jump to top
+  if (!root.hidden && renderedDocKey === docKey()) {
+    previewScrollMemo = { key: docKey(), top: previewScroller().scrollTop };
+  }
   // Unpinned outline closes in source mode; pinned stays (list still useful)
   if (outlinePanel.isOpen && !outlinePanel.isPinned) {
     outlinePanel.close();
   }
-  const root = $(ROOT_ID);
   root.hidden = true;
 
   const sourceEl = $(SOURCE_ID);
@@ -1145,9 +1219,6 @@ function findSvgScrollParent(frame: HTMLElement): HTMLElement {
  * Tall SVGs expand the iframe height; scrolling happens on the outer pane
  * (not inside the iframe) so moving the mouse away does not reset position.
  */
-/** When SVG has no absolute width, sandbox + iframe use this (FlameGraph default). */
-const DEFAULT_SVG_FRAME_WIDTH = 1200;
-
 function mountSvgSandboxFrame(
   host: HTMLElement,
   title: string,
@@ -1158,9 +1229,9 @@ function mountSvgSandboxFrame(
   frame.title = title;
   // Do NOT set the HTML sandbox attr — the page is already an extension sandbox.
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  // 1200 avoids HTML iframe intrinsic 300px before sandbox measures content
-  // (also used for left/right SVG compare panes).
-  frame.style.width = `${DEFAULT_SVG_FRAME_WIDTH}px`;
+  // Fill the pane until the sandbox reports the real content width
+  // (avoids the HTML iframe intrinsic 300px without forcing a wide canvas).
+  frame.style.width = '100%';
   frame.style.minWidth = '100%';
   frame.style.height = '50vh';
   frame.src = chrome.runtime.getURL('viewer/svg-sandbox.html');
@@ -1195,6 +1266,8 @@ function mountSvgSandboxFrame(
           deltaY?: number;
           deltaMode?: number;
           shiftKey?: boolean;
+          ctrlKey?: boolean;
+          metaKey?: boolean;
         }
       | null;
     if (!data || typeof data !== 'object') {
@@ -1210,11 +1283,12 @@ function mountSvgSandboxFrame(
       if (typeof data.height === 'number') {
         frame.style.height = `${Math.max(1, Math.ceil(data.height))}px`;
       }
-      if (typeof data.width === 'number') {
-        // Floor at 1200 so missing/% width SVGs never collapse to iframe 300px
-        // (single preview + left/right compare share this path).
-        const w = Math.max(DEFAULT_SVG_FRAME_WIDTH, Math.ceil(data.width));
-        frame.style.width = `${w}px`;
+      if (typeof data.width === 'number' && data.width > 0) {
+        // Use the measured content width as-is. The sandbox itself falls back
+        // to 1200 only when the SVG has no absolute width, so small SVGs keep
+        // their natural size (minWidth still fills the pane) and wide flame
+        // graphs get a horizontal scrollbar.
+        frame.style.width = `${Math.ceil(data.width)}px`;
         frame.style.minWidth = '100%';
         frame.style.maxWidth = 'none';
       }
@@ -1222,6 +1296,14 @@ function mountSvgSandboxFrame(
     }
 
     if (data.type === 'svg-sandbox-wheel') {
+      // Ctrl/Cmd+wheel zooms, matching the markdown preview shortcut
+      // (compare view stays pinned at 100%).
+      if ((data.ctrlKey || data.metaKey) && !inSvgCompareMode && doc) {
+        const dy = Number(data.deltaY) || 0;
+        if (dy < 0) zoomIn();
+        else if (dy > 0) zoomOut();
+        return;
+      }
       const scroller = findSvgScrollParent(frame);
       let dx = Number(data.deltaX) || 0;
       let dy = Number(data.deltaY) || 0;
@@ -1389,6 +1471,15 @@ async function showPreviewView(): Promise<void> {
   if (!doc) {
     return;
   }
+  const gen = ++navGen;
+  const root = $(ROOT_ID);
+
+  // Keep the reading position across re-renders of the same document
+  // (source→preview toggle, settings change).
+  if (!root.hidden && renderedDocKey === docKey()) {
+    previewScrollMemo = { key: docKey(), top: previewScroller().scrollTop };
+  }
+
   mode = 'preview';
   injectStyles();
   applyThemeClass();
@@ -1399,11 +1490,11 @@ async function showPreviewView(): Promise<void> {
   const pre = $(SOURCE_ID);
   pre.hidden = true;
 
-  const root = $(ROOT_ID);
   root.hidden = false;
 
   if (isSvgFileName(doc.name)) {
     showSvgPreview(root);
+    renderedDocKey = docKey();
     mountToolbarExtras();
     return;
   }
@@ -1420,13 +1511,22 @@ async function showPreviewView(): Promise<void> {
   root.innerHTML = rendered.html;
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
-  await resolveWorkspaceAssets(root);
+  if (gen !== navGen) {
+    return;
+  }
+  await resolveWorkspaceAssets(root, () => gen !== navGen);
+  if (gen !== navGen) {
+    return;
+  }
 
   if (rendered.hasMermaid && settings.mermaidEnabled) {
     await runMermaid(root, {
       isDark: resolveTheme(settings.theme) === 'dark',
       mermaidTheme: settings.mermaidTheme,
     });
+    if (gen !== navGen) {
+      return;
+    }
   }
 
   // Refresh floating outline if open (especially when pinned across files)
@@ -1436,9 +1536,10 @@ async function showPreviewView(): Promise<void> {
 
   mountToolbarExtras();
 
-  if (location.hash) {
-    const id = decodeURIComponent(location.hash.slice(1));
-    document.getElementById(id)?.scrollIntoView();
+  renderedDocKey = docKey();
+  if (previewScrollMemo && previewScrollMemo.key === docKey()) {
+    previewScroller().scrollTop = previewScrollMemo.top;
+    previewScrollMemo = null;
   }
 }
 
@@ -1568,9 +1669,14 @@ function wireUi(): void {
   });
   $('ws-btn-close')?.addEventListener('click', () => void closeWorkspace());
 
-  // SSH dialog wiring
-  document.getElementById('ssh-cancel')?.addEventListener('click', () => showSshDialog(false));
-  document.querySelector('[data-ssh-dismiss]')?.addEventListener('click', () => showSshDialog(false));
+  // SSH dialog wiring. Cancel also drops any queued history file path —
+  // otherwise it would attach to the next unrelated workspace open.
+  const cancelSshDialog = (): void => {
+    pendingHistoryFilePath = undefined;
+    showSshDialog(false);
+  };
+  document.getElementById('ssh-cancel')?.addEventListener('click', cancelSshDialog);
+  document.querySelector('[data-ssh-dismiss]')?.addEventListener('click', cancelSshDialog);
   document.getElementById('ssh-connect')?.addEventListener('click', () => void connectSshFromDialog());
   document.getElementById('ssh-auth')?.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value as 'password' | 'key';
@@ -1586,8 +1692,12 @@ function wireUi(): void {
   });
 
   // WSL dialog wiring
-  document.getElementById('wsl-cancel')?.addEventListener('click', () => showWslDialog(false));
-  document.querySelector('[data-wsl-dismiss]')?.addEventListener('click', () => showWslDialog(false));
+  const cancelWslDialog = (): void => {
+    pendingHistoryFilePath = undefined;
+    showWslDialog(false);
+  };
+  document.getElementById('wsl-cancel')?.addEventListener('click', cancelWslDialog);
+  document.querySelector('[data-wsl-dismiss]')?.addEventListener('click', cancelWslDialog);
   document.getElementById('wsl-connect')?.addEventListener('click', () => void connectWslFromDialog());
   document.getElementById('wsl-open-file')?.addEventListener('click', () => void openWslFileInTab());
   document.getElementById('wsl-mode-select')?.addEventListener('click', () => setWslDialogMode('select'));
@@ -1679,16 +1789,19 @@ async function refreshWorkspace(): Promise<void> {
     alert(e instanceof Error ? e.message : String(e));
     return;
   }
-  refreshTree();
+  // Clear state BEFORE re-rendering the tree/path bar so no stale file name,
+  // source view, or toolbar survives when the current file disappeared.
   if (currentPath && !workspaceFiles.some((f) => f.path === currentPath)) {
     currentPath = undefined;
     doc = null;
     $(ROOT_ID).hidden = true;
-    const emptyPrev = document.getElementById('ws-empty-preview');
-    if (emptyPrev) {
-      emptyPrev.hidden = false;
-    }
+    $(SOURCE_ID).hidden = true;
+    document.getElementById('vscode-md-preview-toolbar')?.remove();
+    outlinePanel.close();
+    setEmptyPreviewVisible(true);
+    setDocumentTitle();
   }
+  refreshTree();
 }
 
 async function closeWorkspace(): Promise<void> {
@@ -1765,12 +1878,14 @@ function wireModalKeyboard(): void {
     const wsl = document.getElementById('wsl-dialog');
     if (wsl && !wsl.hidden) {
       e.preventDefault();
+      pendingHistoryFilePath = undefined;
       showWslDialog(false);
       return;
     }
     const ssh = document.getElementById('ssh-dialog');
     if (ssh && !ssh.hidden) {
       e.preventDefault();
+      pendingHistoryFilePath = undefined;
       showSshDialog(false);
     }
   });
@@ -2123,6 +2238,17 @@ async function connectSshFromDialog(): Promise<void> {
   }
 }
 
+/** Focus an empty-state action button and explain why it needs a click. */
+function promptEmptyAction(buttonId: string, hint: string): void {
+  const meta = document.getElementById('empty-meta');
+  if (meta) {
+    meta.textContent = hint;
+  }
+  requestAnimationFrame(() => {
+    (document.getElementById(buttonId) as HTMLButtonElement | null)?.focus();
+  });
+}
+
 async function init(): Promise<void> {
   settings = await loadSettings();
   engine = new MarkdownPreviewEngine(settings);
@@ -2159,9 +2285,12 @@ async function init(): Promise<void> {
   } else if (shouldSsh) {
     setTimeout(() => showSshDialog(true), 50);
   } else if (shouldPickFolder) {
-    setTimeout(() => void openWorkspaceFolder(), 50);
+    // File/directory pickers require a user gesture; a freshly-opened tab has
+    // none, so calling them here always fails (SecurityError / silently
+    // blocked). Guide the user to the button instead.
+    promptEmptyAction('btn-open-folder', '请点击「打开文件夹…」选择工作区（浏览器要求手动点击）。');
   } else if (shouldPickFile) {
-    setTimeout(() => pickFile(), 50);
+    promptEmptyAction('btn-open', '请点击「打开文件…」选择 Markdown 文件（浏览器要求手动点击）。');
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {

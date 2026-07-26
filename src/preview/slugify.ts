@@ -52,8 +52,12 @@ export const githubSlugifier: ISlugifier = {
         const slug = this.fromHeading(heading);
         const existing = entries.get(slug.value);
         if (existing) {
-          ++existing.count;
-          return this.fromHeading(`${slug.value}-${existing.count}`);
+          let candidate: string;
+          do {
+            candidate = `${slug.value}-${++existing.count}`;
+          } while (entries.has(candidate));
+          entries.set(candidate, { count: 0 });
+          return new GithubSlug(candidate);
         }
         entries.set(slug.value, { count: 0 });
         return slug;
