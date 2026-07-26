@@ -26,6 +26,11 @@ export async function runMermaid(
   } catch (e) {
     console.error('[vscode-md-preview] mermaid render failed', e);
     for (const node of nodes) {
+      // Skip nodes a newer render already replaced/detached — don't wipe
+      // diagrams that rendered successfully in the meantime.
+      if (!node.isConnected) {
+        continue;
+      }
       const err = document.createElement('div');
       err.className = 'vscode-md-preview-error';
       err.textContent = `Mermaid error: ${e instanceof Error ? e.message : String(e)}`;
