@@ -1,5 +1,4 @@
 import {
-  DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   type MermaidThemeSetting,
@@ -46,25 +45,43 @@ async function refreshBridgeStatus(): Promise<void> {
 }
 
 async function init(): Promise<void> {
-  const settings = await loadSettings();
+  const theme = $('theme') as HTMLSelectElement;
+  const previewWidth = $('previewWidth') as HTMLSelectElement;
+  const mermaidTheme = $('mermaidTheme') as HTMLSelectElement;
+
+  async function fillForm(): Promise<void> {
+    const settings = await loadSettings();
+    for (const id of ids) {
+      ($(id) as HTMLInputElement).checked = Boolean(settings[id]);
+    }
+    theme.value = settings.theme;
+    previewWidth.value = settings.previewWidth ?? 'wide';
+    mermaidTheme.value = settings.mermaidTheme ?? 'vscode';
+  }
+
+  await fillForm();
 
   for (const id of ids) {
     const input = $(id) as HTMLInputElement;
-    input.checked = Boolean(settings[id]);
-    input.addEventListener('change', () => void persist());
+    input.addEventListener('change', () => void persist({ [id]: input.checked }));
   }
+  theme.addEventListener('change', () =>
+    void persist({ theme: theme.value as ThemeMode }),
+  );
+  previewWidth.addEventListener('change', () =>
+    void persist({ previewWidth: previewWidth.value as PreviewWidthSetting }),
+  );
+  mermaidTheme.addEventListener('change', () =>
+    void persist({ mermaidTheme: mermaidTheme.value as MermaidThemeSetting }),
+  );
 
-  const theme = $('theme') as HTMLSelectElement;
-  theme.value = settings.theme;
-  theme.addEventListener('change', () => void persist());
-
-  const previewWidth = $('previewWidth') as HTMLSelectElement;
-  previewWidth.value = settings.previewWidth ?? 'wide';
-  previewWidth.addEventListener('change', () => void persist());
-
-  const mermaidTheme = $('mermaidTheme') as HTMLSelectElement;
-  mermaidTheme.value = settings.mermaidTheme ?? 'vscode';
-  mermaidTheme.addEventListener('change', () => void persist());
+  // Keep the form in sync when settings change elsewhere (viewer dialog,
+  // another options tab) so a later change here can't write back stale values.
+  chrome.storage.onChanged.addListener((_changes, area) => {
+    if (area === 'sync') {
+      void fillForm();
+    }
+  });
 
   const bridge = await loadSshBridgeSettings();
   const bridgeUrl = $('sshBridgeUrl') as HTMLInputElement;
@@ -77,21 +94,10 @@ async function init(): Promise<void> {
   void refreshBridgeStatus();
   setInterval(() => void refreshBridgeStatus(), 5000);
 
-  async function persist(): Promise<void> {
-    const next: PreviewSettings = {
-      ...DEFAULT_SETTINGS,
-      autoPreview: ($('autoPreview') as HTMLInputElement).checked,
-      breaks: ($('breaks') as HTMLInputElement).checked,
-      linkify: ($('linkify') as HTMLInputElement).checked,
-      typographer: ($('typographer') as HTMLInputElement).checked,
-      sanitizeHtml: ($('sanitizeHtml') as HTMLInputElement).checked,
-      mathEnabled: ($('mathEnabled') as HTMLInputElement).checked,
-      mermaidEnabled: ($('mermaidEnabled') as HTMLInputElement).checked,
-      theme: theme.value as ThemeMode,
-      mermaidTheme: mermaidTheme.value as MermaidThemeSetting,
-      previewWidth: previewWidth.value as PreviewWidthSetting,
-    };
-    await saveSettings(next);
+  // Save only the changed key: writing the full form state would clobber
+  // settings changed meanwhile from the viewer's options dialog.
+  async function persist(partial: Partial<PreviewSettings>): Promise<void> {
+    await saveSettings(partial);
     const status = $('status');
     status.textContent = 'Saved. Reload open preview tabs to apply layout/theme changes.';
     setTimeout(() => {

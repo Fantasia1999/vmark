@@ -315,8 +315,13 @@ export async function getFileHandleByPath(
   let dir: FileSystemDirectoryHandle = root;
   for (let i = 0; i < parts.length - 1; i++) {
     const seg = parts[i];
-    if (seg === '..' || seg === '.') {
+    if (seg === '.') {
       continue;
+    }
+    if (seg === '..') {
+      // Callers pass pre-normalized paths; silently dropping `..` here would
+      // resolve to the wrong file, which is worse than failing.
+      return null;
     }
     try {
       dir = await dir.getDirectoryHandle(seg);

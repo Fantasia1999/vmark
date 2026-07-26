@@ -18,6 +18,7 @@ const MENU_ID = 'ws-context-menu';
 let openMenu: HTMLElement | null = null;
 let outsideHandler: ((e: Event) => void) | null = null;
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
+let pendingResolve: ((choice: ContextMenuChoice) => void) | null = null;
 
 export function closeContextMenu(): void {
   if (outsideHandler) {
@@ -31,6 +32,11 @@ export function closeContextMenu(): void {
   }
   openMenu?.remove();
   openMenu = null;
+  // Settle the awaiting caller when the menu is closed externally
+  // (e.g. superseded by a new menu), so its async frame is not retained.
+  const resolve = pendingResolve;
+  pendingResolve = null;
+  resolve?.(null);
 }
 
 /**
@@ -49,8 +55,10 @@ export function showContextMenu(
     menu.className = 'ws-context-menu';
     menu.setAttribute('role', 'menu');
     menu.tabIndex = -1;
+    pendingResolve = resolve;
 
     const finish = (id: ContextMenuChoice): void => {
+      pendingResolve = null;
       closeContextMenu();
       resolve(id);
     };

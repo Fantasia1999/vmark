@@ -38,6 +38,9 @@ let engine = new MarkdownPreviewEngine(settings);
 let bootstrapped = false;
 let previewZoom = PREVIEW_ZOOM_DEFAULT;
 let zoomShortcutsWired = false;
+/** Bumped per render so an overlapping showPreview() run aborts instead of
+ *  re-running Mermaid over nodes a newer render already replaced. */
+let renderGen = 0;
 
 const outlinePanel = new OutlineFloatingPanel({
   getScrollRoot: () => document.documentElement,
@@ -207,6 +210,7 @@ function showSource(): void {
 }
 
 async function showPreview(): Promise<void> {
+  const gen = ++renderGen;
   mode = 'preview';
   injectStyles();
 
@@ -241,12 +245,18 @@ async function showPreview(): Promise<void> {
   }
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
+  if (gen !== renderGen) {
+    return;
+  }
 
   if (rendered.hasMermaid) {
     await runMermaid(root, {
       isDark: theme === 'dark',
       mermaidTheme: settings.mermaidTheme,
     });
+    if (gen !== renderGen) {
+      return;
+    }
   }
 
   if (outlinePanel.isOpen) {
