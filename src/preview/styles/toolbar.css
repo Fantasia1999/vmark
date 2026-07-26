@@ -64,11 +64,13 @@
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
-  border-radius: 4px;
+  border-radius: var(--r-sm, 5px);
   padding: 4px 8px;
   cursor: pointer;
   font: inherit;
   white-space: nowrap;
+  transition: background var(--dur, 0.15s) var(--ease, ease),
+    color var(--dur, 0.15s) var(--ease, ease);
 }
 
 #vscode-md-preview-toolbar button:hover {
@@ -80,8 +82,9 @@
 }
 
 #vscode-md-preview-toolbar button.active {
-  background: var(--vscode-button-background, #0e639c);
+  background: var(--acc-grad, var(--vscode-button-background, #0e639c));
   color: var(--vscode-button-foreground, #fff);
+  box-shadow: var(--sh-1);
 }
 
 #vscode-md-preview-toolbar button:focus-visible {

@@ -6,9 +6,35 @@ html[data-theme="light"],
 .vscode-md-preview-root[data-theme="light"] {
   color-scheme: light;
 
-  --vscode-foreground: #333333;
+  /* —— design tokens (refined-blue accent, shared by all chrome) —— */
+  --acc: #2f7fe6;
+  --acc-hover: #1f6fd6;
+  --acc-grad: linear-gradient(180deg, #368af0 0%, #2168d6 100%);
+  --acc-contrast: #ffffff;
+  --acc-soft: color-mix(in srgb, var(--acc) 12%, transparent);
+  --acc-ring: color-mix(in srgb, var(--acc) 45%, transparent);
+
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 0.16s;
+
+  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.09);
+  --sh-2: 0 4px 14px rgba(15, 23, 42, 0.1), 0 2px 4px rgba(15, 23, 42, 0.06);
+  --sh-pop: 0 18px 48px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.1);
+
+  /* Route existing VS Code interactive tokens through the accent so every
+     surface already referencing them inherits the refreshed look. */
+  --vscode-button-background: var(--acc);
+  --vscode-button-foreground: var(--acc-contrast);
+  --vscode-button-hoverBackground: var(--acc-hover);
+  --vscode-focusBorder: var(--acc);
+
+  --vscode-foreground: #2b2f36;
   --vscode-editor-background: #ffffff;
-  --vscode-editor-foreground: #333333;
+  --vscode-editor-foreground: #2b2f36;
   --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
   --vscode-font-size: 13px;
 
@@ -19,33 +45,29 @@ html[data-theme="light"],
   --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
   --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
 
-  --vscode-editorWidget-background: #f3f3f3;
-  --vscode-editorWidget-border: #c8c8c8;
-  --vscode-editorHoverWidget-background: #f3f3f3;
-  --vscode-editorHoverWidget-border: #c8c8c8;
-  --vscode-editorIndentGuide-background: rgba(0, 0, 0, 0.1);
+  --vscode-editorWidget-background: #f7f8fa;
+  --vscode-editorWidget-border: #e3e5ea;
+  --vscode-editorHoverWidget-background: #f7f8fa;
+  --vscode-editorHoverWidget-border: #e3e5ea;
+  --vscode-editorIndentGuide-background: rgba(0, 0, 0, 0.08);
 
-  --vscode-button-background: #007acc;
-  --vscode-button-foreground: #ffffff;
-  --vscode-button-hoverBackground: #0062a3;
-  --vscode-focusBorder: #007fd4;
-  --vscode-icon-foreground: #424242;
+  --vscode-icon-foreground: #57606a;
 
   --vscode-input-background: #ffffff;
-  --vscode-input-foreground: #333333;
-  --vscode-input-border: #cecece;
+  --vscode-input-foreground: #2b2f36;
+  --vscode-input-border: #d5d8de;
   --vscode-inputValidation-errorBackground: #f2dede;
   --vscode-editorError-foreground: #e51400;
   --vscode-editorError-background: rgba(255, 0, 0, 0.08);
   --vscode-editorInfo-foreground: #1a85ff;
   --vscode-editorWarning-foreground: #bf8803;
 
-  --vscode-list-hoverBackground: #e8e8e8;
-  --vscode-toolbar-hoverBackground: rgba(184, 184, 184, 0.31);
-  --vscode-toolbar-activeBackground: rgba(166, 166, 166, 0.31);
-  --vscode-sideBar-background: #f3f3f3;
-  --vscode-sideBar-foreground: #616161;
-  --vscode-widget-shadow: rgba(0, 0, 0, 0.16);
+  --vscode-list-hoverBackground: #eceef1;
+  --vscode-toolbar-hoverBackground: rgba(120, 130, 145, 0.16);
+  --vscode-toolbar-activeBackground: rgba(120, 130, 145, 0.24);
+  --vscode-sideBar-background: #f7f8fa;
+  --vscode-sideBar-foreground: #4a515b;
+  --vscode-widget-shadow: rgba(15, 23, 42, 0.16);
 
   /* Chart / Mermaid palette (VS Code colorRegistry defaults + light themes) */
   --vscode-charts-foreground: #333333;
@@ -68,6 +90,30 @@ html[data-theme="dark"],
 .vscode-md-preview-root[data-theme="dark"] {
   color-scheme: dark;
 
+  /* —— design tokens (dark) —— */
+  --acc: #4c9dfd;
+  --acc-hover: #6aafff;
+  --acc-grad: linear-gradient(180deg, #3f92f5 0%, #2b7de0 100%);
+  --acc-contrast: #ffffff;
+  --acc-soft: color-mix(in srgb, var(--acc) 18%, transparent);
+  --acc-ring: color-mix(in srgb, var(--acc) 55%, transparent);
+
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 0.16s;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.36);
+  --sh-2: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --sh-pop: 0 20px 52px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
+
+  --vscode-button-background: var(--acc);
+  --vscode-button-foreground: var(--acc-contrast);
+  --vscode-button-hoverBackground: var(--acc-hover);
+  --vscode-focusBorder: var(--acc);
+
   --vscode-foreground: #cccccc;
   --vscode-editor-background: #1e1e1e;
   --vscode-editor-foreground: #d4d4d4;
@@ -81,16 +127,12 @@ html[data-theme="dark"],
   --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
   --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
 
-  --vscode-editorWidget-background: #252526;
-  --vscode-editorWidget-border: #454545;
-  --vscode-editorHoverWidget-background: #252526;
-  --vscode-editorHoverWidget-border: #454545;
+  --vscode-editorWidget-background: #252629;
+  --vscode-editorWidget-border: #3a3d42;
+  --vscode-editorHoverWidget-background: #252629;
+  --vscode-editorHoverWidget-border: #3a3d42;
   --vscode-editorIndentGuide-background: rgba(255, 255, 255, 0.1);
 
-  --vscode-button-background: #0e639c;
-  --vscode-button-foreground: #ffffff;
-  --vscode-button-hoverBackground: #1177bb;
-  --vscode-focusBorder: #007fd4;
   --vscode-icon-foreground: #c5c5c5;
 
   --vscode-input-background: #3c3c3c;
@@ -129,6 +171,15 @@ html[data-theme="dark"],
 
   .vscode-md-preview-root:not([data-theme="light"]) {
     color-scheme: dark;
+    --acc: #4c9dfd;
+    --acc-hover: #6aafff;
+    --acc-grad: linear-gradient(180deg, #3f92f5 0%, #2b7de0 100%);
+    --acc-contrast: #ffffff;
+    --acc-soft: color-mix(in srgb, var(--acc) 18%, transparent);
+    --acc-ring: color-mix(in srgb, var(--acc) 55%, transparent);
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.36);
+    --sh-2: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --sh-pop: 0 20px 52px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
     --vscode-foreground: #cccccc;
     --vscode-editor-background: #1e1e1e;
     --vscode-editor-foreground: #d4d4d4;
@@ -138,15 +189,15 @@ html[data-theme="dark"],
     --vscode-textCodeBlock-background: rgba(10, 10, 10, 0.4);
     --vscode-textBlockQuote-background: rgba(127, 127, 127, 0.1);
     --vscode-textBlockQuote-border: rgba(0, 122, 204, 0.5);
-    --vscode-editorWidget-background: #252526;
-    --vscode-editorWidget-border: #454545;
-    --vscode-editorHoverWidget-background: #252526;
-    --vscode-editorHoverWidget-border: #454545;
+    --vscode-editorWidget-background: #252629;
+    --vscode-editorWidget-border: #3a3d42;
+    --vscode-editorHoverWidget-background: #252629;
+    --vscode-editorHoverWidget-border: #3a3d42;
     --vscode-editorIndentGuide-background: rgba(255, 255, 255, 0.1);
-    --vscode-button-background: #0e639c;
-    --vscode-button-foreground: #ffffff;
-    --vscode-button-hoverBackground: #1177bb;
-    --vscode-focusBorder: #007fd4;
+    --vscode-button-background: var(--acc);
+    --vscode-button-foreground: var(--acc-contrast);
+    --vscode-button-hoverBackground: var(--acc-hover);
+    --vscode-focusBorder: var(--acc);
     --vscode-icon-foreground: #c5c5c5;
     --vscode-input-background: #3c3c3c;
     --vscode-input-foreground: #cccccc;

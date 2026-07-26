@@ -5,6 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Markdown Preview</title>
     <style>
+      /* Chrome design tokens — defined here (not only in the JS-injected
+         theme-vars.css) so the workbench shell always has them, even on the
+         empty state before styles are injected. */
+      :root {
+        --acc: #2f7fe6;
+        --acc-hover: #1f6fd6;
+        --acc-grad: linear-gradient(180deg, #368af0 0%, #2168d6 100%);
+        --acc-contrast: #ffffff;
+        --acc-soft: color-mix(in srgb, #2f7fe6 12%, transparent);
+        --acc-ring: color-mix(in srgb, #2f7fe6 45%, transparent);
+        --r-sm: 6px;
+        --r-md: 9px;
+        --r-lg: 14px;
+        --r-pill: 999px;
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --dur: 0.16s;
+        --sh-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.09);
+        --sh-2: 0 4px 14px rgba(15, 23, 42, 0.1), 0 2px 4px rgba(15, 23, 42, 0.06);
+        --sh-pop: 0 18px 48px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.1);
+      }
+      html[data-theme="dark"],
+      html.vscode-dark {
+        --acc: #4c9dfd;
+        --acc-hover: #6aafff;
+        --acc-grad: linear-gradient(180deg, #3f92f5 0%, #2b7de0 100%);
+        --acc-soft: color-mix(in srgb, #4c9dfd 18%, transparent);
+        --acc-ring: color-mix(in srgb, #4c9dfd 55%, transparent);
+        --sh-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.36);
+        --sh-2: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+        --sh-pop: 0 20px 52px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
+      }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) {
+          --acc: #4c9dfd;
+          --acc-hover: #6aafff;
+          --acc-grad: linear-gradient(180deg, #3f92f5 0%, #2b7de0 100%);
+          --acc-soft: color-mix(in srgb, #4c9dfd 18%, transparent);
+          --acc-ring: color-mix(in srgb, #4c9dfd 55%, transparent);
+          --sh-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.36);
+          --sh-2: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+          --sh-pop: 0 20px 52px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+      }
+
       html,
       body {
         margin: 0;
@@ -37,12 +81,14 @@
 
       .dropzone {
         width: min(560px, 100%);
-        border: 2px dashed var(--vscode-editorWidget-border, #454545);
-        border-radius: 12px;
-        padding: 40px 28px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: var(--r-lg, 14px);
+        padding: 44px 34px;
         text-align: center;
         background: var(--vscode-editorWidget-background, #252526);
-        transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        box-shadow: var(--sh-2);
+        transition: border-color var(--dur) var(--ease),
+          background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
       }
 
       .dropzone:focus-visible {
@@ -52,19 +98,26 @@
 
       .dropzone.dragover {
         border-color: var(--vscode-focusBorder, #007fd4);
-        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 12%, transparent);
+        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 10%, var(--vscode-editorWidget-background, #252526));
+        box-shadow: var(--sh-2), 0 0 0 3px var(--acc-ring);
       }
 
       .dropzone h1 {
-        margin: 0 0 8px;
-        font-size: 1.25rem;
-        font-weight: 600;
+        margin: 0 0 10px;
+        font-size: 1.4rem;
+        font-weight: 650;
+        letter-spacing: -0.015em;
+        color: var(--acc, #2f7fe6);
+        background: linear-gradient(135deg, var(--acc, #2f7fe6) 0%, color-mix(in srgb, var(--acc, #2f7fe6) 55%, var(--vscode-editor-foreground, #888)) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
 
       .dropzone p {
-        margin: 0 0 20px;
-        opacity: 0.75;
-        line-height: 1.5;
+        margin: 0 0 22px;
+        opacity: 0.72;
+        line-height: 1.55;
         font-size: 0.95rem;
       }
 
@@ -79,37 +132,61 @@
       .ws-toolbar button,
       .ws-sidebar-actions button {
         appearance: none;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: var(--r-sm, 6px);
+        padding: 9px 15px;
         font: inherit;
+        font-weight: 550;
         cursor: pointer;
-        background: var(--vscode-button-background, #0e639c);
+        background: var(--acc-grad, var(--vscode-button-background, #0e639c));
         color: var(--vscode-button-foreground, #fff);
+        box-shadow: var(--sh-1);
+        transition: filter var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+          transform var(--dur) var(--ease), background var(--dur) var(--ease);
       }
 
       .dropzone button:hover,
       .ws-toolbar button:hover,
       .ws-sidebar-actions button:hover {
-        background: var(--vscode-button-hoverBackground, #1177bb);
+        filter: brightness(1.08);
+        box-shadow: var(--sh-2);
+      }
+
+      .dropzone button:active,
+      .ws-toolbar button:active,
+      .ws-sidebar-actions button:active {
+        transform: translateY(0.5px) scale(0.99);
+        filter: brightness(0.97);
+      }
+
+      .dropzone button:focus-visible,
+      .ws-toolbar button:focus-visible,
+      .ws-sidebar-actions button:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 2px;
       }
 
       .dropzone button.secondary,
       .ws-sidebar-actions button.secondary,
       .ws-toolbar button.secondary {
-        background: transparent;
+        background: var(--vscode-editor-background, transparent);
         color: inherit;
         border: 1px solid var(--vscode-editorWidget-border, #454545);
+        box-shadow: none;
+        font-weight: 500;
       }
 
       .dropzone button.secondary:hover,
       .ws-sidebar-actions button.secondary:hover,
       .ws-toolbar button.secondary:hover {
+        filter: none;
         background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: color-mix(in srgb, var(--acc) 40%, var(--vscode-editorWidget-border, #454545));
+        box-shadow: none;
       }
 
       .dropzone .meta {
-        margin-top: 18px;
+        margin-top: 20px;
         font-size: 12px;
         opacity: 0.55;
       }
@@ -350,7 +427,13 @@
       .ssh-dialog-backdrop {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(10, 14, 20, 0.5);
+        backdrop-filter: blur(3px);
+        animation: dlg-fade var(--dur) var(--ease);
+      }
+      @keyframes dlg-fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
       .ssh-dialog-card {
         position: relative;
@@ -362,9 +445,14 @@
         background: var(--vscode-editorWidget-background, #252526);
         color: var(--vscode-editor-foreground, #d4d4d4);
         border: 1px solid var(--vscode-editorWidget-border, #454545);
-        border-radius: 12px;
+        border-radius: var(--r-lg, 14px);
         padding: 0;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+        box-shadow: var(--sh-pop);
+        animation: dlg-pop 0.18s var(--ease);
+      }
+      @keyframes dlg-pop {
+        from { opacity: 0; transform: translateY(8px) scale(0.985); }
+        to { opacity: 1; transform: none; }
       }
       .dlg-header {
         padding: 20px 22px 12px;
@@ -534,25 +622,37 @@
       }
       .ssh-actions button {
         appearance: none;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 14px;
+        border: 1px solid transparent;
+        border-radius: var(--r-sm, 6px);
+        padding: 9px 16px;
         font: inherit;
         font-size: 12.5px;
+        font-weight: 550;
         cursor: pointer;
-        background: var(--vscode-button-background, #0e639c);
+        background: var(--acc-grad);
         color: var(--vscode-button-foreground, #fff);
+        box-shadow: var(--sh-1);
+        transition: filter var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
       }
       .ssh-actions button:hover:not(:disabled) {
-        background: var(--vscode-button-hoverBackground, #1177bb);
+        filter: brightness(1.08);
+        box-shadow: var(--sh-2);
+      }
+      .ssh-actions button:active:not(:disabled) {
+        transform: translateY(0.5px) scale(0.99);
       }
       .ssh-actions button.secondary {
         background: transparent;
         color: inherit;
         border: 1px solid var(--vscode-editorWidget-border, #454545);
+        box-shadow: none;
       }
       .ssh-actions button.secondary:hover:not(:disabled) {
+        filter: none;
         background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: color-mix(in srgb, var(--acc) 40%, var(--vscode-editorWidget-border, #454545));
+        box-shadow: none;
       }
       .ssh-actions button:disabled {
         opacity: 0.5;
@@ -710,16 +810,19 @@
       }
 
       .ws-sidebar-header .ws-caption {
-        font-size: 11px;
+        font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        opacity: 0.65;
+        letter-spacing: 0.08em;
+        font-weight: 600;
+        color: var(--acc);
+        opacity: 0.9;
         margin-bottom: 4px;
       }
 
       #ws-title {
-        font-weight: 600;
+        font-weight: 650;
         font-size: 13px;
+        letter-spacing: -0.005em;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -794,6 +897,10 @@
         box-sizing: border-box;
       }
 
+      .ws-row {
+        transition: background var(--dur) var(--ease);
+      }
+
       .ws-row:hover {
         background: var(--vscode-list-hoverBackground, #2a2d2e);
       }
@@ -803,7 +910,12 @@
       }
 
       .ws-file-row.active {
-        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 28%, transparent);
+        background: var(--acc-soft);
+        box-shadow: inset 2px 0 0 var(--acc);
+        color: var(--vscode-editor-foreground, #fff);
+      }
+      .ws-file-row.active:hover {
+        background: color-mix(in srgb, var(--acc) 22%, transparent);
       }
 
       .ws-file-row.compare-left:not(.active) {
@@ -980,19 +1092,20 @@
       .ws-main-bar {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 4px 10px 4px 12px;
+        gap: 10px;
+        padding: 5px 10px 5px 14px;
         border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
-        background: var(--vscode-editorWidget-background, #252526);
+        background: color-mix(in srgb, var(--vscode-editorWidget-background, #252526) 55%, var(--vscode-editor-background, #1e1e1e));
         font-size: 12px;
-        min-height: 36px;
+        min-height: 38px;
         box-sizing: border-box;
       }
 
       #ws-current-path {
         flex: 1 1 auto;
         min-width: 0;
-        opacity: 0.85;
+        opacity: 0.9;
+        font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1000,8 +1113,14 @@
 
       .ws-main-bar .hint {
         flex: 0 0 auto;
-        opacity: 0.5;
+        opacity: 0.7;
         font-size: 11px;
+        padding: 2px 8px;
+        border-radius: var(--r-pill, 999px);
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 8%, transparent);
+      }
+      .ws-main-bar .hint:empty {
+        display: none;
       }
 
       /* Preview/Source/zoom/options live in the main bar via mountToolbar */
@@ -1210,13 +1329,24 @@
 
       .ws-empty-preview {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 14px;
         height: 100%;
-        opacity: 0.55;
-        font-size: 14px;
+        opacity: 0.6;
+        font-size: 13.5px;
         padding: 24px;
         text-align: center;
+      }
+      .ws-empty-preview::before {
+        content: "";
+        width: 40px;
+        height: 40px;
+        background-color: var(--acc);
+        opacity: 0.85;
+        -webkit-mask: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3v4a1 1 0 0 0 1 1h4'/%3E%3Cpath d='M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z'/%3E%3Cpath d='M9 13h6M9 17h4'/%3E%3C/svg%3E");
+        mask: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3v4a1 1 0 0 0 1 1h4'/%3E%3Cpath d='M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z'/%3E%3Cpath d='M9 13h6M9 17h4'/%3E%3C/svg%3E");
       }
 
       /* display:flex above would otherwise override the UA [hidden] rule */
