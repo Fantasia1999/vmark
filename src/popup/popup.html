@@ -9,12 +9,33 @@
         color-scheme: light dark;
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         font-size: 13px;
+
+        --acc: #2f7fe6;
+        --acc-hover: #1f6fd6;
+        --acc-grad: linear-gradient(180deg, #368af0 0%, #2168d6 100%);
+        --acc-ring: color-mix(in srgb, #2f7fe6 45%, transparent);
+        --r-sm: 7px;
+        --r-md: 10px;
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --dur: 0.15s;
+        --sh-1: 0 1px 2px rgba(15, 23, 42, 0.1);
+        --sh-2: 0 6px 18px rgba(15, 23, 42, 0.14);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --acc: #4c9dfd;
+          --acc-hover: #6aafff;
+          --acc-grad: linear-gradient(180deg, #3f92f5 0%, #2b7de0 100%);
+          --acc-ring: color-mix(in srgb, #4c9dfd 55%, transparent);
+          --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+          --sh-2: 0 8px 22px rgba(0, 0, 0, 0.5);
+        }
       }
       body {
         margin: 0;
         min-width: 300px;
         max-width: 360px;
-        padding: 8px;
+        padding: 10px;
         background: Canvas;
         color: CanvasText;
       }
@@ -40,24 +61,26 @@
         gap: 8px;
         width: 100%;
         margin: 0 0 4px;
-        padding: 8px 10px;
+        padding: 9px 11px;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--r-sm, 7px);
         background: transparent;
         color: inherit;
         font: inherit;
         text-align: left;
         cursor: pointer;
+        transition: background var(--dur) var(--ease), filter var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
       }
       button:hover:not(:disabled) {
         background: color-mix(in srgb, CanvasText 8%, transparent);
       }
       button:active:not(:disabled) {
-        transform: scale(0.99);
+        transform: scale(0.985);
       }
       button:focus-visible {
-        outline: 2px solid #007fd4;
-        outline-offset: 1px;
+        outline: 2px solid var(--acc);
+        outline-offset: 2px;
       }
       button:disabled {
         opacity: 0.55;
@@ -78,14 +101,17 @@
         display: block;
       }
       button.primary {
-        background: #0e639c;
+        background: var(--acc-grad);
         color: #fff;
-        font-weight: 500;
-        padding: 10px 12px;
+        font-weight: 550;
+        padding: 11px 13px;
         margin-bottom: 6px;
+        box-shadow: var(--sh-1);
       }
       button.primary:hover:not(:disabled) {
-        background: #1177bb;
+        filter: brightness(1.08);
+        background: var(--acc-grad);
+        box-shadow: var(--sh-2);
       }
       button.primary .popup-icon {
         opacity: 1;
@@ -118,12 +144,14 @@
       }
       button.action-primary {
         justify-content: center;
-        background: #0e639c;
+        background: var(--acc-grad);
         color: #fff;
-        font-weight: 500;
+        font-weight: 550;
+        box-shadow: var(--sh-1);
       }
       button.action-primary:hover:not(:disabled) {
-        background: #1177bb;
+        filter: brightness(1.08);
+        box-shadow: var(--sh-2);
       }
       .hint {
         margin: 8px 8px 4px;
@@ -179,18 +207,19 @@
       .field select {
         box-sizing: border-box;
         width: 100%;
-        padding: 7px 8px;
+        padding: 8px 9px;
         border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
-        border-radius: 6px;
+        border-radius: var(--r-sm, 7px);
         background: Field;
         color: FieldText;
         font: inherit;
+        transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
       }
       .field input:focus,
       .field select:focus {
-        outline: 2px solid #007fd4;
-        outline-offset: 0;
-        border-color: transparent;
+        outline: none;
+        border-color: var(--acc);
+        box-shadow: 0 0 0 3px var(--acc-ring);
       }
       .field-row {
         display: grid;
