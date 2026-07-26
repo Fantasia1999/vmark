@@ -23,9 +23,11 @@ import {
   ensureReadPermission,
   isDirectoryPickerSupported,
   listMarkdownFiles,
+  loadRecentWorkspaceHandle,
   loadWorkspaceHandle,
   pickWorkspaceDirectory,
   readWorkspaceTextFile,
+  removeRecentWorkspaceHandle,
   resolveRelativePath,
   saveWorkspaceHandle,
   type WorkspaceFileEntry,
@@ -65,6 +67,7 @@ import { closeContextMenu, showContextMenu, type ContextMenuItem } from './conte
 import { OutlineFloatingPanel, outlinePanelCss } from '../preview/outlinePanel';
 import {
   clearAllHistory,
+  loadWorkspaceHistory,
   recordFileOpen,
   recordWorkspaceOpen,
   removeFileHistory,
@@ -353,19 +356,61 @@ const historyHandlersRef = {
   onOpenWorkspace: (entry: WorkspaceHistoryEntry) => void openHistoryWorkspace(entry),
   onOpenFile: (entry: FileHistoryEntry) => void openHistoryFile(entry),
   onRemoveWorkspace: (id: string) =>
-    void removeWorkspaceHistory(id).then(() => refreshHistoryPanel(historyHandlersRef)),
+    void (async () => {
+      // Also drop the persisted directory handle for removed local entries
+      const entry = (await loadWorkspaceHistory()).find((e) => e.id === id);
+      await removeWorkspaceHistory(id);
+      if (entry?.source === 'local' && entry.localName) {
+        try {
+          await removeRecentWorkspaceHandle(entry.localName);
+        } catch {
+          // ignore
+        }
+      }
+      await refreshHistoryPanel(historyHandlersRef);
+    })(),
   onRemoveFile: (id: string) =>
     void removeFileHistory(id).then(() => refreshHistoryPanel(historyHandlersRef)),
   onClearAll: () =>
     void clearAllHistory().then(() => refreshHistoryPanel(historyHandlersRef)),
 };
 
+/**
+ * Reopen a local workspace from its persisted directory handle. The caller's
+ * click supplies the user gesture `requestPermission` needs, so this usually
+ * costs one "allow access?" confirmation instead of a full folder re-pick.
+ * Returns false when no handle is stored or permission was refused.
+ */
+async function restoreLocalWorkspaceFromHandle(localName?: string): Promise<boolean> {
+  if (!localName) {
+    return false;
+  }
+  try {
+    const handle = await loadRecentWorkspaceHandle(localName);
+    if (!handle) {
+      return false;
+    }
+    if (!(await ensureReadPermission(handle, true))) {
+      return false;
+    }
+    await enterWorkspace(handle);
+    return true;
+  } catch (e) {
+    console.warn('[vscode-md-preview] restore workspace handle failed', e);
+    return false;
+  }
+}
+
 async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void> {
   if (entry.source === 'local') {
-    // Cannot restore FS handle; re-pick and hint
+    pendingHistoryFilePath = entry.lastFilePath;
+    if (await restoreLocalWorkspaceFromHandle(entry.localName)) {
+      return;
+    }
+    // No stored handle (cleared site data) or permission refused — re-pick.
     alert(
       entry.localName
-        ? `请重新选择本地文件夹「${entry.localName}」（浏览器无法保存文件夹权限句柄）。`
+        ? `无法直接恢复文件夹「${entry.localName}」的访问权限，请重新选择该文件夹。`
         : '请重新选择本地文件夹。',
     );
     pendingHistoryFilePath = entry.lastFilePath;
@@ -497,6 +542,10 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
     return;
   }
   if (entry.source === 'local') {
+    pendingHistoryFilePath = entry.path;
+    if (await restoreLocalWorkspaceFromHandle(entry.localName)) {
+      return;
+    }
     alert(
       entry.localName
         ? `请先打开本地文件夹「${entry.localName}」，再选择文件 ${entry.path}`
