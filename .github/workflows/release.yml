@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Smoke render
+        run: npm run smoke
+
+      - name: Package extension
+        run: |
+          cd dist
+          zip -r "../vscode-md-preview-${GITHUB_REF_NAME}.zip" .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: vscode-md-preview-${{ github.ref_name }}.zip
+          generate_release_notes: true
