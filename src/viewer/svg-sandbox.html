@@ -350,6 +350,9 @@
         }
 
         window.addEventListener('message', function (event) {
+          // Only the embedding viewer may feed content; embedded SVG scripts
+          // run here, so any other window must not be able to inject them.
+          if (event.source !== window.parent) return;
           var data = event.data;
           if (!data || data.type !== 'load-svg') return;
           loadSvg(data.content);
@@ -372,6 +375,8 @@
                   deltaZ: e.deltaZ,
                   deltaMode: e.deltaMode,
                   shiftKey: !!e.shiftKey,
+                  ctrlKey: !!e.ctrlKey,
+                  metaKey: !!e.metaKey,
                 },
                 '*',
               );

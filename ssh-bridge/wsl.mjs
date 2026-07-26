@@ -244,14 +244,33 @@ find . -maxdepth 12 \\( ${prune} \\) -prune -o -type f -print 2>/dev/null | head
   return files;
 }
 
-export async function readFileBase64(distro, absPath) {
+export async function readFileBase64(distro, absPath, rootAbs) {
+  // With rootAbs: re-check containment after realpath inside the distro so a
+  // symlink under the workspace cannot read files outside it. The lexical
+  // joinUnderRoot/assertUnderRoot checks alone do not follow links.
+  const guard = rootAbs
+    ? `
+root=${shellQuote(rootAbs.replace(/\/+$/, '') || '/')}
+rp=$(realpath "$f" 2>/dev/null || readlink -f "$f" 2>/dev/null) || rp=""
+if [ -z "$rp" ]; then
+  echo "cannot resolve: $f" >&2
+  exit 1
+fi
+case "$rp" in
+  "$root"|"$root"/*) f="$rp" ;;
+  *)
+    echo "path outside workspace root" >&2
+    exit 1
+    ;;
+esac`
+    : '';
   const script = `
 set -e
 f=${shellQuote(absPath)}
 if [ ! -f "$f" ]; then
   echo "file not found: $f" >&2
   exit 1
-fi
+fi${guard}
 if base64 -w0 "$f" 2>/dev/null; then
   :
 elif base64 "$f" 2>/dev/null | tr -d '\\n'; then
@@ -265,8 +284,8 @@ fi
   return stdout.trim();
 }
 
-export async function readFileUtf8(distro, absPath) {
-  const b64 = await readFileBase64(distro, absPath);
+export async function readFileUtf8(distro, absPath, rootAbs) {
+  const b64 = await readFileBase64(distro, absPath, rootAbs);
   return Buffer.from(b64, 'base64').toString('utf8');
 }
 
