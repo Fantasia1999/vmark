@@ -1150,7 +1150,11 @@ async function resumePendingEnterFromPopup(): Promise<void> {
   }
 }
 
-async function openWorkspaceFile(path: string): Promise<void> {
+async function openWorkspaceFile(
+  path: string,
+  options: { refresh?: boolean } = {},
+): Promise<void> {
+  const viewModeBeforeRefresh = mode;
   // Single-file open leaves dual-pane compare (selection badges stay)
   if (inSvgCompareMode) {
     inSvgCompareMode = false;
@@ -1224,7 +1228,8 @@ async function openWorkspaceFile(path: string): Promise<void> {
   }
 
   // A stale in-page anchor must not re-scroll the next file (ids may collide).
-  if (location.hash) {
+  // A refresh keeps the current document identity and reading position.
+  if (!options.refresh && location.hash) {
     history.replaceState(null, '', location.pathname + location.search);
   }
 
@@ -1233,53 +1238,61 @@ async function openWorkspaceFile(path: string): Promise<void> {
     return;
   }
   setDocumentTitle(doc.name);
-  // Reveal active file folders; leave pure collapse-all so ancestors can open
-  exitCollapsedAllMode();
-  refreshTree();
+  if (!options.refresh) {
+    // Reveal active file folders; leave pure collapse-all so ancestors can open
+    exitCollapsedAllMode();
+    refreshTree();
+  }
   setEmptyPreviewVisible(false);
 
-  // History + last session: file + workspace last path
-  const fileName = doc.name;
-  if (workspaceKind === 'local' && workspaceRoot) {
-    void recordFileOpen({
-      source: 'local',
-      title: fileName,
-      path,
-      workspaceTitle: workspaceRoot.name,
-      localName: workspaceRoot.name,
-    });
-    void touchWorkspaceLastFile(
-      { source: 'local', localName: workspaceRoot.name },
-      path,
-    );
-  } else if (workspaceKind === 'ssh' && sshMeta) {
-    const ssh = {
-      host: sshMeta.host,
-      port: sshMeta.port,
-      username: sshMeta.username,
-      root: sshMeta.root,
-    };
-    void recordFileOpen({
-      source: 'ssh',
-      title: fileName,
-      path,
-      workspaceTitle: `${sshMeta.username}@${sshMeta.host}`,
-      ssh,
-    });
-    void touchWorkspaceLastFile({ source: 'ssh', ssh }, path);
-  } else if (workspaceKind === 'wsl' && wslMeta) {
-    const wsl = { distro: wslMeta.distro, root: wslMeta.root };
-    void recordFileOpen({
-      source: 'wsl',
-      title: fileName,
-      path,
-      workspaceTitle: `wsl://${wslMeta.distro}`,
-      wsl,
-    });
-    void touchWorkspaceLastFile({ source: 'wsl', wsl }, path);
+  if (!options.refresh) {
+    // History + last session: file + workspace last path
+    const fileName = doc.name;
+    if (workspaceKind === 'local' && workspaceRoot) {
+      void recordFileOpen({
+        source: 'local',
+        title: fileName,
+        path,
+        workspaceTitle: workspaceRoot.name,
+        localName: workspaceRoot.name,
+      });
+      void touchWorkspaceLastFile(
+        { source: 'local', localName: workspaceRoot.name },
+        path,
+      );
+    } else if (workspaceKind === 'ssh' && sshMeta) {
+      const ssh = {
+        host: sshMeta.host,
+        port: sshMeta.port,
+        username: sshMeta.username,
+        root: sshMeta.root,
+      };
+      void recordFileOpen({
+        source: 'ssh',
+        title: fileName,
+        path,
+        workspaceTitle: `${sshMeta.username}@${sshMeta.host}`,
+        ssh,
+      });
+      void touchWorkspaceLastFile({ source: 'ssh', ssh }, path);
+    } else if (workspaceKind === 'wsl' && wslMeta) {
+      const wsl = { distro: wslMeta.distro, root: wslMeta.root };
+      void recordFileOpen({
+        source: 'wsl',
+        title: fileName,
+        path,
+        workspaceTitle: `wsl://${wslMeta.distro}`,
+        wsl,
+      });
+      void touchWorkspaceLastFile({ source: 'wsl', wsl }, path);
+    }
   }
 
-  await showPreviewView();
+  if (options.refresh && viewModeBeforeRefresh === 'source') {
+    showSourceView();
+  } else {
+    await showPreviewView();
+  }
 }
 
 /**
@@ -1974,6 +1987,8 @@ function wireUi(): void {
 }
 
 async function refreshWorkspace(): Promise<void> {
+  const navigationAtStart = navGen;
+  const pathAtStart = currentPath;
   try {
     if (workspaceKind === 'ssh') {
       workspaceFiles = await sshListMarkdown();
@@ -1993,11 +2008,20 @@ async function refreshWorkspace(): Promise<void> {
     alert(e instanceof Error ? e.message : String(e));
     return;
   }
+  // A file navigation started while the directory scan was in flight. Keep
+  // the new navigation authoritative; only publish the refreshed tree.
+  if (navGen !== navigationAtStart || currentPath !== pathAtStart) {
+    refreshTree();
+    return;
+  }
   // Clear state BEFORE re-rendering the tree/path bar so no stale file name,
   // source view, or toolbar survives when the current file disappeared.
   if (currentPath && !workspaceFiles.some((f) => f.path === currentPath)) {
     currentPath = undefined;
     doc = null;
+    renderedDocKey = null;
+    previewScrollMemo = null;
+    revokeObjectUrls();
     $(ROOT_ID).hidden = true;
     $(SOURCE_ID).hidden = true;
     document.getElementById('vscode-md-preview-toolbar')?.remove();
@@ -2005,8 +2029,12 @@ async function refreshWorkspace(): Promise<void> {
     setEmptyPreviewVisible(true);
     setDocumentTitle();
   }
-  // Same workspace: keep expand memory, just re-list files
+  // Publish the new directory listing before re-reading the active document,
+  // so the tree still refreshes if the file read itself fails.
   refreshTree();
+  if (currentPath && !inSvgCompareMode) {
+    await openWorkspaceFile(currentPath, { refresh: true });
+  }
 }
 
 async function closeWorkspace(): Promise<void> {
