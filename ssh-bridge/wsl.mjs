@@ -27,6 +27,7 @@ const SKIP = new Set([
 ]);
 
 const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i;
+const PREVIEW_GLOBS = ['*.md', '*.markdown', '*.mdown', '*.mkd', '*.mdx', '*.txt', '*.svg'];
 const MAX_MD = 2000;
 
 export function isWindowsHost() {
@@ -204,16 +205,26 @@ fi
 }
 
 /**
+ * Build the WSL-side scan script. Filtering must happen before the result cap:
+ * large workspaces can contain thousands of source/build files before a later
+ * directory with Markdown is visited by find.
+ */
+export function buildListMarkdownScript(rootAbs) {
+  const prune = [...SKIP].map((d) => `-name ${shellQuote(d)}`).join(' -o ');
+  const preview = PREVIEW_GLOBS.map((glob) => `-iname ${shellQuote(glob)}`).join(' -o ');
+  return `
+set -e
+cd ${shellQuote(rootAbs)}
+# Prune heavy/hidden trees, select previewable files, then apply the result cap.
+find . -maxdepth 12 \\( -path '*/.*' -o ${prune} \\) -prune -o -type f \\( ${preview} \\) -print 2>/dev/null | head -n ${MAX_MD}
+`;
+}
+
+/**
  * List markdown files under root (relative paths).
  */
 export async function listMarkdown(distro, rootAbs) {
-  const prune = [...SKIP].map((d) => `-name ${shellQuote(d)}`).join(' -o ');
-  const script = `
-set -e
-cd ${shellQuote(rootAbs)}
-# Print files; prune heavy/hidden trees
-find . -maxdepth 12 \\( ${prune} \\) -prune -o -type f -print 2>/dev/null | head -n 8000
-`;
+  const script = buildListMarkdownScript(rootAbs);
   const { stdout } = await wslBash(distro, script);
   const files = [];
   for (const line of stdout.split(/\r?\n/)) {
