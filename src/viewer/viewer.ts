@@ -59,6 +59,8 @@ import {
 } from '../shared/wslClient';
 import { isPreviewablePath } from '../shared/wslPaths';
 import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
+import { copyText } from '../shared/clipboard';
+import { createIconEl, type IconName } from '../shared/icons';
 import {
   clearFileTreeExpandState,
   exitCollapsedAllMode,
@@ -561,6 +563,122 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
   }
 }
 
+/** Join workspace root + relative path (POSIX-style). */
+function joinRootAndRel(root: string, rel: string): string {
+  const r = root.replace(/\\/g, '/').replace(/\/+$/, '');
+  const p = rel.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!p) {
+    return r || '.';
+  }
+  if (!r || r === '.') {
+    return p;
+  }
+  if (r === '/') {
+    return `/${p}`;
+  }
+  return `${r}/${p}`;
+}
+
+/** Path shown in the bar / copy-relative (workspace-relative when available). */
+function pathForCopyRelative(): string | null {
+  if (inSvgCompareMode && compareLeft && compareRight) {
+    return null;
+  }
+  if (currentPath) {
+    return currentPath;
+  }
+  if (doc?.name) {
+    return doc.name;
+  }
+  return null;
+}
+
+/**
+ * Absolute (or host-absolute) path when the environment can provide one.
+ * Local File System Access cannot expose OS absolute paths — returns null.
+ */
+function pathForCopyAbsolute(): string | null {
+  const rel = currentPath;
+  if (!rel) {
+    return null;
+  }
+  if (workspaceKind === 'wsl' && wslMeta) {
+    return joinRootAndRel(wslMeta.root, rel);
+  }
+  if (workspaceKind === 'ssh' && sshMeta) {
+    return joinRootAndRel(sshMeta.root, rel);
+  }
+  return null;
+}
+
+function setPathCopyButton(
+  btn: HTMLButtonElement | null,
+  opts: {
+    visible: boolean;
+    enabled: boolean;
+    icon: IconName;
+    title: string;
+    copyValue: string | null;
+  },
+): void {
+  if (!btn) {
+    return;
+  }
+  btn.hidden = !opts.visible;
+  btn.disabled = !opts.enabled || !opts.copyValue;
+  btn.title = opts.title;
+  btn.setAttribute('aria-label', opts.title);
+  btn.dataset.copyValue = opts.copyValue ?? '';
+  if (!btn.dataset.iconReady) {
+    btn.replaceChildren(createIconEl(opts.icon, 'vsc-icon'));
+    btn.dataset.iconReady = '1';
+    btn.dataset.idleIcon = opts.icon;
+  } else if (btn.dataset.idleIcon !== opts.icon) {
+    btn.replaceChildren(createIconEl(opts.icon, 'vsc-icon'));
+    btn.dataset.idleIcon = opts.icon;
+  }
+}
+
+const pathCopyFeedbackTimers = new WeakMap<HTMLButtonElement, number>();
+
+function flashPathCopyButton(btn: HTMLButtonElement, ok: boolean): void {
+  const idle = (btn.dataset.idleIcon as IconName) || 'copy';
+  const prev = pathCopyFeedbackTimers.get(btn);
+  if (prev !== undefined) {
+    window.clearTimeout(prev);
+  }
+  btn.classList.toggle('is-ok', ok);
+  btn.replaceChildren(createIconEl(ok ? 'check' : idle, 'vsc-icon'));
+  const t = window.setTimeout(() => {
+    btn.classList.remove('is-ok');
+    btn.replaceChildren(createIconEl(idle, 'vsc-icon'));
+    pathCopyFeedbackTimers.delete(btn);
+  }, 1400);
+  pathCopyFeedbackTimers.set(btn, t);
+}
+
+function updatePathCopyButtons(): void {
+  const relBtn = document.getElementById('ws-btn-copy-path') as HTMLButtonElement | null;
+  const absBtn = document.getElementById('ws-btn-copy-abspath') as HTMLButtonElement | null;
+  const rel = pathForCopyRelative();
+  const abs = pathForCopyAbsolute();
+
+  setPathCopyButton(relBtn, {
+    visible: Boolean(rel),
+    enabled: Boolean(rel),
+    icon: 'copy',
+    title: rel ? `复制路径\n${rel}` : '复制路径',
+    copyValue: rel,
+  });
+  setPathCopyButton(absBtn, {
+    visible: Boolean(abs),
+    enabled: Boolean(abs),
+    icon: 'copyAbsolute',
+    title: abs ? `复制绝对路径\n${abs}` : '复制绝对路径',
+    copyValue: abs,
+  });
+}
+
 function updatePathBar(): void {
   const pathEl = document.getElementById('ws-current-path');
   const countEl = document.getElementById('ws-file-count');
@@ -588,6 +706,31 @@ function updatePathBar(): void {
     }
     countEl.textContent = n ? `${n} 个文件${extra}` : extra.trim();
   }
+  updatePathCopyButtons();
+}
+
+function wirePathCopyButtons(): void {
+  const bind = (id: string): void => {
+    const btn = document.getElementById(id) as HTMLButtonElement | null;
+    if (!btn || btn.dataset.wired === '1') {
+      return;
+    }
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const text = btn.dataset.copyValue ?? '';
+      if (!text || btn.disabled) {
+        return;
+      }
+      void (async () => {
+        const ok = await copyText(text);
+        flashPathCopyButton(btn, ok);
+      })();
+    });
+  };
+  bind('ws-btn-copy-path');
+  bind('ws-btn-copy-abspath');
 }
 
 function currentWorkspaceExpandKey(): string | null {
@@ -1716,6 +1859,7 @@ function wireUi(): void {
     getTree: () => buildFileTree(workspaceFiles),
     onChanged: () => refreshTree(),
   });
+  wirePathCopyButtons();
   $('ws-btn-open-file')?.addEventListener('click', () => pickFile());
   $('ws-btn-change-folder')?.addEventListener('click', () => {
     if (workspaceKind === 'ssh') {

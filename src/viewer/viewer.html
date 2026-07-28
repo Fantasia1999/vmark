@@ -1147,14 +1147,45 @@
         box-sizing: border-box;
       }
 
-      #ws-current-path {
+      .ws-path-group {
         flex: 1 1 auto;
         min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Path text shrinks; copy buttons sit immediately to its right (not bar far-right) */
+      #ws-current-path {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
         opacity: 0.9;
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .ws-path-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex: 0 0 auto;
+      }
+
+      .ws-path-copy-btn {
+        flex-shrink: 0;
+      }
+
+      .ws-path-copy-btn:disabled {
+        opacity: 0.25;
+        cursor: default;
+      }
+
+      .ws-path-copy-btn.is-ok {
+        opacity: 1;
+        color: var(--vscode-testing-iconPassed, #3fb950);
       }
 
       .ws-main-bar .hint {
@@ -1751,7 +1782,29 @@
       </aside>
       <main class="ws-main">
         <div class="ws-main-bar">
-          <span id="ws-current-path">选择左侧 Markdown / SVG 文件开始预览</span>
+          <div class="ws-path-group">
+            <span id="ws-current-path">选择左侧 Markdown / SVG 文件开始预览</span>
+            <span class="ws-path-actions" role="group" aria-label="复制路径">
+              <button
+                type="button"
+                id="ws-btn-copy-path"
+                class="ws-path-copy-btn vsc-icon-btn"
+                title="复制路径"
+                aria-label="复制路径"
+                hidden
+                disabled
+              ></button>
+              <button
+                type="button"
+                id="ws-btn-copy-abspath"
+                class="ws-path-copy-btn vsc-icon-btn"
+                title="复制绝对路径"
+                aria-label="复制绝对路径"
+                hidden
+                disabled
+              ></button>
+            </span>
+          </div>
           <span class="hint" id="ws-file-count"></span>
         </div>
         <div class="ws-content" id="ws-content">

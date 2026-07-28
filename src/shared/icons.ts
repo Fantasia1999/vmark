@@ -115,6 +115,16 @@ export const iconCheck = svg(`
   <path d="M3.5 8.5l3 3 6-6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
 `);
 
+/**
+ * Copy absolute path: clipboard + leading slash so it differs from plain copy.
+ */
+export const iconCopyAbsolute = svg(`
+  <path d="M2.5 4.5v7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M2.5 4.5h2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+  <rect x="6" y="5.5" width="7.5" height="8.5" rx="1.2" stroke="currentColor" stroke-width="1.25"/>
+  <path d="M4.75 10V3.7A1.2 1.2 0 0 1 5.95 2.5H12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+`);
+
 export type IconName =
   | 'folder'
   | 'file'
@@ -131,7 +141,8 @@ export type IconName =
   | 'brand'
   | 'ssh'
   | 'copy'
-  | 'check';
+  | 'check'
+  | 'copyAbsolute';
 
 const map: Record<IconName, string> = {
   folder: iconFolder,
@@ -150,6 +161,7 @@ const map: Record<IconName, string> = {
   ssh: iconSsh,
   copy: iconCopy,
   check: iconCheck,
+  copyAbsolute: iconCopyAbsolute,
 };
 
 export function iconHtml(name: IconName): string {

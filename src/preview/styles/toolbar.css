@@ -59,7 +59,8 @@
   padding: 2px 4px;
 }
 
-#vscode-md-preview-toolbar button {
+#vscode-md-preview-toolbar button,
+.ws-main-bar .ws-path-copy-btn {
   appearance: none;
   border: 1px solid transparent;
   background: transparent;
@@ -73,11 +74,13 @@
     color var(--dur, 0.15s) var(--ease, ease);
 }
 
-#vscode-md-preview-toolbar button:hover {
+#vscode-md-preview-toolbar button:hover,
+.ws-main-bar .ws-path-copy-btn:hover:not(:disabled) {
   background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
 }
 
-#vscode-md-preview-toolbar button:active {
+#vscode-md-preview-toolbar button:active,
+.ws-main-bar .ws-path-copy-btn:active:not(:disabled) {
   transform: translateY(0.5px);
 }
 
@@ -87,12 +90,14 @@
   box-shadow: var(--sh-1);
 }
 
-#vscode-md-preview-toolbar button:focus-visible {
+#vscode-md-preview-toolbar button:focus-visible,
+.ws-main-bar .ws-path-copy-btn:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: 1px;
 }
 
-#vscode-md-preview-toolbar button[hidden] {
+#vscode-md-preview-toolbar button[hidden],
+.ws-main-bar .ws-path-copy-btn[hidden] {
   display: none !important;
 }
 
