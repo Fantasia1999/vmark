@@ -143,8 +143,8 @@ let inSvgCompareMode = false;
  */
 let navGen = 0;
 
-/** Scroll position of the last rendered preview, keyed by document identity. */
-let previewScrollMemo: { key: string; top: number } | null = null;
+/** Preview reading positions for files opened in the current workspace. */
+const previewScrollPositions = new Map<string, number>();
 /** Document identity of the currently rendered preview (for scroll restore). */
 let renderedDocKey: string | null = null;
 
@@ -154,6 +154,23 @@ function docKey(): string {
 
 function previewScroller(): HTMLElement {
   return document.getElementById('ws-content') ?? document.documentElement;
+}
+
+function rememberRenderedPreviewScroll(): void {
+  const root = document.getElementById(ROOT_ID);
+  if (!renderedDocKey || !root || root.hidden || inSvgCompareMode) {
+    return;
+  }
+  previewScrollPositions.set(renderedDocKey, previewScroller().scrollTop);
+}
+
+function restorePreviewScroll(key: string): void {
+  previewScroller().scrollTop = previewScrollPositions.get(key) ?? 0;
+}
+
+function resetPreviewScrollState(): void {
+  previewScrollPositions.clear();
+  renderedDocKey = null;
 }
 
 const outlinePanel = new OutlineFloatingPanel({
@@ -345,8 +362,7 @@ function showEmpty(): void {
   workspaceFiles = [];
   currentPath = undefined;
   doc = null;
-  renderedDocKey = null;
-  previewScrollMemo = null;
+  resetPreviewScrollState();
   outlinePanel.close();
   setWorkspaceChrome(false);
   $('empty-state').hidden = false;
@@ -1002,6 +1018,7 @@ async function enterWorkspace(
   }
 
   resetCompareState();
+  resetPreviewScrollState();
   workspaceRoot = root;
   workspaceKind = 'local';
   workspaceFiles = await listMarkdownFiles(root);
@@ -1023,6 +1040,7 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
     void wslDisconnect();
   }
   resetCompareState();
+  resetPreviewScrollState();
   workspaceRoot = null;
   workspaceKind = 'ssh';
   sshMeta = meta;
@@ -1058,6 +1076,7 @@ async function enterWslWorkspace(meta: WslSessionMeta, preferredPath?: string): 
     sshMeta = null;
   }
   resetCompareState();
+  resetPreviewScrollState();
   workspaceRoot = null;
   workspaceKind = 'wsl';
   wslMeta = meta;
@@ -1389,9 +1408,7 @@ function showSourceView(): void {
   mode = 'source';
   const root = $(ROOT_ID);
   // Remember the preview reading position so toggling back does not jump to top
-  if (!root.hidden && renderedDocKey === docKey()) {
-    previewScrollMemo = { key: docKey(), top: previewScroller().scrollTop };
-  }
+  rememberRenderedPreviewScroll();
   // Unpinned outline closes in source mode; pinned stays (list still useful)
   if (outlinePanel.isOpen && !outlinePanel.isPinned) {
     outlinePanel.close();
@@ -1612,6 +1629,8 @@ async function openSvgCompareView(): Promise<void> {
   if (!compareLeft || !compareRight) {
     return;
   }
+  rememberRenderedPreviewScroll();
+  renderedDocKey = null;
   injectStyles();
   applyThemeClass();
   inSvgCompareMode = true;
@@ -1684,12 +1703,11 @@ async function showPreviewView(): Promise<void> {
   }
   const gen = ++navGen;
   const root = $(ROOT_ID);
+  const renderKey = docKey();
 
-  // Keep the reading position across re-renders of the same document
-  // (source→preview toggle, settings change).
-  if (!root.hidden && renderedDocKey === docKey()) {
-    previewScrollMemo = { key: docKey(), top: previewScroller().scrollTop };
-  }
+  // Save the preview currently on screen before replacing its DOM. The key
+  // may belong to a different file when navigation has just completed.
+  rememberRenderedPreviewScroll();
 
   mode = 'preview';
   injectStyles();
@@ -1705,7 +1723,8 @@ async function showPreviewView(): Promise<void> {
 
   if (isSvgFileName(doc.name)) {
     showSvgPreview(root);
-    renderedDocKey = docKey();
+    renderedDocKey = renderKey;
+    restorePreviewScroll(renderKey);
     mountToolbarExtras();
     return;
   }
@@ -1748,11 +1767,8 @@ async function showPreviewView(): Promise<void> {
 
   mountToolbarExtras();
 
-  renderedDocKey = docKey();
-  if (previewScrollMemo && previewScrollMemo.key === docKey()) {
-    previewScroller().scrollTop = previewScrollMemo.top;
-    previewScrollMemo = null;
-  }
+  renderedDocKey = renderKey;
+  restorePreviewScroll(renderKey);
 }
 
 function mountToolbarExtras(): void {
@@ -2017,10 +2033,10 @@ async function refreshWorkspace(): Promise<void> {
   // Clear state BEFORE re-rendering the tree/path bar so no stale file name,
   // source view, or toolbar survives when the current file disappeared.
   if (currentPath && !workspaceFiles.some((f) => f.path === currentPath)) {
+    previewScrollPositions.delete(currentPath);
     currentPath = undefined;
     doc = null;
     renderedDocKey = null;
-    previewScrollMemo = null;
     revokeObjectUrls();
     $(ROOT_ID).hidden = true;
     $(SOURCE_ID).hidden = true;
