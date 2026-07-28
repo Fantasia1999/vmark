@@ -61,8 +61,11 @@ import { isPreviewablePath } from '../shared/wslPaths';
 import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
 import {
   clearFileTreeExpandState,
+  exitCollapsedAllMode,
+  prepareFileTreeForWorkspace,
   renderFileTree,
   setWorkspaceChrome,
+  wireTreeFoldButton,
 } from './workspaceUi';
 import { closeContextMenu, showContextMenu, type ContextMenuItem } from './contextMenu';
 import { initSidebarUi } from './sidebar';
@@ -587,6 +590,19 @@ function updatePathBar(): void {
   }
 }
 
+function currentWorkspaceExpandKey(): string | null {
+  if (workspaceKind === 'local' && workspaceRoot) {
+    return `local:${workspaceRoot.name}`;
+  }
+  if (workspaceKind === 'ssh' && sshMeta) {
+    return `ssh:${sshMeta.username}@${sshMeta.host}:${sshMeta.port}:${sshMeta.root}`;
+  }
+  if (workspaceKind === 'wsl' && wslMeta) {
+    return `wsl:${wslMeta.distro}:${wslMeta.root}`;
+  }
+  return null;
+}
+
 function refreshTree(): void {
   const treeEl = document.getElementById('ws-file-tree');
   if (!treeEl) {
@@ -607,6 +623,15 @@ function refreshTree(): void {
     },
   );
   updatePathBar();
+}
+
+/** Load per-workspace expand memory then paint the tree. */
+async function prepareAndRefreshTree(): Promise<void> {
+  const key = currentWorkspaceExpandKey();
+  if (key) {
+    await prepareFileTreeForWorkspace(key);
+  }
+  refreshTree();
 }
 
 /** Read a workspace file's text without switching the active preview doc. */
@@ -789,7 +814,7 @@ async function showWorkspaceShell(
   setWorkspaceChrome(true, title);
   $('empty-state').hidden = true;
   setDocumentTitle();
-  refreshTree();
+  await prepareAndRefreshTree();
 
   setEmptyPreviewVisible(true);
   $(ROOT_ID).hidden = true;
@@ -1065,6 +1090,8 @@ async function openWorkspaceFile(path: string): Promise<void> {
     return;
   }
   setDocumentTitle(doc.name);
+  // Reveal active file folders; leave pure collapse-all so ancestors can open
+  exitCollapsedAllMode();
   refreshTree();
   setEmptyPreviewVisible(false);
 
@@ -1685,6 +1712,10 @@ function wireUi(): void {
   $('btn-options').addEventListener('click', () => showOptionsDialog(true));
 
   $('ws-btn-refresh')?.addEventListener('click', () => void refreshWorkspace());
+  wireTreeFoldButton({
+    getTree: () => buildFileTree(workspaceFiles),
+    onChanged: () => refreshTree(),
+  });
   $('ws-btn-open-file')?.addEventListener('click', () => pickFile());
   $('ws-btn-change-folder')?.addEventListener('click', () => {
     if (workspaceKind === 'ssh') {
@@ -1830,6 +1861,7 @@ async function refreshWorkspace(): Promise<void> {
     setEmptyPreviewVisible(true);
     setDocumentTitle();
   }
+  // Same workspace: keep expand memory, just re-list files
   refreshTree();
 }
 

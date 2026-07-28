@@ -130,7 +130,8 @@
 
       .dropzone button,
       .ws-toolbar button,
-      .ws-sidebar-actions button {
+      .ws-sidebar-actions button,
+      .ws-tree-toolbar button {
         appearance: none;
         border: 1px solid transparent;
         border-radius: var(--r-sm, 6px);
@@ -147,27 +148,31 @@
 
       .dropzone button:hover,
       .ws-toolbar button:hover,
-      .ws-sidebar-actions button:hover {
+      .ws-sidebar-actions button:hover,
+      .ws-tree-toolbar button:hover {
         filter: brightness(1.08);
         box-shadow: var(--sh-2);
       }
 
       .dropzone button:active,
       .ws-toolbar button:active,
-      .ws-sidebar-actions button:active {
+      .ws-sidebar-actions button:active,
+      .ws-tree-toolbar button:active {
         transform: translateY(0.5px) scale(0.99);
         filter: brightness(0.97);
       }
 
       .dropzone button:focus-visible,
       .ws-toolbar button:focus-visible,
-      .ws-sidebar-actions button:focus-visible {
+      .ws-sidebar-actions button:focus-visible,
+      .ws-tree-toolbar button:focus-visible {
         outline: 2px solid var(--vscode-focusBorder, #007fd4);
         outline-offset: 2px;
       }
 
       .dropzone button.secondary,
       .ws-sidebar-actions button.secondary,
+      .ws-tree-toolbar button.secondary,
       .ws-toolbar button.secondary {
         background: var(--vscode-editor-background, transparent);
         color: inherit;
@@ -178,6 +183,7 @@
 
       .dropzone button.secondary:hover,
       .ws-sidebar-actions button.secondary:hover,
+      .ws-tree-toolbar button.secondary:hover,
       .ws-toolbar button.secondary:hover {
         filter: none;
         background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
@@ -732,6 +738,7 @@
 
       .sidebar-collapsed .ws-sidebar-header,
       .sidebar-collapsed .ws-sidebar-actions,
+      .sidebar-collapsed .ws-tree-toolbar,
       .sidebar-collapsed #ws-file-tree,
       .sidebar-collapsed .ws-sidebar-resizer {
         display: none;
@@ -836,15 +843,54 @@
         border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
       }
 
-      .ws-sidebar-actions button {
+      .ws-sidebar-actions button,
+      .ws-tree-toolbar button {
         padding: 5px 9px;
         font-size: 12px;
         line-height: 1.2;
       }
 
-      .ws-sidebar-actions button:focus-visible {
+      .ws-sidebar-actions button:focus-visible,
+      .ws-tree-toolbar button:focus-visible {
         outline: 1px solid var(--vscode-focusBorder, #007fd4);
         outline-offset: 1px;
+      }
+
+      .ws-tree-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        padding: 4px 10px 2px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.2));
+        flex-shrink: 0;
+      }
+
+      .ws-tree-fold-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .ws-tree-fold-btn .vsc-icon {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+      }
+
+      .ws-tree-fold-btn .vsc-icon svg {
+        width: 12px;
+        height: 12px;
+        display: block;
+      }
+
+      .ws-tree-fold-btn:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+      }
+
+      .sidebar-collapsed .ws-tree-toolbar {
+        display: none;
       }
 
       .ws-row:focus-visible {
@@ -1680,6 +1726,17 @@
           <button type="button" id="ws-btn-open-file" class="secondary" title="打开工作区外的单个文件">文件…</button>
           <button type="button" id="ws-btn-change-folder" class="secondary" title="更换文件夹">换夹…</button>
           <button type="button" id="ws-btn-close" class="secondary" title="关闭工作区">关闭</button>
+        </div>
+        <div class="ws-tree-toolbar">
+          <button
+            type="button"
+            id="ws-btn-tree-fold"
+            class="ws-tree-fold-btn secondary"
+            title="收起所有目录（可再点恢复）"
+            aria-label="收起全部"
+          >
+            收起全部
+          </button>
         </div>
         <div id="ws-file-tree" aria-label="Markdown / SVG 文件列表"></div>
         <div
