@@ -58,6 +58,7 @@ import {
   type WslSessionMeta,
 } from '../shared/wslClient';
 import { isPreviewablePath } from '../shared/wslPaths';
+import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
 import {
   clearFileTreeExpandState,
   renderFileTree,
@@ -1536,6 +1537,7 @@ async function showPreviewView(): Promise<void> {
   // documentBase unused for workspace assets (resolved after render)
   const rendered = engine.render(doc.content, undefined);
   root.innerHTML = rendered.html;
+  attachCodeBlockCopyButtons(root);
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
   if (gen !== navGen) {

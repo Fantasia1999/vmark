@@ -104,6 +104,17 @@ export const iconSsh = svg(`
   <path d="M4 7.5l2 2-2 2M8 11.5h3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
 `);
 
+/** Clipboard / copy */
+export const iconCopy = svg(`
+  <rect x="5.5" y="5.5" width="8" height="9" rx="1.25" stroke="currentColor" stroke-width="1.25"/>
+  <path d="M3.5 10.5V3.75A1.25 1.25 0 0 1 4.75 2.5h6.75" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+`);
+
+/** Checkmark (copy success) */
+export const iconCheck = svg(`
+  <path d="M3.5 8.5l3 3 6-6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+`);
+
 export type IconName =
   | 'folder'
   | 'file'
@@ -118,7 +129,9 @@ export type IconName =
   | 'chevronRight'
   | 'mdFile'
   | 'brand'
-  | 'ssh';
+  | 'ssh'
+  | 'copy'
+  | 'check';
 
 const map: Record<IconName, string> = {
   folder: iconFolder,
@@ -135,6 +148,8 @@ const map: Record<IconName, string> = {
   mdFile: iconMdFile,
   brand: iconBrand,
   ssh: iconSsh,
+  copy: iconCopy,
+  check: iconCheck,
 };
 
 export function iconHtml(name: IconName): string {

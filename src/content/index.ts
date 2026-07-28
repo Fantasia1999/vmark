@@ -21,6 +21,7 @@ import {
   stepPreviewZoom,
 } from '../shared/previewZoom';
 import { renderSourceWithLineNumbers } from '../shared/sourceView';
+import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -247,6 +248,8 @@ async function showPreview(): Promise<void> {
   }
   // Preview DOM is in place — lift the document_start pre-hide (FOUC guard)
   removePrehideStyle();
+
+  attachCodeBlockCopyButtons(root);
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
   if (gen !== renderGen) {

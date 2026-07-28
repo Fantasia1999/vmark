@@ -446,6 +446,100 @@ body.wordWrap pre > code {
 	white-space: pre-wrap;
 }
 
+/* GitHub-style copy button on fenced code blocks */
+.markdown-body .md-code-block {
+	position: relative;
+	margin-bottom: 16px;
+}
+
+.markdown-body .md-code-block > pre {
+	/* margin lives on the wrapper so spacing stays correct after wrap */
+	margin-bottom: 0;
+}
+
+.markdown-body .md-code-copy {
+	appearance: none;
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 3;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	padding: 5px 8px;
+	border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
+	border-radius: 6px;
+	background: color-mix(
+		in srgb,
+		var(--vscode-editorWidget-background, var(--vscode-textCodeBlock-background, #252526)) 92%,
+		transparent
+	);
+	backdrop-filter: blur(6px);
+	color: var(--vscode-editor-foreground, #d4d4d4);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.markdown-body .md-code-block:hover .md-code-copy,
+.markdown-body .md-code-block:focus-within .md-code-copy,
+.markdown-body .md-code-copy:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Touch / no-hover: keep the control discoverable */
+@media (hover: none) {
+	.markdown-body .md-code-copy {
+		opacity: 0.85;
+		pointer-events: auto;
+	}
+}
+
+.markdown-body .md-code-copy:hover:not(:disabled) {
+	background: var(--vscode-button-background, #0e639c);
+	border-color: var(--vscode-button-background, #0e639c);
+	color: var(--vscode-button-foreground, #fff);
+}
+
+.markdown-body .md-code-copy:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder, #007fd4);
+	outline-offset: 1px;
+}
+
+.markdown-body .md-code-copy:disabled {
+	cursor: default;
+	opacity: 1;
+	pointer-events: none;
+}
+
+.markdown-body .md-code-copy .md-code-copy-icon {
+	display: inline-flex;
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+}
+
+.markdown-body .md-code-copy .md-code-copy-icon svg {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+.markdown-body .md-code-copy-label {
+	font-size: 12px;
+	line-height: 1;
+}
+
 /** Theming */
 
 .vscode-high-contrast h1 {
