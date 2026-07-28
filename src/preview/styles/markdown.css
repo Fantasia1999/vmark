@@ -407,30 +407,46 @@ code {
 	line-height: 1.357em;
 }
 
-body.wordWrap pre {
-	white-space: pre-wrap;
-}
-
-pre:not(.hljs),
-pre.hljs code > div {
+/*
+ * Code blocks (GitHub-style layout):
+ * - padding / overflow / background live on <pre>
+ * - <code> stays display:inline (not inline-block) so the selectable text
+ *   fills the pre content box; RTL drag no longer hits empty gaps and
+ *   escapes selection into preceding document content.
+ */
+pre {
 	padding: 16px;
 	border-radius: 3px;
 	overflow: auto;
-}
-
-pre code {
-	display: inline-block;
-	color: var(--vscode-editor-foreground);
-	tab-size: 4;
-	background: none;
-}
-
-/** Theming */
-
-pre {
+	word-wrap: normal;
 	background-color: var(--vscode-textCodeBlock-background);
 	border: 1px solid var(--vscode-widget-border);
 }
+
+pre code {
+	display: inline;
+	padding: 0;
+	margin: 0;
+	overflow: visible;
+	line-height: inherit;
+	word-wrap: normal;
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+	background: none;
+	border: 0;
+}
+
+pre > code {
+	white-space: pre;
+	word-break: normal;
+}
+
+body.wordWrap pre,
+body.wordWrap pre > code {
+	white-space: pre-wrap;
+}
+
+/** Theming */
 
 .vscode-high-contrast h1 {
 	border-color: rgb(0, 0, 0);
