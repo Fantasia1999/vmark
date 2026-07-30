@@ -34,6 +34,3 @@ export const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i;
 
 export const MAX_MD = 2000;
 export const MAX_DEPTH = 12;
-
-/** SFTP readdir concurrency for the latency-bound fallback walk. */
-export const LIST_CONCURRENCY = 16;

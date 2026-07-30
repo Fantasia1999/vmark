@@ -2,6 +2,9 @@
  * Build and parse the remote bulk-list command used by the SSH bridge.
  * Keeping this logic separate makes the security-sensitive quoting and path
  * containment rules independently testable.
+ *
+ * Requires a Linux (POSIX) remote with GNU find and `head -z`. Windows SSH
+ * targets are not supported for workspace listing.
  */
 
 import { PREVIEW_PATTERNS } from './previewConstants.mjs';

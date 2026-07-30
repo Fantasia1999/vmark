@@ -350,7 +350,10 @@
         <button type="button" class="back-btn secondary" data-back title="返回">←</button>
         <h2>SSH 工作区</h2>
       </div>
-      <p class="panel-sub">经本机 Bridge 连接；凭证只发到 127.0.0.1。</p>
+      <p class="panel-sub">
+        经本机 Bridge 连接；凭证只发到 127.0.0.1。远程须为 Linux（GNU find）；不支持 Windows
+        SSH 目标。
+      </p>
 
       <label class="field">
         <span class="field-label">主机</span>
@@ -382,7 +385,7 @@
         </select>
         <span class="field-hint" id="ssh-openssh-hint" hidden>
           从 ~/.ssh/config 选择 Host 别名；用户名、端口与 IdentityFile 由 Bridge 在本机解析。
-          需可读取的密钥或 SSH Agent；暂不支持 ProxyJump / ProxyCommand。
+          需可读取的密钥或 SSH Agent；暂不支持 ProxyJump / ProxyCommand。远程须为 Linux。
         </span>
       </label>
       <label class="field" id="ssh-password-row">

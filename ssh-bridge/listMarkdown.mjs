@@ -1,20 +1,17 @@
 /**
- * SSH workspace markdown listing: remote find bulk path + concurrent SFTP fallback.
- * Kept out of server.mjs so HTTP/session code stays thin and listing is testable.
+ * SSH workspace markdown listing via a single remote GNU find command.
+ *
+ * Contract: the SSH target must be Linux (or a POSIX environment) with a
+ * login shell that can run `find … -print0 | head -z`. There is no SFTP
+ * directory walk fallback — Windows SSH targets and find-less hosts fail
+ * with an explicit error.
  */
 
-import {
-  LIST_CONCURRENCY,
-  MAX_DEPTH,
-  MAX_MD,
-  MD_RE,
-  SKIP,
-} from './previewConstants.mjs';
+import { MAX_DEPTH, MAX_MD, SKIP } from './previewConstants.mjs';
 import {
   buildRemoteFindCommand,
   parseRemoteFindOutput,
 } from './remoteFind.mjs';
-import { attrsLookLikeDir, classifySftpEntry } from './sftpEntry.mjs';
 
 function joinRemote(root, rel) {
   const base = (root || '.').replace(/\/+$/, '') || '.';
@@ -26,30 +23,6 @@ function joinRemote(root, rel) {
     return r;
   }
   return `${base}/${r}`;
-}
-
-function listDir(sftp, remotePath) {
-  return new Promise((resolve, reject) => {
-    sftp.readdir(remotePath, (err, list) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(list || []);
-      }
-    });
-  });
-}
-
-function statRemote(sftp, remotePath) {
-  return new Promise((resolve, reject) => {
-    sftp.stat(remotePath, (err, attrs) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(attrs);
-      }
-    });
-  });
 }
 
 function realpath(sftp, remotePath) {
@@ -122,24 +95,6 @@ function execRemote(client, command, maxBytes = 16 * 1024 * 1024) {
 }
 
 /**
- * Resolve readdir entry kind. Incomplete attrs / symlinks need a follow-up
- * stat so directory walks still descend (otherwise /list returns []).
- */
-async function resolveEntryKind(sftp, entry, absolutePath) {
-  const kind = classifySftpEntry(entry);
-  if (kind !== 'unknown') {
-    return kind;
-  }
-  try {
-    const attrs = await statRemote(sftp, absolutePath);
-    return attrsLookLikeDir(attrs) ? 'dir' : 'file';
-  } catch {
-    // Broken symlink or unreadable path — do not treat as a walkable dir.
-    return 'file';
-  }
-}
-
-/**
  * @param {{ client: import('ssh2').Client, sftp: import('ssh2').SFTPWrapper, meta: { root: string } }} session
  * @param {string} [rootRel]
  */
@@ -148,99 +103,33 @@ export async function listMarkdown(session, rootRel = '') {
     throw new Error('not connected');
   }
   const { client, sftp, meta } = session;
-  const out = [];
-  const rootAbs = await realpath(sftp, joinRemote(meta.root, rootRel || ''));
+  const rootAbs =
+    !rootRel || rootRel === '.'
+      ? meta.root
+      : await realpath(sftp, joinRemote(meta.root, rootRel));
   const rootPrefix = meta.root.endsWith('/') ? meta.root : `${meta.root}/`;
   if (rootAbs !== meta.root && !rootAbs.startsWith(rootPrefix)) {
     throw new Error('path outside workspace root');
   }
+
   const findCommand = buildRemoteFindCommand(rootAbs, {
     maxDepth: MAX_DEPTH,
     maxFiles: MAX_MD,
     skip: SKIP,
   });
 
-  // One remote command avoids thousands of latency-bound SFTP round trips.
-  // Fall back to SFTP for restricted shells and systems without GNU head/find.
+  let output;
   try {
-    const output = await execRemote(client, findCommand);
-    const files = parseRemoteFindOutput(output, rootAbs, MAX_MD);
-    files.sort((a, b) => a.path.localeCompare(b.path));
-    return files;
+    output = await execRemote(client, findCommand);
   } catch (error) {
-    console.error(
-      `[ssh-bridge] remote bulk list unavailable, falling back to SFTP: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `SSH 工作区列举需要远程 Linux 上的 GNU find（find … -print0 | head -z）。` +
+        `不支持以 Windows 为 SSH 目标，也没有 SFTP 扫目录回退。原因：${detail}`,
     );
   }
 
-  const pending = [{ absDir: rootAbs, rel: '', depth: 0 }];
-
-  // Breadth-first batches let independent readdir requests overlap while
-  // keeping memory, server load, and traversal depth bounded.
-  while (pending.length > 0 && out.length < MAX_MD) {
-    const batch = pending.splice(0, LIST_CONCURRENCY);
-    const listings = await Promise.all(
-      batch.map(async (dir) => {
-        try {
-          return { dir, entries: await listDir(sftp, dir.absDir) };
-        } catch (error) {
-          if (dir.depth === 0) {
-            // Root listing failure = dead connection or bad permissions;
-            // surface it instead of returning an empty tree.
-            throw error;
-          }
-          return { dir, entries: [] };
-        }
-      }),
-    );
-
-    for (const { dir, entries } of listings) {
-      if (out.length >= MAX_MD) {
-        break;
-      }
-      // Classify (and stat unknowns) in parallel so incomplete attrs / symlinks
-      // do not serialize the whole directory.
-      const resolved = await Promise.all(
-        entries.map(async (entry) => {
-          const name = entry.filename;
-          if (!name || name === '.' || name === '..') {
-            return null;
-          }
-          const childRel = dir.rel ? `${dir.rel}/${name}` : name;
-          const childAbs = dir.absDir.endsWith('/')
-            ? `${dir.absDir}${name}`
-            : `${dir.absDir}/${name}`;
-          const kind = await resolveEntryKind(sftp, entry, childAbs);
-          return { name, childRel, childAbs, kind };
-        }),
-      );
-
-      for (const item of resolved) {
-        if (!item || out.length >= MAX_MD) {
-          break;
-        }
-        const { name, childRel, childAbs, kind } = item;
-        if (kind === 'dir') {
-          if (
-            dir.depth < MAX_DEPTH &&
-            !SKIP.has(name) &&
-            !name.startsWith('.')
-          ) {
-            pending.push({ absDir: childAbs, rel: childRel, depth: dir.depth + 1 });
-          }
-        } else if (kind === 'file' && MD_RE.test(name)) {
-          out.push({
-            path: childRel,
-            name,
-            dir: dir.rel,
-          });
-        }
-      }
-    }
-  }
-
-  out.sort((a, b) => a.path.localeCompare(b.path));
-  return out;
+  const files = parseRemoteFindOutput(output, rootAbs, MAX_MD);
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  return files;
 }

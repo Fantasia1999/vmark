@@ -7,7 +7,8 @@
  *   DIAG_BRIDGE_API=1 npm run diagnose:ssh -- <alias> <root>
  *   DIAG_API_ONLY=1 DIAG_BRIDGE_API=1 npm run diagnose:ssh -- <alias> <root>
  *
- * Default path: resolve OpenSSH alias, sample root readdir attrs, run remote find.
+ * Default path: resolve OpenSSH alias, sample root readdir, run remote GNU find
+ * (required for SSH workspace listing; no SFTP walk fallback).
  * DIAG_BRIDGE_API=1 also spins up server.mjs and hits /connect + /list + /read.
  */
 
@@ -29,7 +30,6 @@ import {
   buildRemoteFindCommand,
   parseRemoteFindOutput,
 } from '../ssh-bridge/remoteFind.mjs';
-import { classifySftpEntry } from '../ssh-bridge/sftpEntry.mjs';
 
 const require = createRequire(
   fileURLToPath(new URL('../ssh-bridge/package.json', import.meta.url)),
@@ -276,7 +276,6 @@ try {
           name: entry.filename,
           longnamePrefix: String(entry.longname || '').slice(0, 10),
           mode: octalMode(entry),
-          classification: classifySftpEntry(entry),
         })),
       },
       null,
@@ -285,27 +284,46 @@ try {
   );
 
   const remoteFindStarted = Date.now();
-  const remoteFindOutput = await execRemote(
-    client,
-    buildRemoteFindCommand(root, {
-      maxDepth: MAX_DEPTH,
-      maxFiles: MAX_MD,
-      skip: SKIP,
-    }),
-  );
-  const remoteFindFiles = parseRemoteFindOutput(remoteFindOutput, root, MAX_MD);
-  console.log(
-    JSON.stringify(
-      {
-        phase: 'remote-bulk-list',
-        fileCount: remoteFindFiles.length,
-        sampleFiles: remoteFindFiles.slice(0, 20).map((file) => file.path),
-        elapsedMs: Date.now() - remoteFindStarted,
-      },
-      null,
-      2,
-    ),
-  );
+  try {
+    const remoteFindOutput = await execRemote(
+      client,
+      buildRemoteFindCommand(root, {
+        maxDepth: MAX_DEPTH,
+        maxFiles: MAX_MD,
+        skip: SKIP,
+      }),
+    );
+    const remoteFindFiles = parseRemoteFindOutput(remoteFindOutput, root, MAX_MD);
+    console.log(
+      JSON.stringify(
+        {
+          phase: 'remote-bulk-list',
+          ok: true,
+          fileCount: remoteFindFiles.length,
+          sampleFiles: remoteFindFiles.slice(0, 20).map((file) => file.path),
+          elapsedMs: Date.now() - remoteFindStarted,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch (error) {
+    console.log(
+      JSON.stringify(
+        {
+          phase: 'remote-bulk-list',
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+          elapsedMs: Date.now() - remoteFindStarted,
+          note:
+            'SSH workspace listing requires GNU find on a Linux remote; no SFTP walk fallback.',
+        },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+  }
 } finally {
   client.end();
 }

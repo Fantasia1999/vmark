@@ -61,9 +61,10 @@ npm run ssh-bridge           # 启动，终端会打印 Token
 
 | 能力 | 说明 |
 |------|------|
-| SSH | 桥接用 [ssh2](https://github.com/mscdex/ssh2) SFTP |
-| OpenSSH 配置认证 | 从 `~/.ssh/config` 的 `Host` 列表选择别名（支持常见 `Include dir/*`），Bridge 通过 `ssh -G` 解析主机、用户、端口和 `IdentityFile`；私钥内容不发送到浏览器。需本机可读密钥或 SSH Agent；暂不支持 ProxyJump / ProxyCommand |
-| WSL | 桥接在 **Windows** 上调用 `wsl.exe` 列目录/读文件 |
+| SSH | 桥接用 [ssh2](https://github.com/mscdex/ssh2)：认证与读文件走 SFTP；**工作区列表**在远程执行 GNU `find … -print0 \| head -z`（无 SFTP 扫目录回退） |
+| SSH 远程要求 | **目标机须为 Linux**（或兼容的 POSIX + GNU find）。**不支持**以 Windows 为 SSH 目标。本机 Bridge 可在 Windows / macOS / Linux 上运行 |
+| OpenSSH 配置认证 | 从本机 `~/.ssh/config` 的 `Host` 列表选择别名（支持常见 `Include dir/*`），Bridge 通过 `ssh -G` 解析主机、用户、端口和 `IdentityFile`；私钥内容不发送到浏览器。需本机可读密钥或 SSH Agent；暂不支持 ProxyJump / ProxyCommand |
+| WSL | 桥接在 **Windows** 上调用 `wsl.exe` 列目录/读文件（本机发行版，不是 SSH 远程 Windows） |
 | `file://wsl.localhost/Distro/...` | Chrome 直接打开 WSL 文件时自动预览 |
 
 ### 支持的 WSL 路径形式
