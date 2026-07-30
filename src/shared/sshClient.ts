@@ -11,10 +11,13 @@ export interface SshBridgeSettings {
   bridgeToken: string;
 }
 
+export type SshAuthMode = 'password' | 'key' | 'openssh';
+
 export interface SshConnectParams {
   host: string;
   port?: number;
-  username: string;
+  username?: string;
+  authMode?: SshAuthMode;
   password?: string;
   privateKey?: string;
   passphrase?: string;
@@ -28,6 +31,7 @@ export interface SshSessionMeta {
   username: string;
   root: string;
   connectedAt: number;
+  authMode?: SshAuthMode;
 }
 
 /** Token probe result — independent of process online/offline. */
@@ -68,6 +72,7 @@ const STORAGE_KEYS = {
   lastPort: 'sshLastPort',
   lastUser: 'sshLastUser',
   lastRoot: 'sshLastRoot',
+  lastAuthMode: 'sshLastAuthMode',
 } as const;
 
 export async function loadSshBridgeSettings(): Promise<SshBridgeSettings> {
@@ -113,18 +118,26 @@ export async function loadSshFormDefaults(): Promise<{
   port: string;
   username: string;
   root: string;
+  authMode: SshAuthMode;
 }> {
   const s = await chrome.storage.local.get({
     [STORAGE_KEYS.lastHost]: '',
     [STORAGE_KEYS.lastPort]: '22',
     [STORAGE_KEYS.lastUser]: '',
     [STORAGE_KEYS.lastRoot]: '.',
+    [STORAGE_KEYS.lastAuthMode]: 'password',
   });
+  const storedAuthMode = String(s[STORAGE_KEYS.lastAuthMode] || 'password');
+  const authMode: SshAuthMode =
+    storedAuthMode === 'key' || storedAuthMode === 'openssh'
+      ? storedAuthMode
+      : 'password';
   return {
     host: String(s[STORAGE_KEYS.lastHost] || ''),
     port: String(s[STORAGE_KEYS.lastPort] || '22'),
     username: String(s[STORAGE_KEYS.lastUser] || ''),
     root: String(s[STORAGE_KEYS.lastRoot] || '.'),
+    authMode,
   };
 }
 
@@ -133,12 +146,14 @@ export async function saveSshFormDefaults(form: {
   port: string;
   username: string;
   root: string;
+  authMode?: SshAuthMode;
 }): Promise<void> {
   await chrome.storage.local.set({
     [STORAGE_KEYS.lastHost]: form.host,
     [STORAGE_KEYS.lastPort]: form.port,
     [STORAGE_KEYS.lastUser]: form.username,
     [STORAGE_KEYS.lastRoot]: form.root,
+    ...(form.authMode ? { [STORAGE_KEYS.lastAuthMode]: form.authMode } : {}),
   });
 }
 
@@ -410,12 +425,19 @@ export async function sshConnect(params: SshConnectParams): Promise<SshSessionMe
     host: params.host,
     port: params.port ?? 22,
     username: params.username,
+    authMode: params.authMode,
+    useOpenSshConfig: params.authMode === 'openssh',
     password: params.password,
     privateKey: params.privateKey,
     passphrase: params.passphrase,
     root: params.root || '.',
   });
   return data.meta;
+}
+
+export async function sshListOpenSshHosts(): Promise<string[]> {
+  const data = await request<{ hosts: string[] }>('GET', '/ssh/hosts');
+  return Array.isArray(data.hosts) ? data.hosts : [];
 }
 
 export async function sshDisconnect(): Promise<void> {

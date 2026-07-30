@@ -41,7 +41,9 @@ import {
   sshDisconnect,
   sshHealth,
   sshListMarkdown,
+  sshListOpenSshHosts,
   sshReadText,
+  type SshAuthMode,
   type SshSessionMeta,
 } from '../shared/sshClient';
 import {
@@ -123,6 +125,8 @@ let wslMeta: WslSessionMeta | null = null;
 let workspaceFiles: WorkspaceFileEntry[] = [];
 let objectUrls: string[] = [];
 let sshPrivateKeyText = '';
+let sshDialogBusy = false;
+let sshHostsLoading: Promise<void> | null = null;
 
 /** Beyond Compare-style SVG left/right slots (workspace paths). */
 interface SvgCompareSlot {
@@ -450,9 +454,18 @@ async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void>
       const user = document.getElementById('ssh-user') as HTMLInputElement | null;
       const root = document.getElementById('ssh-root') as HTMLInputElement | null;
       if (host) host.value = entry.ssh!.host;
+      const hostSelect = document.getElementById('ssh-host-select') as HTMLSelectElement | null;
+      if (hostSelect?.querySelector(`option[value="${CSS.escape(entry.ssh!.host)}"]`)) {
+        hostSelect.value = entry.ssh!.host;
+      }
       if (port) port.value = String(entry.ssh!.port);
       if (user) user.value = entry.ssh!.username;
       if (root) root.value = entry.ssh!.root;
+      if (entry.ssh!.authMode) {
+        const auth = document.getElementById('ssh-auth') as HTMLSelectElement | null;
+        if (auth) auth.value = entry.ssh!.authMode;
+        setSshAuthMode(entry.ssh!.authMode);
+      }
     });
     return;
   }
@@ -532,9 +545,18 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
       const user = document.getElementById('ssh-user') as HTMLInputElement | null;
       const root = document.getElementById('ssh-root') as HTMLInputElement | null;
       if (host) host.value = entry.ssh!.host;
+      const hostSelect = document.getElementById('ssh-host-select') as HTMLSelectElement | null;
+      if (hostSelect?.querySelector(`option[value="${CSS.escape(entry.ssh!.host)}"]`)) {
+        hostSelect.value = entry.ssh!.host;
+      }
       if (port) port.value = String(entry.ssh!.port);
       if (user) user.value = entry.ssh!.username;
       if (root) root.value = entry.ssh!.root;
+      if (entry.ssh!.authMode) {
+        const auth = document.getElementById('ssh-auth') as HTMLSelectElement | null;
+        if (auth) auth.value = entry.ssh!.authMode;
+        setSshAuthMode(entry.ssh!.authMode);
+      }
     });
     return;
   }
@@ -1057,6 +1079,7 @@ async function enterSshWorkspace(meta: SshSessionMeta, preferredPath?: string): 
     port: meta.port,
     username: meta.username,
     root: meta.root,
+    authMode: meta.authMode,
   };
   const pending = preferredPath ?? pendingHistoryFilePath;
   pendingHistoryFilePath = undefined;
@@ -1285,6 +1308,7 @@ async function openWorkspaceFile(
         port: sshMeta.port,
         username: sshMeta.username,
         root: sshMeta.root,
+        authMode: sshMeta.authMode,
       };
       void recordFileOpen({
         source: 'ssh',
@@ -1904,6 +1928,9 @@ function wireUi(): void {
   // SSH dialog wiring. Cancel also drops any queued history file path —
   // otherwise it would attach to the next unrelated workspace open.
   const cancelSshDialog = (): void => {
+    if (sshDialogBusy) {
+      return;
+    }
     pendingHistoryFilePath = undefined;
     showSshDialog(false);
   };
@@ -1911,8 +1938,12 @@ function wireUi(): void {
   document.querySelector('[data-ssh-dismiss]')?.addEventListener('click', cancelSshDialog);
   document.getElementById('ssh-connect')?.addEventListener('click', () => void connectSshFromDialog());
   document.getElementById('ssh-auth')?.addEventListener('change', (e) => {
-    const v = (e.target as HTMLSelectElement).value as 'password' | 'key';
+    const v = (e.target as HTMLSelectElement).value as SshAuthMode;
     setSshAuthMode(v);
+  });
+  document.getElementById('ssh-host-select')?.addEventListener('change', (e) => {
+    const host = document.getElementById('ssh-host') as HTMLInputElement | null;
+    if (host) host.value = (e.target as HTMLSelectElement).value;
   });
   document.getElementById('ssh-key-file')?.addEventListener('change', async (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -2134,6 +2165,9 @@ function wireModalKeyboard(): void {
     const ssh = document.getElementById('ssh-dialog');
     if (ssh && !ssh.hidden) {
       e.preventDefault();
+      if (sshDialogBusy) {
+        return;
+      }
       pendingHistoryFilePath = undefined;
       showSshDialog(false);
     }
@@ -2158,6 +2192,11 @@ function showSshDialog(show: boolean): void {
       if (port) port.value = d.port;
       if (user) user.value = d.username;
       if (root) root.value = d.root;
+      const auth = document.getElementById('ssh-auth') as HTMLSelectElement | null;
+      if (auth) auth.value = d.authMode;
+      const hostSelect = document.getElementById('ssh-host-select') as HTMLSelectElement | null;
+      if (hostSelect) delete hostSelect.dataset.loaded;
+      setSshAuthMode(d.authMode);
       const err = document.getElementById('ssh-error');
       if (err) {
         err.hidden = true;
@@ -2168,11 +2207,99 @@ function showSshDialog(show: boolean): void {
   }
 }
 
-function setSshAuthMode(mode: 'password' | 'key'): void {
+function setSshAuthMode(mode: SshAuthMode): void {
   const pw = document.getElementById('ssh-password-row');
   const key = document.getElementById('ssh-key-row');
+  const passphrase = document.getElementById('ssh-passphrase-row');
+  const openSshHint = document.getElementById('ssh-openssh-hint');
+  const host = document.getElementById('ssh-host') as HTMLInputElement | null;
+  const hostSelect = document.getElementById('ssh-host-select') as HTMLSelectElement | null;
   if (pw) pw.hidden = mode !== 'password';
   if (key) key.hidden = mode !== 'key';
+  if (passphrase) passphrase.hidden = mode === 'password';
+  if (openSshHint) openSshHint.hidden = mode !== 'openssh';
+  if (host) host.hidden = mode === 'openssh';
+  if (hostSelect) hostSelect.hidden = mode !== 'openssh';
+  if (mode === 'openssh' && hostSelect?.dataset.loaded !== 'true') {
+    void loadOpenSshHostOptions();
+  }
+}
+
+async function loadOpenSshHostOptions(): Promise<void> {
+  if (sshHostsLoading) {
+    return sshHostsLoading;
+  }
+  sshHostsLoading = (async () => {
+    const input = document.getElementById('ssh-host') as HTMLInputElement | null;
+    const select = document.getElementById('ssh-host-select') as HTMLSelectElement | null;
+    if (!select) {
+      return;
+    }
+    select.disabled = true;
+    select.replaceChildren(new Option('正在读取 OpenSSH 配置…', ''));
+    try {
+      const listed = await sshListOpenSshHosts();
+      const hosts = [...new Set(listed)];
+      const preferred = input?.value.trim() || '';
+      select.replaceChildren();
+      if (hosts.length === 0) {
+        select.append(new Option('未在 ~/.ssh/config 中找到 Host', ''));
+        select.disabled = true;
+      } else {
+        for (const alias of hosts) {
+          select.append(new Option(alias, alias));
+        }
+        select.value = preferred && hosts.includes(preferred) ? preferred : hosts[0];
+        select.disabled = sshDialogBusy;
+        if (input) input.value = select.value;
+      }
+      select.dataset.loaded = 'true';
+    } catch (error) {
+      select.replaceChildren(
+        new Option(
+          error instanceof Error ? `读取失败：${error.message}` : '读取 OpenSSH 配置失败',
+          '',
+        ),
+      );
+      select.disabled = true;
+      delete select.dataset.loaded;
+    }
+  })();
+  try {
+    await sshHostsLoading;
+  } finally {
+    sshHostsLoading = null;
+  }
+}
+
+function setSshDialogBusy(busy: boolean, status = ''): void {
+  sshDialogBusy = busy;
+  const dialog = document.getElementById('ssh-dialog');
+  const card = dialog?.querySelector<HTMLElement>('.ssh-dialog-card');
+  const progress = document.getElementById('ssh-progress');
+  const progressText = document.getElementById('ssh-progress-text');
+  const connectBtn = document.getElementById('ssh-connect') as HTMLButtonElement | null;
+
+  if (dialog) {
+    dialog.dataset.busy = String(busy);
+  }
+  if (card) {
+    card.setAttribute('aria-busy', String(busy));
+    for (const control of card.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>(
+      'input, select, button',
+    )) {
+      control.disabled = busy;
+    }
+  }
+  if (progress) {
+    progress.hidden = !busy;
+  }
+  if (progressText && status) {
+    progressText.textContent = status;
+  }
+  if (connectBtn) {
+    connectBtn.textContent = busy ? '请稍候…' : connectBtn.dataset.label || '连接';
+  }
 }
 
 /* —— WSL dialog —— */
@@ -2420,6 +2547,9 @@ async function openWslFileInTab(): Promise<void> {
 }
 
 async function connectSshFromDialog(): Promise<void> {
+  if (sshDialogBusy) {
+    return;
+  }
   const errEl = document.getElementById('ssh-error');
   const connectBtn = document.getElementById('ssh-connect') as HTMLButtonElement | null;
   const showErr = (msg: string) => {
@@ -2433,57 +2563,64 @@ async function connectSshFromDialog(): Promise<void> {
   const port = Number((document.getElementById('ssh-port') as HTMLInputElement).value) || 22;
   const username = (document.getElementById('ssh-user') as HTMLInputElement).value.trim();
   const root = (document.getElementById('ssh-root') as HTMLInputElement).value.trim() || '.';
-  const auth = (document.getElementById('ssh-auth') as HTMLSelectElement).value as
-    | 'password'
-    | 'key';
+  const auth = (document.getElementById('ssh-auth') as HTMLSelectElement)
+    .value as SshAuthMode;
+  const selectedOpenSshHost = (
+    document.getElementById('ssh-host-select') as HTMLSelectElement | null
+  )?.value.trim();
+  const connectionHost = auth === 'openssh' ? selectedOpenSshHost || '' : host;
   const password = (document.getElementById('ssh-password') as HTMLInputElement).value;
   const passphrase = (document.getElementById('ssh-passphrase') as HTMLInputElement).value;
 
-  if (!host || !username) {
-    showErr('请填写主机和用户名');
-    return;
-  }
-
-  const health = await sshHealth();
-  if (!health.ok) {
-    showErr('SSH Bridge 未运行。请执行: cd ssh-bridge && npm install && npm start');
+  if (!connectionHost || (auth !== 'openssh' && !username)) {
+    showErr(auth === 'openssh' ? '请填写 OpenSSH Host 别名' : '请填写主机和用户名');
     return;
   }
 
   if (connectBtn) {
-    connectBtn.disabled = true;
     connectBtn.dataset.label = connectBtn.textContent || '';
-    connectBtn.textContent = '连接中…';
   }
+  if (errEl) {
+    errEl.hidden = true;
+    errEl.textContent = '';
+  }
+  setSshDialogBusy(true, '正在检查本机 Bridge…');
   try {
+    const health = await sshHealth();
+    if (!health.ok) {
+      throw new Error('SSH Bridge 未运行。请执行: cd ssh-bridge && npm install && npm start');
+    }
+
+    setSshDialogBusy(true, '正在连接 SSH…');
     const meta = await sshConnect({
-      host,
+      host: connectionHost,
       port,
       username,
+      authMode: auth,
       root,
       password: auth === 'password' ? password : undefined,
       privateKey: auth === 'key' ? sshPrivateKeyText || undefined : undefined,
-      passphrase: auth === 'key' && passphrase ? passphrase : undefined,
+      passphrase: auth !== 'password' && passphrase ? passphrase : undefined,
     });
     await saveSshFormDefaults({
-      host,
+      host: connectionHost,
       port: String(port),
       username,
       root,
+      authMode: auth,
     });
-    showSshDialog(false);
+    setSshDialogBusy(true, '正在扫描远程工作区…');
+    await enterSshWorkspace(meta);
+    setSshDialogBusy(true, '工作区已就绪，正在打开…');
     // Clear secrets from DOM
     (document.getElementById('ssh-password') as HTMLInputElement).value = '';
     (document.getElementById('ssh-passphrase') as HTMLInputElement).value = '';
     sshPrivateKeyText = '';
-    await enterSshWorkspace(meta);
+    showSshDialog(false);
   } catch (e) {
     showErr(e instanceof Error ? e.message : String(e));
   } finally {
-    if (connectBtn) {
-      connectBtn.disabled = false;
-      connectBtn.textContent = connectBtn.dataset.label || '连接';
-    }
+    setSshDialogBusy(false);
   }
 }
 

@@ -613,6 +613,34 @@
       .ssh-error[hidden] {
         display: none !important;
       }
+      .ssh-progress {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 18px;
+        margin: 0 22px 10px;
+        color: var(--vscode-descriptionForeground, #aaa);
+        font-size: 12px;
+      }
+      .ssh-progress[hidden] {
+        display: none !important;
+      }
+      .ssh-progress-spinner {
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
+        box-sizing: border-box;
+        border: 2px solid color-mix(in srgb, var(--acc, #007acc) 28%, transparent);
+        border-top-color: var(--acc, #007acc);
+        border-radius: 50%;
+        animation: ssh-progress-spin 0.75s linear infinite;
+      }
+      @keyframes ssh-progress-spin {
+        to { transform: rotate(360deg); }
+      }
+      #ssh-dialog[data-busy='true'] .ssh-dialog-backdrop {
+        cursor: wait;
+      }
       .ssh-actions {
         display: flex;
         flex-wrap: wrap;
@@ -1678,6 +1706,9 @@
           <label class="dlg-field">
             <span class="dlg-field-label">主机</span>
             <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" />
+            <select id="ssh-host-select" aria-label="OpenSSH Host" hidden>
+              <option value="">正在读取 OpenSSH 配置…</option>
+            </select>
           </label>
           <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
             <label class="dlg-field">
@@ -1698,7 +1729,12 @@
             <select id="ssh-auth">
               <option value="password">密码</option>
               <option value="key">私钥</option>
+              <option value="openssh">本机 OpenSSH 配置</option>
             </select>
+            <span class="dlg-field-hint" id="ssh-openssh-hint" hidden>
+              主机填写 <code>~/.ssh/config</code> 中的 Host 别名；端口、用户名和私钥由 Bridge
+              自动解析。
+            </span>
           </label>
           <label class="dlg-field" id="ssh-password-row">
             <span class="dlg-field-label">密码</span>
@@ -1709,13 +1745,17 @@
               <span class="dlg-field-label">私钥文件</span>
               <input id="ssh-key-file" type="file" />
             </label>
-            <label class="dlg-field">
-              <span class="dlg-field-label">私钥口令（可选）</span>
-              <input id="ssh-passphrase" type="password" autocomplete="off" />
-            </label>
           </div>
+          <label class="dlg-field" id="ssh-passphrase-row" hidden>
+            <span class="dlg-field-label">私钥口令（可选）</span>
+            <input id="ssh-passphrase" type="password" autocomplete="off" />
+          </label>
         </div>
         <p class="ssh-error" id="ssh-error" hidden></p>
+        <p class="ssh-progress" id="ssh-progress" role="status" aria-live="polite" hidden>
+          <span class="ssh-progress-spinner" aria-hidden="true"></span>
+          <span id="ssh-progress-text">正在连接…</span>
+        </p>
         <div class="ssh-actions">
           <button type="button" class="secondary" id="ssh-cancel">取消</button>
           <button type="button" id="ssh-connect">连接</button>

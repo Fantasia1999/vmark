@@ -10,6 +10,7 @@ export interface SshHistoryTarget {
   port: number;
   username: string;
   root: string;
+  authMode?: 'password' | 'key' | 'openssh';
 }
 
 export interface WslHistoryTarget {

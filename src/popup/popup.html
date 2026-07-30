@@ -355,6 +355,9 @@
       <label class="field">
         <span class="field-label">主机</span>
         <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" />
+        <select id="ssh-host-select" aria-label="OpenSSH Host" hidden>
+          <option value="">正在读取 OpenSSH 配置…</option>
+        </select>
       </label>
       <div class="field-row">
         <label class="field">
@@ -375,7 +378,11 @@
         <select id="ssh-auth">
           <option value="password">密码</option>
           <option value="key">私钥</option>
+          <option value="openssh">本机 OpenSSH 配置</option>
         </select>
+        <span class="field-hint" id="ssh-openssh-hint" hidden>
+          主机填写 ~/.ssh/config 中的 Host 别名；其余连接信息由 Bridge 自动解析。
+        </span>
       </label>
       <label class="field" id="ssh-password-row">
         <span class="field-label">密码</span>
@@ -386,11 +393,11 @@
           <span class="field-label">私钥文件</span>
           <input id="ssh-key-file" type="file" />
         </label>
-        <label class="field">
-          <span class="field-label">私钥口令（可选）</span>
-          <input id="ssh-passphrase" type="password" autocomplete="off" />
-        </label>
       </div>
+      <label class="field" id="ssh-passphrase-row" hidden>
+        <span class="field-label">私钥口令（可选）</span>
+        <input id="ssh-passphrase" type="password" autocomplete="off" />
+      </label>
       <p class="error" id="ssh-error" hidden></p>
       <div class="actions">
         <button type="button" class="secondary" data-back>取消</button>

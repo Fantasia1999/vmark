@@ -12,7 +12,8 @@
     "smoke": "node scripts/smoke-render.mjs",
     "icons": "python3 scripts/generate-icons.py",
     "ssh-bridge": "npm --prefix ssh-bridge start",
-    "ssh-bridge:install": "npm --prefix ssh-bridge install"
+    "ssh-bridge:install": "npm --prefix ssh-bridge install",
+    "diagnose:ssh": "node scripts/diagnose-ssh-workspace.mjs"
   },
   "dependencies": {
     "@vscode/markdown-it-katex": "^1.1.2",

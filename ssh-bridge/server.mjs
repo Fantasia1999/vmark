@@ -15,6 +15,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Client } from 'ssh2';
+import {
+  buildRemoteFindCommand,
+  parseRemoteFindOutput,
+} from './remoteFind.mjs';
+import {
+  listOpenSshHosts,
+  resolveOpenSshConnection,
+} from './opensshConfig.mjs';
+import { attrsLookLikeDir, classifySftpEntry } from './sftpEntry.mjs';
 import * as wsl from './wsl.mjs';
 
 const PORT = Number(process.env.PORT || 17823);
@@ -72,6 +81,9 @@ const SKIP = new Set([
 const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i;
 const MAX_MD = 2000;
 const MAX_DEPTH = 12;
+// SFTP requests are latency-bound on remote hosts. A serial directory walk can
+// take minutes on a large repository, so issue a small bounded batch at once.
+const LIST_CONCURRENCY = 16;
 
 function json(res, status, body) {
   const data = JSON.stringify(body);
@@ -175,6 +187,7 @@ function connectSsh(opts) {
         password: opts.password || undefined,
         privateKey: opts.privateKey || undefined,
         passphrase: opts.passphrase || undefined,
+        agent: opts.agent || undefined,
         readyTimeout: opts.timeoutMs || 20000,
         // Detect dead TCP connections (laptop sleep, NAT drop) instead of
         // reporting connected:true forever.
@@ -229,6 +242,36 @@ function listDir(sftp, remotePath) {
   });
 }
 
+function statRemote(sftp, remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.stat(remotePath, (err, attrs) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(attrs);
+      }
+    });
+  });
+}
+
+/**
+ * Resolve readdir entry kind. Incomplete attrs / symlinks need a follow-up
+ * stat so directory walks still descend (otherwise /list returns []).
+ */
+async function resolveEntryKind(sftp, entry, absolutePath) {
+  const kind = classifySftpEntry(entry);
+  if (kind !== 'unknown') {
+    return kind;
+  }
+  try {
+    const attrs = await statRemote(sftp, absolutePath);
+    return attrsLookLikeDir(attrs) ? 'dir' : 'file';
+  } catch {
+    // Broken symlink or unreadable path — do not treat as a walkable dir.
+    return 'file';
+  }
+}
+
 function readFile(sftp, remotePath) {
   return new Promise((resolve, reject) => {
     sftp.readFile(remotePath, (err, data) => {
@@ -237,6 +280,63 @@ function readFile(sftp, remotePath) {
       } else {
         resolve(data);
       }
+    });
+  });
+}
+
+function execRemote(client, command, maxBytes = 16 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    client.exec(command, (error, stream) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      const chunks = [];
+      const stderrChunks = [];
+      let size = 0;
+      let settled = false;
+
+      stream.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > maxBytes) {
+          if (!settled) {
+            settled = true;
+            stream.close();
+            reject(new Error('remote list output too large'));
+          }
+          return;
+        }
+        chunks.push(chunk);
+      });
+      stream.stderr.on('data', (chunk) => {
+        if (stderrChunks.reduce((sum, item) => sum + item.length, 0) < 64 * 1024) {
+          stderrChunks.push(chunk);
+        }
+      });
+      stream.on('error', (streamError) => {
+        if (!settled) {
+          settled = true;
+          reject(streamError);
+        }
+      });
+      stream.on('close', (code, signal) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        if (code !== 0) {
+          const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+          reject(
+            new Error(
+              `remote list command failed (${code ?? signal ?? 'unknown'})${
+                stderr ? `: ${stderr}` : ''
+              }`,
+            ),
+          );
+          return;
+        }
+        resolve(Buffer.concat(chunks));
+      });
     });
   });
 }
@@ -257,52 +357,100 @@ async function listMarkdown(rootRel) {
   if (!session) {
     throw new Error('not connected');
   }
-  const { sftp, meta } = session;
+  const { client, sftp, meta } = session;
   const out = [];
   const rootAbs = await realpath(sftp, joinRemote(meta.root, rootRel || ''));
+  const rootPrefix = meta.root.endsWith('/') ? meta.root : `${meta.root}/`;
+  if (rootAbs !== meta.root && !rootAbs.startsWith(rootPrefix)) {
+    throw new Error('path outside workspace root');
+  }
+  const findCommand = buildRemoteFindCommand(rootAbs, {
+    maxDepth: MAX_DEPTH,
+    maxFiles: MAX_MD,
+    skip: SKIP,
+  });
 
-  async function walk(absDir, rel, depth) {
-    if (depth > MAX_DEPTH || out.length >= MAX_MD) {
-      return;
-    }
-    let entries;
-    try {
-      entries = await listDir(sftp, absDir);
-    } catch (e) {
-      if (depth === 0) {
-        // Root listing failure = dead connection or bad permissions; surface
-        // it instead of returning an empty tree that looks like "no files".
-        throw e;
-      }
-      return;
-    }
-    for (const e of entries) {
+  // One remote command avoids thousands of latency-bound SFTP round trips.
+  // Fall back to SFTP for restricted shells and systems without GNU head/find.
+  try {
+    const output = await execRemote(client, findCommand);
+    const files = parseRemoteFindOutput(output, rootAbs, MAX_MD);
+    files.sort((a, b) => a.path.localeCompare(b.path));
+    return files;
+  } catch (error) {
+    console.error(
+      `[ssh-bridge] remote bulk list unavailable, falling back to SFTP: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const pending = [{ absDir: rootAbs, rel: '', depth: 0 }];
+
+  // Breadth-first batches let independent readdir requests overlap while
+  // keeping memory, server load, and traversal depth bounded.
+  while (pending.length > 0 && out.length < MAX_MD) {
+    const batch = pending.splice(0, LIST_CONCURRENCY);
+    const listings = await Promise.all(
+      batch.map(async (dir) => {
+        try {
+          return { dir, entries: await listDir(sftp, dir.absDir) };
+        } catch (error) {
+          if (dir.depth === 0) {
+            // Root listing failure = dead connection or bad permissions;
+            // surface it instead of returning an empty tree.
+            throw error;
+          }
+          return { dir, entries: [] };
+        }
+      }),
+    );
+
+    for (const { dir, entries } of listings) {
       if (out.length >= MAX_MD) {
         break;
       }
-      const name = e.filename;
-      if (!name || name === '.' || name === '..') {
-        continue;
-      }
-      const childRel = rel ? `${rel}/${name}` : name;
-      const childAbs = absDir.endsWith('/') ? `${absDir}${name}` : `${absDir}/${name}`;
-      const isDir = (e.attrs.mode & 0o170000) === 0o040000;
-      if (isDir) {
-        if (SKIP.has(name) || name.startsWith('.')) {
-          continue;
+      // Classify (and stat unknowns) in parallel so incomplete attrs / symlinks
+      // do not serialize the whole directory.
+      const resolved = await Promise.all(
+        entries.map(async (entry) => {
+          const name = entry.filename;
+          if (!name || name === '.' || name === '..') {
+            return null;
+          }
+          const childRel = dir.rel ? `${dir.rel}/${name}` : name;
+          const childAbs = dir.absDir.endsWith('/')
+            ? `${dir.absDir}${name}`
+            : `${dir.absDir}/${name}`;
+          const kind = await resolveEntryKind(sftp, entry, childAbs);
+          return { name, childRel, childAbs, kind };
+        }),
+      );
+
+      for (const item of resolved) {
+        if (!item || out.length >= MAX_MD) {
+          break;
         }
-        await walk(childAbs, childRel, depth + 1);
-      } else if (MD_RE.test(name)) {
-        out.push({
-          path: childRel,
-          name,
-          dir: rel,
-        });
+        const { name, childRel, childAbs, kind } = item;
+        if (kind === 'dir') {
+          if (
+            dir.depth < MAX_DEPTH &&
+            !SKIP.has(name) &&
+            !name.startsWith('.')
+          ) {
+            pending.push({ absDir: childAbs, rel: childRel, depth: dir.depth + 1 });
+          }
+        } else if (kind === 'file' && MD_RE.test(name)) {
+          out.push({
+            path: childRel,
+            name,
+            dir: dir.rel,
+          });
+        }
       }
     }
   }
 
-  await walk(rootAbs, '', 0);
   out.sort((a, b) => a.path.localeCompare(b.path));
   return out;
 }
@@ -364,28 +512,53 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/ssh/hosts') {
+      json(res, 200, { hosts: listOpenSshHosts() });
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/connect') {
       const body = JSON.parse((await readBody(req)) || '{}');
-      if (!body.host || !body.username) {
-        json(res, 400, { error: 'host and username required' });
+      const authMode = String(body.authMode || '');
+      const useOpenSshConfig = authMode === 'openssh' || body.useOpenSshConfig === true;
+      if (!body.host || (!useOpenSshConfig && !body.username)) {
+        json(res, 400, {
+          error: useOpenSshConfig ? 'host alias required' : 'host and username required',
+        });
         return;
       }
-      if (!body.password && !body.privateKey) {
+      if (!useOpenSshConfig && !body.password && !body.privateKey) {
         json(res, 400, { error: 'password or privateKey required' });
         return;
       }
+      const resolved = useOpenSshConfig
+        ? await resolveOpenSshConnection(
+            String(body.host),
+            body.passphrase ? String(body.passphrase) : undefined,
+          )
+        : {
+            alias: null,
+            host: String(body.host),
+            port: Number(body.port) || 22,
+            username: String(body.username),
+            password: body.password ? String(body.password) : undefined,
+            privateKey: body.privateKey ? String(body.privateKey) : undefined,
+            passphrase: body.passphrase ? String(body.passphrase) : undefined,
+            agent: undefined,
+          };
       // SFTP has no tilde expansion (that is an ssh-client feature); '~'
       // resolves against the login cwd, which realpath('.') reaches.
       const rawRoot = body.root ? String(body.root) : '.';
       const rootInput =
         rawRoot === '~' ? '.' : rawRoot.startsWith('~/') ? rawRoot.slice(2) : rawRoot;
       const { client, sftp } = await connectSsh({
-        host: String(body.host),
-        port: Number(body.port) || 22,
-        username: String(body.username),
-        password: body.password ? String(body.password) : undefined,
-        privateKey: body.privateKey ? String(body.privateKey) : undefined,
-        passphrase: body.passphrase ? String(body.passphrase) : undefined,
+        host: resolved.host,
+        port: resolved.port,
+        username: resolved.username,
+        password: resolved.password,
+        privateKey: resolved.privateKey,
+        passphrase: resolved.passphrase,
+        agent: resolved.agent,
       });
       // validate root before replacing any existing working session
       let rootAbs;
@@ -401,11 +574,12 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const meta = {
-        host: String(body.host),
-        port: Number(body.port) || 22,
-        username: String(body.username),
+        host: resolved.alias || resolved.host,
+        port: resolved.port,
+        username: resolved.username,
         root: rootAbs,
         connectedAt: Date.now(),
+        authMode: useOpenSshConfig ? 'openssh' : authMode || undefined,
       };
       adoptSession(client, sftp, meta);
       json(res, 200, { ok: true, meta });
@@ -499,8 +673,9 @@ const server = http.createServer(async (req, res) => {
         json(res, 409, { error: 'not connected' });
         return;
       }
+      const meta = session.meta;
       const files = await listMarkdown(url.searchParams.get('path') || '');
-      json(res, 200, { files, meta: session.meta });
+      json(res, 200, { files, meta });
       return;
     }
 

@@ -108,6 +108,15 @@ describe('ssh-bridge server', { skip: !depsInstalled && 'ssh-bridge deps not ins
     assert.equal(body.authorized, true);
   });
 
+  it('/ssh/hosts returns a token-protected alias list', async () => {
+    const res = await fetch(`${BASE}/ssh/hosts`, {
+      headers: { 'X-Bridge-Token': TOKEN },
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { hosts?: unknown };
+    assert.ok(Array.isArray(body.hosts));
+  });
+
   it('/read without a session returns 409', async () => {
     const res = await fetch(`${BASE}/read?path=a.md`, {
       headers: { 'X-Bridge-Token': TOKEN },
