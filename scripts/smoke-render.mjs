@@ -4,7 +4,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import esbuild from 'esbuild';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,7 +24,7 @@ try {
   });
 
   // dynamic import bundled engine
-  const { MarkdownPreviewEngine } = await import(outfile);
+  const { MarkdownPreviewEngine } = await import(pathToFileURL(outfile).href);
   const md = readFileSync(join(root, 'fixtures/sample.md'), 'utf8');
   const engine = new MarkdownPreviewEngine({
     autoPreview: true,
