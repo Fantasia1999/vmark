@@ -28,7 +28,8 @@ describe('buildListMarkdownScript', () => {
   it('prunes hidden paths and safely quotes the workspace root', () => {
     const script = buildListMarkdownScript("/home/u/it's docs");
     assert.match(script, /-path '\*\/\.\*'/);
-    assert.match(script, /cd '\/home\/u\/it'\\''s docs'/);
+    // POSIX single-quote escape via end-quote + "\"'\" + reopen (shared shellQuote).
+    assert.match(script, /cd '\/home\/u\/it'"'"'s docs'/);
   });
 });
 

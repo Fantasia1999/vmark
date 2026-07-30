@@ -359,7 +359,7 @@
           <option value="">正在读取 OpenSSH 配置…</option>
         </select>
       </label>
-      <div class="field-row">
+      <div class="field-row" id="ssh-manual-endpoint-fields">
         <label class="field">
           <span class="field-label">端口</span>
           <input id="ssh-port" type="number" value="22" min="1" max="65535" />
@@ -381,7 +381,8 @@
           <option value="openssh">本机 OpenSSH 配置</option>
         </select>
         <span class="field-hint" id="ssh-openssh-hint" hidden>
-          主机填写 ~/.ssh/config 中的 Host 别名；其余连接信息由 Bridge 自动解析。
+          从 ~/.ssh/config 选择 Host 别名；用户名、端口与 IdentityFile 由 Bridge 在本机解析。
+          需可读取的密钥或 SSH Agent；暂不支持 ProxyJump / ProxyCommand。
         </span>
       </label>
       <label class="field" id="ssh-password-row">

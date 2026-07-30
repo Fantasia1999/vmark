@@ -3,6 +3,8 @@
  * Local FS handles are not serializable — local entries store names only.
  */
 
+import type { SshAuthMode } from './sshClient';
+
 export type HistorySource = 'local' | 'ssh' | 'wsl';
 
 export interface SshHistoryTarget {
@@ -10,7 +12,7 @@ export interface SshHistoryTarget {
   port: number;
   username: string;
   root: string;
-  authMode?: 'password' | 'key' | 'openssh';
+  authMode?: SshAuthMode;
 }
 
 export interface WslHistoryTarget {

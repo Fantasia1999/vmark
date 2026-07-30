@@ -1710,15 +1710,17 @@
               <option value="">正在读取 OpenSSH 配置…</option>
             </select>
           </label>
-          <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
-            <label class="dlg-field">
-              <span class="dlg-field-label">端口</span>
-              <input id="ssh-port" type="number" value="22" min="1" max="65535" />
-            </label>
-            <label class="dlg-field">
-              <span class="dlg-field-label">用户名</span>
-              <input id="ssh-user" type="text" autocomplete="username" />
-            </label>
+          <div id="ssh-manual-endpoint-fields">
+            <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
+              <label class="dlg-field">
+                <span class="dlg-field-label">端口</span>
+                <input id="ssh-port" type="number" value="22" min="1" max="65535" />
+              </label>
+              <label class="dlg-field">
+                <span class="dlg-field-label">用户名</span>
+                <input id="ssh-user" type="text" autocomplete="username" />
+              </label>
+            </div>
           </div>
           <label class="dlg-field">
             <span class="dlg-field-label">远程根目录</span>
@@ -1732,8 +1734,9 @@
               <option value="openssh">本机 OpenSSH 配置</option>
             </select>
             <span class="dlg-field-hint" id="ssh-openssh-hint" hidden>
-              主机填写 <code>~/.ssh/config</code> 中的 Host 别名；端口、用户名和私钥由 Bridge
-              自动解析。
+              从 <code>~/.ssh/config</code> 选择 Host 别名；用户名、端口与 IdentityFile 由
+              Bridge 在本机解析。需可读取的密钥或 SSH Agent；暂不支持 ProxyJump /
+              ProxyCommand。
             </span>
           </label>
           <label class="dlg-field" id="ssh-password-row">

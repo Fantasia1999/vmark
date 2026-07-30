@@ -6,29 +6,16 @@
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import {
+  MAX_DEPTH,
+  MAX_MD,
+  MD_RE,
+  PREVIEW_PATTERNS,
+  SKIP,
+} from './previewConstants.mjs';
+import { shellQuote } from './shellQuote.mjs';
 
 const execFileAsync = promisify(execFile);
-
-const SKIP = new Set([
-  'node_modules',
-  '.git',
-  '.svn',
-  '.hg',
-  'dist',
-  'out',
-  'build',
-  '.next',
-  '.cache',
-  'coverage',
-  '__pycache__',
-  '.venv',
-  'venv',
-  'target',
-]);
-
-const MD_RE = /\.(md|markdown|mdown|mkd|mdx|txt|svg)$/i;
-const PREVIEW_GLOBS = ['*.md', '*.markdown', '*.mdown', '*.mkd', '*.mdx', '*.txt', '*.svg'];
-const MAX_MD = 2000;
 
 export function isWindowsHost() {
   return process.platform === 'win32';
@@ -64,10 +51,6 @@ export async function listDistros() {
     .filter(Boolean)
     // drop docker-desktop noise if present
     .filter((n) => !/^docker-desktop/i.test(n));
-}
-
-function shellQuote(s) {
-  return `'${String(s).replace(/'/g, `'\\''`)}'`;
 }
 
 /**
@@ -211,12 +194,12 @@ fi
  */
 export function buildListMarkdownScript(rootAbs) {
   const prune = [...SKIP].map((d) => `-name ${shellQuote(d)}`).join(' -o ');
-  const preview = PREVIEW_GLOBS.map((glob) => `-iname ${shellQuote(glob)}`).join(' -o ');
+  const preview = PREVIEW_PATTERNS.map((glob) => `-iname ${shellQuote(glob)}`).join(' -o ');
   return `
 set -e
 cd ${shellQuote(rootAbs)}
 # Prune heavy/hidden trees, select previewable files, then apply the result cap.
-find . -maxdepth 12 \\( -path '*/.*' -o ${prune} \\) -prune -o -type f \\( ${preview} \\) -print 2>/dev/null | head -n ${MAX_MD}
+find . -maxdepth ${MAX_DEPTH} \\( -path '*/.*' -o ${prune} \\) -prune -o -type f \\( ${preview} \\) -print 2>/dev/null | head -n ${MAX_MD}
 `;
 }
 

@@ -13,17 +13,32 @@ export interface SshBridgeSettings {
 
 export type SshAuthMode = 'password' | 'key' | 'openssh';
 
-export interface SshConnectParams {
-  host: string;
-  port?: number;
-  username?: string;
-  authMode?: SshAuthMode;
-  password?: string;
-  privateKey?: string;
-  passphrase?: string;
-  /** Remote workspace root path (absolute or ~) */
-  root?: string;
-}
+/** Connect payload for the local bridge. Required fields depend on authMode. */
+export type SshConnectParams =
+  | {
+      authMode: 'password';
+      host: string;
+      port?: number;
+      username: string;
+      password: string;
+      root?: string;
+    }
+  | {
+      authMode: 'key';
+      host: string;
+      port?: number;
+      username: string;
+      privateKey: string;
+      passphrase?: string;
+      root?: string;
+    }
+  | {
+      authMode: 'openssh';
+      /** OpenSSH Host alias from ~/.ssh/config */
+      host: string;
+      passphrase?: string;
+      root?: string;
+    };
 
 export interface SshSessionMeta {
   host: string;
@@ -421,17 +436,37 @@ function escapeHtml(s: string): string {
 }
 
 export async function sshConnect(params: SshConnectParams): Promise<SshSessionMeta> {
-  const data = await request<{ ok: boolean; meta: SshSessionMeta }>('POST', '/connect', {
-    host: params.host,
-    port: params.port ?? 22,
-    username: params.username,
-    authMode: params.authMode,
-    useOpenSshConfig: params.authMode === 'openssh',
-    password: params.password,
-    privateKey: params.privateKey,
-    passphrase: params.passphrase,
-    root: params.root || '.',
-  });
+  const body =
+    params.authMode === 'openssh'
+      ? {
+          host: params.host,
+          authMode: 'openssh' as const,
+          passphrase: params.passphrase,
+          root: params.root || '.',
+        }
+      : params.authMode === 'password'
+        ? {
+            host: params.host,
+            port: params.port ?? 22,
+            username: params.username,
+            authMode: 'password' as const,
+            password: params.password,
+            root: params.root || '.',
+          }
+        : {
+            host: params.host,
+            port: params.port ?? 22,
+            username: params.username,
+            authMode: 'key' as const,
+            privateKey: params.privateKey,
+            passphrase: params.passphrase,
+            root: params.root || '.',
+          };
+  const data = await request<{ ok: boolean; meta: SshSessionMeta }>(
+    'POST',
+    '/connect',
+    body,
+  );
   return data.meta;
 }
 

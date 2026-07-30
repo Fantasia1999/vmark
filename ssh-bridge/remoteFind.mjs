@@ -4,20 +4,10 @@
  * containment rules independently testable.
  */
 
-export const PREVIEW_PATTERNS = [
-  '*.md',
-  '*.markdown',
-  '*.mdown',
-  '*.mkd',
-  '*.mdx',
-  '*.txt',
-  '*.svg',
-];
+import { PREVIEW_PATTERNS } from './previewConstants.mjs';
+import { shellQuote } from './shellQuote.mjs';
 
-/** Quote one value for a POSIX shell without allowing interpolation. */
-export function shellQuote(value) {
-  return `'${String(value).replaceAll("'", `'\"'\"'`)}'`;
-}
+export { PREVIEW_PATTERNS, shellQuote };
 
 /**
  * Use find + NUL records so spaces and newlines in filenames remain intact.
