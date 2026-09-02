@@ -340,15 +340,13 @@
         text-align: left;
         cursor: pointer;
         transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
-        box-shadow: var(--sh-1);
+          background var(--dur) var(--ease);
         box-sizing: border-box;
         font: inherit;
       }
 
       .wb-action-card:hover {
         transform: translateY(-1px);
-        box-shadow: var(--sh-2);
         border-color: color-mix(in srgb, var(--card-accent, var(--acc)) 60%, var(--vscode-editorWidget-border, #454545));
         background: color-mix(in srgb, var(--card-accent, var(--acc)) 5%, var(--vscode-editorWidget-background, #252526));
       }
@@ -2336,9 +2334,9 @@
 
             <!-- Options Button -->
             <button type="button" class="wb-icon-btn" id="btn-options" title="选项与偏好设置" aria-label="选项与偏好设置">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round">
-                <path d="M6.4 1.6h3.2l.4 1.7c.45.15.88.38 1.25.66l1.6-.55 1.6 1.6-.55 1.6c.28.37.51.8.66 1.25l1.7.4v3.2l-1.7.4c-.15.45-.38.88-.66 1.25l.55 1.6-1.6 1.6-1.6-.55c-.37.28-.8.51-1.25.66l-.4 1.7H6.4l-.4-1.7a5.6 5.6 0 0 1-1.25-.66l-1.6.55-1.6-1.6.55-1.6A5.6 5.6 0 0 1 2.04 9.6L.34 9.2V6l1.7-.4c.15-.45.38-.88.66-1.25l-.55-1.6 1.6-1.6 1.6.55c.37-.28.8-.51 1.25-.66L6.4 1.6z"/>
-                <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.2"/>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8.15 1.33h-.3a1.33 1.33 0 0 0-1.33 1.33v.12a1.33 1.33 0 0 1-.67 1.15l-.3.17a1.33 1.33 0 0 1-1.33 0l-.1-.05a1.33 1.33 0 0 0-1.82.49l-.15.25a1.33 1.33 0 0 0 .49 1.82l.1.07a1.33 1.33 0 0 1 .67 1.15v.34a1.33 1.33 0 0 1-.67 1.16l-.1.06a1.33 1.33 0 0 0-.49 1.82l.15.25a1.33 1.33 0 0 0 1.82.49l.1-.05a1.33 1.33 0 0 1 1.33 0l.3.17a1.33 1.33 0 0 1 .67 1.15v.12a1.33 1.33 0 0 0 1.33 1.33h.3a1.33 1.33 0 0 0 1.33-1.33v-.12a1.33 1.33 0 0 1 .67-1.15l.3-.17a1.33 1.33 0 0 1 1.33 0l.1.05a1.33 1.33 0 0 0 1.82-.49l.15-.26a1.33 1.33 0 0 0-.49-1.82l-.1-.05a1.33 1.33 0 0 1-.67-1.16v-.33a1.33 1.33 0 0 1 .67-1.16l.1-.06a1.33 1.33 0 0 0 .49-1.82l-.15-.25a1.33 1.33 0 0 0-1.82-.49l-.1.05a1.33 1.33 0 0 1-1.33 0l-.3-.17a1.33 1.33 0 0 1-.67-1.15V2.66a1.33 1.33 0 0 0-1.33-1.33z"/>
+                <circle cx="8" cy="8" r="2.1" stroke-width="1.2"/>
               </svg>
             </button>
           </div>
