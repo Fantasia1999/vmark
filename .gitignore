@@ -4,3 +4,4 @@ dist/
 .DS_Store
 ssh-bridge/node_modules/
 .vscode-md-preview-ssh-token
+.idea/

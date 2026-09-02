@@ -517,6 +517,22 @@
         outline-offset: -1px;
         border-color: var(--vscode-focusBorder, #007fd4);
       }
+      .dlg-checkbox {
+        display: flex;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 8px;
+        margin: -4px 0 12px;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .dlg-checkbox input[type='checkbox'] {
+        width: auto !important;
+        margin: 0;
+        accent-color: var(--vscode-focusBorder, #007fd4);
+        cursor: pointer;
+      }
       #options-dialog .ssh-dialog-card {
         width: min(520px, 100%);
         max-height: min(92vh, 760px);
@@ -1743,6 +1759,10 @@
           <label class="dlg-field" id="ssh-password-row">
             <span class="dlg-field-label">密码</span>
             <input id="ssh-password" type="password" autocomplete="current-password" />
+          </label>
+          <label class="dlg-checkbox" id="ssh-remember-password-row">
+            <input id="ssh-remember-password" type="checkbox" />
+            <span>记住密码（保存在本地）</span>
           </label>
           <div id="ssh-key-row" hidden>
             <label class="dlg-field">

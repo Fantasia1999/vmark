@@ -22,10 +22,16 @@ const store: Record<string, unknown> = {};
 
 import {
   DEFAULT_SSH_BRIDGE_URL,
+  deleteSavedSshPassword,
   formatBridgeStatus,
+  getSshCredentialKey,
+  loadSavedSshPassword,
   loadSshBridgeSettings,
+  loadSshRememberPasswordPref,
   maskBridgeToken,
   saveSshBridgeSettings,
+  saveSshPassword,
+  saveSshRememberPasswordPref,
   type SshHealth,
 } from '../src/shared/sshClient';
 
@@ -112,5 +118,42 @@ describe('bridge URL normalization (regression)', () => {
     await saveSshBridgeSettings({ bridgeUrl: '' });
     const s = await loadSshBridgeSettings();
     assert.equal(s.bridgeUrl, DEFAULT_SSH_BRIDGE_URL);
+  });
+});
+
+describe('SSH credential storage & remember password helpers', () => {
+  it('formats credential keys correctly', () => {
+    assert.equal(getSshCredentialKey('192.168.1.1', 22, 'root'), 'root@192.168.1.1:22');
+    assert.equal(getSshCredentialKey('example.com', '2222', 'ubuntu'), 'ubuntu@example.com:2222');
+    assert.equal(getSshCredentialKey('  myserver  ', '', ''), 'myserver:22');
+  });
+
+  it('saves, loads, and deletes password by host key', async () => {
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'alice'), undefined);
+
+    await saveSshPassword('srv1.test', 22, 'alice', 'secret-alice');
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'alice'), 'secret-alice');
+
+    // Distinct user on same host has distinct password
+    await saveSshPassword('srv1.test', 22, 'bob', 'secret-bob');
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'bob'), 'secret-bob');
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'alice'), 'secret-alice');
+
+    // Deleting bob does not affect alice
+    await deleteSavedSshPassword('srv1.test', 22, 'bob');
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'bob'), undefined);
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'alice'), 'secret-alice');
+
+    // Delete alice
+    await deleteSavedSshPassword('srv1.test', 22, 'alice');
+    assert.equal(await loadSavedSshPassword('srv1.test', 22, 'alice'), undefined);
+  });
+
+  it('round-trips remember password preference', async () => {
+    await saveSshRememberPasswordPref(true);
+    assert.equal(await loadSshRememberPasswordPref(), true);
+
+    await saveSshRememberPasswordPref(false);
+    assert.equal(await loadSshRememberPasswordPref(), false);
   });
 });

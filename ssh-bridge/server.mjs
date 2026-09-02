@@ -292,12 +292,58 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse((await readBody(req)) || '{}');
       const authMode = String(body.authMode || '');
       const useOpenSshConfig = authMode === 'openssh';
+      const reuseSession = Boolean(body.reuseSession);
+
       if (!body.host || (!useOpenSshConfig && !body.username)) {
         json(res, 400, {
           error: useOpenSshConfig ? 'host alias required' : 'host and username required',
         });
         return;
       }
+
+      // SFTP has no tilde expansion (that is an ssh-client feature); '~'
+      // resolves against the login cwd, which realpath('.') reaches.
+      const rawRoot = body.root ? String(body.root) : '.';
+      const rootInput =
+        rawRoot === '~' ? '.' : rawRoot.startsWith('~/') ? rawRoot.slice(2) : rawRoot;
+
+      const targetHost = String(body.host);
+      const targetPort = Number(body.port) || 22;
+      const targetUser = String(body.username || '');
+
+      // Check for active session reuse:
+      // Reuse only when requested via reuseSession: true, or when credentials are omitted.
+      // If the client explicitly provided a new password or private key, we perform a fresh connect.
+      const shouldAttemptReuse =
+        reuseSession || (!body.password && !body.privateKey);
+
+      if (session && shouldAttemptReuse) {
+        const matchesSession =
+          (session.meta.host === targetHost || session.meta.alias === targetHost) &&
+          (useOpenSshConfig || (!targetUser || session.meta.username === targetUser)) &&
+          (useOpenSshConfig || session.meta.port === targetPort);
+
+        if (matchesSession) {
+          try {
+            const rootAbs = await realpath(session.sftp, joinRemote(rootInput, ''));
+            session.meta.root = rootAbs;
+            session.meta.connectedAt = Date.now();
+            if (authMode) {
+              session.meta.authMode = useOpenSshConfig ? 'openssh' : authMode;
+            }
+            json(res, 200, { ok: true, meta: session.meta, reused: true });
+            return;
+          } catch (e) {
+            if (reuseSession && !body.password && !body.privateKey && !useOpenSshConfig) {
+              json(res, 400, {
+                error: `无法复用会话: ${e instanceof Error ? e.message : String(e)}`,
+              });
+              return;
+            }
+          }
+        }
+      }
+
       if (!useOpenSshConfig && !body.password && !body.privateKey) {
         json(res, 400, { error: 'password or privateKey required' });
         return;
@@ -317,11 +363,6 @@ const server = http.createServer(async (req, res) => {
             passphrase: body.passphrase ? String(body.passphrase) : undefined,
             agent: undefined,
           };
-      // SFTP has no tilde expansion (that is an ssh-client feature); '~'
-      // resolves against the login cwd, which realpath('.') reaches.
-      const rawRoot = body.root ? String(body.root) : '.';
-      const rootInput =
-        rawRoot === '~' ? '.' : rawRoot.startsWith('~/') ? rawRoot.slice(2) : rawRoot;
       const { client, sftp } = await connectSsh({
         host: resolved.host,
         port: resolved.port,
@@ -345,6 +386,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const meta = {
+        alias: resolved.alias || undefined,
         host: resolved.alias || resolved.host,
         port: resolved.port,
         username: resolved.username,

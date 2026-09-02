@@ -20,17 +20,19 @@ export type SshConnectParams =
       host: string;
       port?: number;
       username: string;
-      password: string;
+      password?: string;
       root?: string;
+      reuseSession?: boolean;
     }
   | {
       authMode: 'key';
       host: string;
       port?: number;
       username: string;
-      privateKey: string;
+      privateKey?: string;
       passphrase?: string;
       root?: string;
+      reuseSession?: boolean;
     }
   | {
       authMode: 'openssh';
@@ -38,6 +40,7 @@ export type SshConnectParams =
       host: string;
       passphrase?: string;
       root?: string;
+      reuseSession?: boolean;
     };
 
 export interface SshSessionMeta {
@@ -88,7 +91,92 @@ const STORAGE_KEYS = {
   lastUser: 'sshLastUser',
   lastRoot: 'sshLastRoot',
   lastAuthMode: 'sshLastAuthMode',
+  rememberPassword: 'sshRememberPassword',
+  savedPasswords: 'sshSavedPasswords',
 } as const;
+
+export function getSshCredentialKey(
+  host: string,
+  port: number | string = 22,
+  username = '',
+): string {
+  const p = Number(port) || 22;
+  const u = username.trim();
+  const h = host.trim();
+  return u ? `${u}@${h}:${p}` : `${h}:${p}`;
+}
+
+export async function loadSshRememberPasswordPref(): Promise<boolean> {
+  try {
+    const s = await chrome.storage.local.get({
+      [STORAGE_KEYS.rememberPassword]: false,
+    });
+    return Boolean(s[STORAGE_KEYS.rememberPassword]);
+  } catch {
+    return false;
+  }
+}
+
+export async function saveSshRememberPasswordPref(remember: boolean): Promise<void> {
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.rememberPassword]: remember,
+  });
+}
+
+export async function loadSavedSshPassword(
+  host: string,
+  port: number | string = 22,
+  username = '',
+): Promise<string | undefined> {
+  if (!host.trim()) return undefined;
+  try {
+    const key = getSshCredentialKey(host, port, username);
+    const s = await chrome.storage.local.get({
+      [STORAGE_KEYS.savedPasswords]: {},
+    });
+    const map = (s[STORAGE_KEYS.savedPasswords] || {}) as Record<string, string>;
+    return typeof map[key] === 'string' ? map[key] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function saveSshPassword(
+  host: string,
+  port: number | string = 22,
+  username = '',
+  password = '',
+): Promise<void> {
+  if (!host.trim() || !password) return;
+  const key = getSshCredentialKey(host, port, username);
+  const s = await chrome.storage.local.get({
+    [STORAGE_KEYS.savedPasswords]: {},
+  });
+  const map = { ...((s[STORAGE_KEYS.savedPasswords] || {}) as Record<string, string>) };
+  map[key] = password;
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.savedPasswords]: map,
+  });
+}
+
+export async function deleteSavedSshPassword(
+  host: string,
+  port: number | string = 22,
+  username = '',
+): Promise<void> {
+  if (!host.trim()) return;
+  const key = getSshCredentialKey(host, port, username);
+  const s = await chrome.storage.local.get({
+    [STORAGE_KEYS.savedPasswords]: {},
+  });
+  const map = { ...((s[STORAGE_KEYS.savedPasswords] || {}) as Record<string, string>) };
+  if (key in map) {
+    delete map[key];
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.savedPasswords]: map,
+    });
+  }
+}
 
 export async function loadSshBridgeSettings(): Promise<SshBridgeSettings> {
   try {
@@ -443,6 +531,7 @@ export async function sshConnect(params: SshConnectParams): Promise<SshSessionMe
           authMode: 'openssh' as const,
           passphrase: params.passphrase,
           root: params.root || '.',
+          reuseSession: params.reuseSession,
         }
       : params.authMode === 'password'
         ? {
@@ -452,6 +541,7 @@ export async function sshConnect(params: SshConnectParams): Promise<SshSessionMe
             authMode: 'password' as const,
             password: params.password,
             root: params.root || '.',
+            reuseSession: params.reuseSession,
           }
         : {
             host: params.host,
@@ -461,6 +551,7 @@ export async function sshConnect(params: SshConnectParams): Promise<SshSessionMe
             privateKey: params.privateKey,
             passphrase: params.passphrase,
             root: params.root || '.',
+            reuseSession: params.reuseSession,
           };
   const data = await request<{ ok: boolean; meta: SshSessionMeta }>(
     'POST',

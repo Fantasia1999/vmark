@@ -34,14 +34,21 @@ import {
 } from '../shared/workspaceFs';
 import { takePendingEnter } from '../shared/pendingEnter';
 import {
+  deleteSavedSshPassword,
+  loadSavedSshPassword,
   loadSshFormDefaults,
+  loadSshRememberPasswordPref,
   saveSshFormDefaults,
+  saveSshPassword,
+  saveSshRememberPasswordPref,
   sshConnect,
   sshCreateObjectUrl,
   sshDisconnect,
   sshHealth,
   sshListMarkdown,
   sshReadText,
+  type SshAuthMode,
+  type SshConnectParams,
   type SshSessionMeta,
 } from '../shared/sshClient';
 import {
@@ -53,6 +60,7 @@ import {
   readSshConnectForm,
   setSshAuthMode,
   syncHostInputFromSelect,
+  wireSshFormAutoFill,
 } from '../shared/sshFormUi';
 import {
   loadWslFormDefaults,
@@ -446,6 +454,96 @@ async function restoreLocalWorkspaceFromHandle(localName?: string): Promise<bool
   }
 }
 
+async function connectSshWorkspaceDirect(
+  target: {
+    host: string;
+    port: number;
+    username: string;
+    root: string;
+    authMode?: SshAuthMode;
+  },
+  targetFilePath?: string,
+): Promise<boolean> {
+  try {
+    const health = await sshHealth();
+    if (!health.ok) {
+      return false;
+    }
+
+    // 1. Session reuse: check if active session matches target host/port/username
+    if (health.connected && health.meta) {
+      const matches =
+        health.meta.host === target.host &&
+        health.meta.port === target.port &&
+        health.meta.username === target.username;
+      if (matches) {
+        if (health.meta.root === target.root) {
+          await enterSshWorkspace(health.meta, targetFilePath);
+          return true;
+        }
+        try {
+          const reuseParams: SshConnectParams =
+            target.authMode === 'openssh'
+              ? {
+                  host: target.host,
+                  root: target.root,
+                  authMode: 'openssh',
+                  reuseSession: true,
+                }
+              : {
+                  host: target.host,
+                  port: target.port,
+                  username: target.username,
+                  root: target.root,
+                  authMode: target.authMode ?? 'password',
+                  reuseSession: true,
+                };
+          const meta = await sshConnect(reuseParams);
+          await enterSshWorkspace(meta, targetFilePath);
+          return true;
+        } catch {
+          // session reuse failed, continue to other auth modes
+        }
+      }
+    }
+
+    // 2. OpenSSH mode direct connect
+    if (target.authMode === 'openssh') {
+      const meta = await sshConnect({
+        host: target.host,
+        root: target.root,
+        authMode: 'openssh',
+      });
+      await enterSshWorkspace(meta, targetFilePath);
+      return true;
+    }
+
+    // 3. Password mode with saved password
+    if (target.authMode === 'password' || !target.authMode) {
+      const savedPassword = await loadSavedSshPassword(
+        target.host,
+        target.port,
+        target.username,
+      );
+      if (savedPassword) {
+        const meta = await sshConnect({
+          host: target.host,
+          port: target.port,
+          username: target.username,
+          root: target.root,
+          authMode: 'password',
+          password: savedPassword,
+        });
+        await enterSshWorkspace(meta, targetFilePath);
+        return true;
+      }
+    }
+  } catch (e) {
+    console.warn('[ssh] Direct connect failed, falling back to dialog:', e);
+  }
+  return false;
+}
+
 async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void> {
   if (entry.source === 'local') {
     pendingHistoryFilePath = entry.lastFilePath;
@@ -464,9 +562,16 @@ async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void>
   }
   if (entry.source === 'ssh' && entry.ssh) {
     pendingHistoryFilePath = entry.lastFilePath;
+    if (await connectSshWorkspaceDirect(entry.ssh, entry.lastFilePath)) {
+      return;
+    }
     showSshDialog(true);
     // Prefill after dialog opens
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
+      const rememberPref = await loadSshRememberPasswordPref();
+      const savedPassword = rememberPref
+        ? (await loadSavedSshPassword(entry.ssh!.host, entry.ssh!.port, entry.ssh!.username)) || ''
+        : '';
       fillSshForm(
         sshForm(),
         {
@@ -475,6 +580,8 @@ async function openHistoryWorkspace(entry: WorkspaceHistoryEntry): Promise<void>
           username: entry.ssh!.username,
           root: entry.ssh!.root,
           authMode: entry.ssh!.authMode,
+          password: savedPassword,
+          rememberPassword: rememberPref,
         },
         () => sshHostLoader.load(sshForm()),
       );
@@ -550,8 +657,15 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
   // Reconnect then open
   if (entry.source === 'ssh' && entry.ssh) {
     pendingHistoryFilePath = entry.path;
+    if (await connectSshWorkspaceDirect(entry.ssh, entry.path)) {
+      return;
+    }
     showSshDialog(true);
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
+      const rememberPref = await loadSshRememberPasswordPref();
+      const savedPassword = rememberPref
+        ? (await loadSavedSshPassword(entry.ssh!.host, entry.ssh!.port, entry.ssh!.username)) || ''
+        : '';
       fillSshForm(
         sshForm(),
         {
@@ -560,6 +674,8 @@ async function openHistoryFile(entry: FileHistoryEntry): Promise<void> {
           username: entry.ssh!.username,
           root: entry.ssh!.root,
           authMode: entry.ssh!.authMode,
+          password: savedPassword,
+          rememberPassword: rememberPref,
         },
         () => sshHostLoader.load(sshForm()),
       );
@@ -1946,6 +2062,7 @@ function wireUi(): void {
   document.getElementById('ssh-auth')?.addEventListener('change', (e) => {
     applySshAuthMode(parseSshAuthMode((e.target as HTMLSelectElement).value));
   });
+  wireSshFormAutoFill(sshForm());
   document.getElementById('ssh-host-select')?.addEventListener('change', () => {
     syncHostInputFromSelect(sshForm());
   });
@@ -2188,6 +2305,10 @@ function showSshDialog(show: boolean): void {
   if (show) {
     void (async () => {
       const d = await loadSshFormDefaults();
+      const rememberPref = await loadSshRememberPasswordPref();
+      const savedPassword = rememberPref
+        ? (await loadSavedSshPassword(d.host, d.port, d.username)) || ''
+        : '';
       const els = sshForm();
       clearSshHostSelectCache(els);
       fillSshForm(
@@ -2198,6 +2319,8 @@ function showSshDialog(show: boolean): void {
           username: d.username,
           root: d.root,
           authMode: d.authMode,
+          password: savedPassword,
+          rememberPassword: rememberPref,
         },
         () => sshHostLoader.load(sshForm()),
       );
@@ -2521,12 +2644,29 @@ async function connectSshFromDialog(): Promise<void> {
     setSshDialogBusy(true, '正在连接 SSH…');
     const meta = await sshConnect(read.params);
     await saveSshFormDefaults(read.defaults);
+    await saveSshRememberPasswordPref(read.rememberPassword);
+    if (read.defaults.authMode === 'password') {
+      if (read.rememberPassword && read.params.authMode === 'password' && read.params.password) {
+        await saveSshPassword(
+          read.defaults.host,
+          read.defaults.port,
+          read.defaults.username,
+          read.params.password,
+        );
+      } else if (!read.rememberPassword) {
+        await deleteSavedSshPassword(
+          read.defaults.host,
+          read.defaults.port,
+          read.defaults.username,
+        );
+      }
+    }
     setSshDialogBusy(true, '正在扫描远程工作区…');
     await enterSshWorkspace(meta);
     setSshDialogBusy(true, '工作区已就绪，正在打开…');
-    // Clear secrets from DOM
+    // Clear secrets from DOM (leave password if rememberPassword checked)
     const els = sshForm();
-    if (els.password) els.password.value = '';
+    if (!read.rememberPassword && els.password) els.password.value = '';
     if (els.passphrase) els.passphrase.value = '';
     sshPrivateKeyText = '';
     showSshDialog(false);

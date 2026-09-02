@@ -5,6 +5,7 @@
  */
 
 import {
+  loadSavedSshPassword,
   sshListOpenSshHosts,
   type SshAuthMode,
   type SshConnectParams,
@@ -21,9 +22,11 @@ export interface SshFormElements {
   auth: HTMLSelectElement | null;
   password: HTMLInputElement | null;
   passphrase: HTMLInputElement | null;
+  rememberPassword: HTMLInputElement | null;
   passwordRow: HTMLElement | null;
   keyRow: HTMLElement | null;
   passphraseRow: HTMLElement | null;
+  rememberPasswordRow: HTMLElement | null;
   openSshHint: HTMLElement | null;
   /** Port + username row; hidden in OpenSSH mode (resolved by Bridge). */
   manualEndpointFields: HTMLElement | null;
@@ -35,12 +38,15 @@ export interface SshFormFillValues {
   username?: string;
   root?: string;
   authMode?: SshAuthMode;
+  password?: string;
+  rememberPassword?: boolean;
 }
 
 export type SshFormReadResult =
   | {
       ok: true;
       params: SshConnectParams;
+      rememberPassword: boolean;
       defaults: {
         host: string;
         port: string;
@@ -61,9 +67,11 @@ export function querySshForm(root: ParentNode = document): SshFormElements {
     auth: root.querySelector('#ssh-auth'),
     password: root.querySelector('#ssh-password'),
     passphrase: root.querySelector('#ssh-passphrase'),
+    rememberPassword: root.querySelector('#ssh-remember-password'),
     passwordRow: root.querySelector('#ssh-password-row'),
     keyRow: root.querySelector('#ssh-key-row'),
     passphraseRow: root.querySelector('#ssh-passphrase-row'),
+    rememberPasswordRow: root.querySelector('#ssh-remember-password-row'),
     openSshHint: root.querySelector('#ssh-openssh-hint'),
     manualEndpointFields: root.querySelector('#ssh-manual-endpoint-fields'),
   };
@@ -87,6 +95,9 @@ export function setSshAuthMode(
 ): void {
   if (els.passwordRow) {
     els.passwordRow.hidden = mode !== 'password';
+  }
+  if (els.rememberPasswordRow) {
+    els.rememberPasswordRow.hidden = mode !== 'password';
   }
   if (els.keyRow) {
     els.keyRow.hidden = mode !== 'key';
@@ -133,6 +144,12 @@ export function fillSshForm(
   }
   if (values.root !== undefined && els.root) {
     els.root.value = values.root;
+  }
+  if (values.password !== undefined && els.password) {
+    els.password.value = values.password;
+  }
+  if (values.rememberPassword !== undefined && els.rememberPassword) {
+    els.rememberPassword.checked = values.rememberPassword;
   }
   if (values.authMode !== undefined) {
     if (els.auth) {
@@ -235,6 +252,7 @@ export function readSshConnectForm(
   const root = (els.root?.value || '').trim() || '.';
   const password = els.password?.value || '';
   const passphrase = els.passphrase?.value || '';
+  const rememberPassword = Boolean(els.rememberPassword?.checked);
 
   if (!host || (auth !== 'openssh' && !username)) {
     return {
@@ -280,6 +298,7 @@ export function readSshConnectForm(
   return {
     ok: true,
     params,
+    rememberPassword,
     defaults: {
       host,
       port: String(port),
@@ -288,4 +307,44 @@ export function readSshConnectForm(
       authMode: auth,
     },
   };
+}
+
+export async function autoFillSavedPasswordIfRemembered(
+  els: SshFormElements,
+): Promise<void> {
+  if (parseSshAuthMode(els.auth?.value) !== 'password') return;
+  if (!els.rememberPassword?.checked) return;
+  const host = (els.host?.value || '').trim();
+  const port = Number(els.port?.value) || 22;
+  const username = (els.username?.value || '').trim();
+  if (host) {
+    const saved = await loadSavedSshPassword(host, port, username);
+    if (saved !== undefined && els.password) {
+      els.password.value = saved;
+    }
+  }
+}
+
+export function wireSshFormAutoFill(
+  els: SshFormElements,
+  onFilled?: () => void,
+): void {
+  const trigger = () => {
+    void (async () => {
+      await autoFillSavedPasswordIfRemembered(els);
+      onFilled?.();
+    })();
+  };
+  els.host?.addEventListener('change', trigger);
+  els.host?.addEventListener('blur', trigger);
+  els.port?.addEventListener('change', trigger);
+  els.port?.addEventListener('blur', trigger);
+  els.username?.addEventListener('change', trigger);
+  els.username?.addEventListener('blur', trigger);
+  els.auth?.addEventListener('change', trigger);
+  els.rememberPassword?.addEventListener('change', (e) => {
+    if ((e.target as HTMLInputElement).checked) {
+      trigger();
+    }
+  });
 }

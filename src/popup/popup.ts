@@ -11,8 +11,13 @@ import {
   saveLocalDoc,
 } from '../shared/localDoc';
 import {
+  deleteSavedSshPassword,
+  loadSavedSshPassword,
   loadSshFormDefaults,
+  loadSshRememberPasswordPref,
   saveSshFormDefaults,
+  saveSshPassword,
+  saveSshRememberPasswordPref,
   sshConnect,
   sshHealth,
 } from '../shared/sshClient';
@@ -25,6 +30,7 @@ import {
   readSshConnectForm,
   setSshAuthMode,
   syncHostInputFromSelect,
+  wireSshFormAutoFill,
 } from '../shared/sshFormUi';
 import {
   loadWslFormDefaults,
@@ -278,8 +284,11 @@ function applySshAuthMode(mode: ReturnType<typeof parseSshAuthMode>): void {
 async function showSshPanel(): Promise<void> {
   hideError('ssh-error');
   const defaults = await loadSshFormDefaults();
+  const rememberPref = await loadSshRememberPasswordPref();
+  const savedPassword = rememberPref
+    ? (await loadSavedSshPassword(defaults.host, defaults.port, defaults.username)) || ''
+    : '';
   const els = sshForm();
-  if (els.password) els.password.value = '';
   if (els.passphrase) els.passphrase.value = '';
   sshPrivateKeyText = '';
   const keyFile = document.getElementById('ssh-key-file') as HTMLInputElement | null;
@@ -295,6 +304,8 @@ async function showSshPanel(): Promise<void> {
       username: defaults.username,
       root: defaults.root || '.',
       authMode: defaults.authMode,
+      password: savedPassword,
+      rememberPassword: rememberPref,
     },
     () => sshHostLoader.load(sshForm()),
   );
@@ -304,6 +315,8 @@ async function showSshPanel(): Promise<void> {
 document.getElementById('ssh-auth')?.addEventListener('change', (e) => {
   applySshAuthMode(parseSshAuthMode((e.target as HTMLSelectElement).value));
 });
+
+wireSshFormAutoFill(sshForm());
 
 document.getElementById('ssh-host-select')?.addEventListener('change', () => {
   syncHostInputFromSelect(sshForm());
@@ -340,6 +353,23 @@ document.getElementById('ssh-connect')?.addEventListener('click', () => {
     try {
       await sshConnect(read.params);
       await saveSshFormDefaults(read.defaults);
+      await saveSshRememberPasswordPref(read.rememberPassword);
+      if (read.defaults.authMode === 'password') {
+        if (read.rememberPassword && read.params.authMode === 'password' && read.params.password) {
+          await saveSshPassword(
+            read.defaults.host,
+            read.defaults.port,
+            read.defaults.username,
+            read.params.password,
+          );
+        } else if (!read.rememberPassword) {
+          await deleteSavedSshPassword(
+            read.defaults.host,
+            read.defaults.port,
+            read.defaults.username,
+          );
+        }
+      }
       await openViewerAfterEnter({ kind: 'ssh' });
     } catch (e) {
       showError('ssh-error', e instanceof Error ? e.message : String(e));
