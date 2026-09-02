@@ -125,6 +125,17 @@ export const iconCopyAbsolute = svg(`
   <path d="M4.75 10V3.7A1.2 1.2 0 0 1 5.95 2.5H12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
 `);
 
+/** Search glass */
+export const iconSearch = svg(`
+  <path d="M6.5 11.5a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM10.5 10.5l4 4"
+    stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+`);
+
+/** Chevron left */
+export const iconChevronLeft = svg(`
+  <path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+`);
+
 export type IconName =
   | 'folder'
   | 'file'
@@ -137,12 +148,14 @@ export type IconName =
   | 'close'
   | 'chevronDown'
   | 'chevronRight'
+  | 'chevronLeft'
   | 'mdFile'
   | 'brand'
   | 'ssh'
   | 'copy'
   | 'check'
-  | 'copyAbsolute';
+  | 'copyAbsolute'
+  | 'search';
 
 const map: Record<IconName, string> = {
   folder: iconFolder,
@@ -156,12 +169,14 @@ const map: Record<IconName, string> = {
   close: iconClose,
   chevronDown: iconChevronDown,
   chevronRight: iconChevronRight,
+  chevronLeft: iconChevronLeft,
   mdFile: iconMdFile,
   brand: iconBrand,
   ssh: iconSsh,
   copy: iconCopy,
   check: iconCheck,
   copyAbsolute: iconCopyAbsolute,
+  search: iconSearch,
 };
 
 export function iconHtml(name: IconName): string {

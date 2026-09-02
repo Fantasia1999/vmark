@@ -1,224 +1,598 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VS Code Markdown Preview — Options</title>
+    <title>VS Code Markdown Preview — 选项与偏好设置</title>
     <style>
       :root {
         color-scheme: light dark;
-        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
-        line-height: 1.5;
+        --vscode-editor-background: #1e1e1e;
+        --vscode-editor-foreground: #d4d4d4;
+        --vscode-editorWidget-background: #252526;
+        --vscode-editorWidget-border: #454545;
+        --vscode-focusBorder: #007fd4;
+        --vscode-input-background: #252526;
+        --vscode-input-border: #3c3c3c;
+        --vscode-input-foreground: #cccccc;
+        --vscode-toolbar-hoverBackground: rgba(90, 93, 94, 0.31);
+        --vscode-charts-green: #3dd68c;
+        --vscode-errorForeground: #f48771;
+        --vscode-editorWarning-foreground: #e8a33d;
 
         --acc: #2f7fe6;
-        --acc-ring: color-mix(in srgb, #2f7fe6 45%, transparent);
-        --r-sm: 7px;
-        --r-md: 10px;
-        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --acc-grad: linear-gradient(135deg, #2f7fe6 0%, #1c54b2 100%);
+        --acc-soft: rgba(47, 127, 230, 0.14);
+        --acc-ring: rgba(47, 127, 230, 0.35);
+        --acc-contrast: #ffffff;
+        --r-sm: 6px;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-pill: 999px;
+        --sh-1: 0 1px 3px rgba(0, 0, 0, 0.25);
+        --sh-2: 0 4px 12px rgba(0, 0, 0, 0.3);
+        --dur: 0.15s;
+        --ease: cubic-bezier(0.2, 0, 0, 1);
       }
-      @media (prefers-color-scheme: dark) {
+
+      @media (prefers-color-scheme: light) {
         :root {
-          --acc: #4c9dfd;
-          --acc-ring: color-mix(in srgb, #4c9dfd 55%, transparent);
+          --vscode-editor-background: #ffffff;
+          --vscode-editor-foreground: #333333;
+          --vscode-editorWidget-background: #f8f9fa;
+          --vscode-editorWidget-border: #e2e4e8;
+          --vscode-focusBorder: #007fd4;
+          --vscode-input-background: #ffffff;
+          --vscode-input-border: #d0d7de;
+          --vscode-input-foreground: #24292f;
+          --vscode-toolbar-hoverBackground: rgba(0, 0, 0, 0.06);
+          --vscode-charts-green: #1a9b4a;
+          --vscode-errorForeground: #cf222e;
+          --vscode-editorWarning-foreground: #9a6700;
+          --sh-1: 0 1px 3px rgba(0, 0, 0, 0.06);
+          --sh-2: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        max-width: 600px;
-        margin: 2.5rem auto;
-        padding: 0 1.25rem 3rem;
+        margin: 0;
+        padding: 24px 16px 48px;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.5;
+        background: var(--vscode-editor-background);
+        color: var(--vscode-editor-foreground);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
-      h1 {
-        font-size: 1.45rem;
-        font-weight: 650;
+
+      .options-wrap {
+        width: 100%;
+        max-width: 680px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Header */
+      .opt-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border);
+      }
+
+      .opt-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .opt-logo {
+        width: 34px;
+        height: 34px;
+        border-radius: var(--r-md);
+        background: var(--acc-grad);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: var(--sh-1);
+        flex-shrink: 0;
+      }
+
+      .opt-logo svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .opt-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .opt-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .opt-title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--vscode-editor-foreground);
         letter-spacing: -0.015em;
-        margin: 0 0 0.25rem;
       }
-      h1::before {
-        content: "";
-        display: inline-block;
-        width: 0.65rem;
-        height: 1.05rem;
-        margin-right: 0.55rem;
-        vertical-align: -0.12rem;
-        border-radius: 3px;
-        background: linear-gradient(180deg, var(--acc), color-mix(in srgb, var(--acc) 60%, #000));
-      }
-      fieldset {
-        border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
-        border-radius: var(--r-md, 10px);
-        margin: 1.1rem 0;
-        padding: 0.85rem 1.1rem 1.1rem;
-        background: color-mix(in srgb, CanvasText 3%, transparent);
-      }
-      legend {
-        padding: 0 0.4rem;
+
+      .opt-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: var(--r-pill);
+        background: var(--acc-soft);
+        color: var(--acc);
+        border: 1px solid var(--acc-ring);
         font-weight: 600;
-        font-size: 0.8rem;
-        letter-spacing: 0.03em;
+      }
+
+      .opt-desc {
+        margin: 0;
+        font-size: 11.5px;
+        opacity: 0.65;
+        line-height: 1.35;
+      }
+
+      /* Top hint notice */
+      .opt-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: var(--r-md);
+        background: color-mix(in srgb, var(--acc) 6%, var(--vscode-editorWidget-background));
+        border: 1px solid color-mix(in srgb, var(--acc) 22%, var(--vscode-editorWidget-border));
+        font-size: 11.5px;
+        line-height: 1.45;
+      }
+
+      .opt-notice-icon {
+        color: var(--acc);
+        display: inline-flex;
+        align-items: center;
+        margin-top: 1px;
+        flex-shrink: 0;
+      }
+
+      .opt-notice code {
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground) 10%, transparent);
+        font-family: monospace;
+        font-size: 11px;
+      }
+
+      /* Tabs Bar */
+      .opt-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 4px;
+        border-radius: var(--r-md);
+        background: color-mix(in srgb, var(--vscode-editor-background) 70%, transparent);
+        border: 1px solid var(--vscode-editorWidget-border);
+      }
+
+      .opt-tab {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 7px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        opacity: 0.7;
+        text-align: center;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+
+      .opt-tab:hover {
+        opacity: 1;
+      }
+
+      .opt-tab.active {
+        opacity: 1;
+        background: var(--acc);
+        color: var(--acc-contrast);
+        font-weight: 600;
+        box-shadow: var(--sh-1);
+      }
+
+      .opt-tab:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
+      }
+
+      .opt-panel[hidden] {
+        display: none !important;
+      }
+
+      /* Card Section */
+      .opt-card {
+        border-radius: var(--r-md);
+        border: 1px solid var(--vscode-editorWidget-border);
+        background: var(--vscode-editorWidget-background);
+        box-shadow: var(--sh-1);
+        padding: 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 220px;
+      }
+
+      .opt-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2px;
+      }
+
+      .opt-card-title {
+        margin: 0;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--acc);
       }
-      label {
+
+      /* Form controls */
+      .opt-check-label {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        margin: 0.55rem 0;
+        gap: 9px;
+        font-size: 12.5px;
+        cursor: pointer;
+        user-select: none;
+        padding: 3px 0;
+        transition: opacity 0.12s;
       }
+
+      .opt-check-label:hover {
+        opacity: 0.9;
+      }
+
       input[type='checkbox'] {
-        accent-color: var(--acc);
-        width: 1rem;
-        height: 1rem;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        border: 1px solid var(--vscode-input-border);
+        background: var(--vscode-input-background);
+        cursor: pointer;
+        display: inline-grid;
+        place-content: center;
+        margin: 0;
+        flex-shrink: 0;
+        transition: all 0.12s;
       }
+
+      input[type='checkbox']::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        transform: scale(0);
+        transition: transform 0.12s ease-in-out;
+        box-shadow: inset 1em 1em var(--acc-contrast);
+        transform-origin: center;
+        clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+      }
+
+      input[type='checkbox']:checked {
+        background: var(--acc);
+        border-color: var(--acc);
+      }
+
+      input[type='checkbox']:checked::before {
+        transform: scale(1);
+      }
+
+      input[type='checkbox']:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
+      }
+
+      .opt-field-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 12.5px;
+        padding: 4px 0;
+      }
+
+      .opt-field-col {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 12px;
+        padding: 4px 0;
+      }
+
+      .opt-field-col .opt-label {
+        font-weight: 500;
+        opacity: 0.85;
+      }
+
       select,
       input[type='url'],
-      input[type='password'] {
-        margin-left: 0.25rem;
-        border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
-        border-radius: var(--r-sm, 7px);
-        background: Field;
-        color: FieldText;
+      input[type='password'],
+      input[type='text'] {
+        border: 1px solid var(--vscode-input-border);
+        border-radius: var(--r-sm);
+        background: var(--vscode-input-background);
+        color: var(--vscode-input-foreground);
         font: inherit;
-        padding: 0.35rem 0.5rem;
-        transition: border-color var(--ease) 0.15s, box-shadow var(--ease) 0.15s;
+        font-size: 12px;
+        padding: 5px 8px;
+        transition: border-color 0.12s, box-shadow 0.12s;
+        box-sizing: border-box;
       }
+
+      select {
+        min-width: 170px;
+        cursor: pointer;
+      }
+
       select:focus,
       input[type='url']:focus,
-      input[type='password']:focus {
+      input[type='password']:focus,
+      input[type='text']:focus {
         outline: none;
-        border-color: var(--acc);
-        box-shadow: 0 0 0 3px var(--acc-ring);
+        border-color: var(--vscode-focusBorder);
+        box-shadow: 0 0 0 1px var(--vscode-focusBorder);
       }
-      .hint {
-        color: color-mix(in srgb, CanvasText 65%, transparent);
-        font-size: 0.9rem;
-        margin-top: 1rem;
+
+      .opt-hint {
+        font-size: 11px;
+        opacity: 0.6;
+        line-height: 1.4;
+        margin: 0;
       }
-      .status {
-        min-height: 1.25rem;
-        font-size: 0.9rem;
-        color: #0a7;
+
+      .opt-hint code {
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground) 10%, transparent);
+        font-family: monospace;
+        font-size: 10.5px;
+        color: var(--acc);
       }
+
+      /* Bridge Status Display */
       #sshBridgeStatus {
-        font-size: 0.9rem;
-        margin-top: 0.75rem;
+        margin: 4px 0 0;
+        font-size: 11.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
       }
+
       #sshBridgeStatus .bridge-state {
         font-weight: 600;
       }
+
       #sshBridgeStatus.bridge-online .bridge-state {
-        color: #1a9b4a;
+        color: var(--vscode-charts-green);
       }
+
       #sshBridgeStatus.bridge-offline .bridge-state {
-        color: #c42b2b;
+        color: var(--vscode-errorForeground);
       }
+
       #sshBridgeStatus .bridge-auth.ok {
-        color: #1a9b4a;
+        color: var(--vscode-charts-green);
         font-weight: 600;
       }
+
       #sshBridgeStatus .bridge-auth.bad {
-        color: #b35c00;
+        color: var(--vscode-editorWarning-foreground);
         font-weight: 600;
       }
+
       #sshBridgeStatus .bridge-token-preview {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.92em;
-        padding: 0.05em 0.35em;
+        font-size: 11px;
+        padding: 1px 5px;
         border-radius: 4px;
-        background: color-mix(in srgb, CanvasText 8%, transparent);
+        background: color-mix(in srgb, var(--vscode-editor-foreground) 10%, transparent);
         user-select: all;
       }
-      #sshBridgeStatus.bridge-warn .bridge-state {
-        color: #1a9b4a;
+
+      /* Floating Toast Status */
+      .opt-status-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: var(--vscode-editorWidget-background);
+        border: 1px solid var(--vscode-editorWidget-border);
+        box-shadow: var(--sh-2);
+        padding: 7px 16px;
+        border-radius: var(--r-pill);
+        font-size: 12px;
+        color: var(--vscode-charts-green);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 999;
       }
-      @media (prefers-color-scheme: dark) {
-        #sshBridgeStatus.bridge-online .bridge-state {
-          color: #3dd68c;
-        }
-        #sshBridgeStatus.bridge-offline .bridge-state {
-          color: #f48771;
-        }
-        #sshBridgeStatus .bridge-auth.ok {
-          color: #3dd68c;
-        }
-        #sshBridgeStatus .bridge-auth.bad {
-          color: #e8a33d;
-        }
+
+      .opt-status-toast:not(:empty) {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
       }
     </style>
   </head>
   <body>
-    <h1>VS Code Markdown Preview</h1>
-    <p class="hint">
-      Settings sync via <code>chrome.storage.sync</code>. For local <code>file://</code> Markdown,
-      enable <strong>Allow access to file URLs</strong> on the extension details page.
-    </p>
+    <main class="options-wrap">
+      <!-- Header -->
+      <header class="opt-header">
+        <div class="opt-brand">
+          <div class="opt-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+              <rect x="1.5" y="1.5" width="13" height="13" rx="3" stroke-width="1.25"/>
+              <path d="M4.5 10.5V5.5L6.8 9l2.3-3.5v5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="opt-title-group">
+            <div class="opt-title-row">
+              <h1 class="opt-title">VS Code Markdown Preview</h1>
+              <span class="opt-badge">选项与偏好</span>
+            </div>
+            <p class="opt-desc">配置渲染特性、布局外观与本机 WSL/SSH 桥接连接</p>
+          </div>
+        </div>
+      </header>
 
-    <fieldset>
-      <legend>General</legend>
-      <label><input type="checkbox" id="autoPreview" /> Auto-preview local file:// and GitHub/Gist raw</label>
-      <label>
-        Theme
-        <select id="theme">
-          <option value="auto">Auto (system)</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
-      <label>
-        Preview width
-        <select id="previewWidth">
-          <option value="comfortable">Comfortable (~980px)</option>
-          <option value="wide">Wide (~1280px, recommended)</option>
-          <option value="fluid">Fluid (~1600px / 96vw)</option>
-          <option value="full">Full pane width</option>
-        </select>
-      </label>
-    </fieldset>
+      <!-- Sync Notice -->
+      <div class="opt-notice">
+        <span class="opt-notice-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="6"/>
+            <path d="M8 5v3.5M8 11.5h.01"/>
+          </svg>
+        </span>
+        <div>
+          配置会自动同步至 <code>chrome.storage.sync</code>。对于本地 <code>file://</code> 路径 Markdown，请在浏览器扩展管理页开启 <strong>“允许访问文件网址”</strong>。
+        </div>
+      </div>
 
-    <fieldset>
-      <legend>Markdown</legend>
-      <label><input type="checkbox" id="breaks" /> Breaks (GFM-style newlines → &lt;br&gt;)</label>
-      <label><input type="checkbox" id="linkify" /> Linkify URLs</label>
-      <label><input type="checkbox" id="typographer" /> Typographer (smart quotes)</label>
-      <label><input type="checkbox" id="sanitizeHtml" /> Disable raw HTML in Markdown (safer)</label>
-    </fieldset>
+      <!-- Category Tabs -->
+      <div class="opt-tabs" role="tablist" aria-label="选项分类">
+        <button type="button" class="opt-tab active" data-opt-tab="general" role="tab" aria-selected="true">常规设置</button>
+        <button type="button" class="opt-tab" data-opt-tab="markdown" role="tab" aria-selected="false">Markdown</button>
+        <button type="button" class="opt-tab" data-opt-tab="extensions" role="tab" aria-selected="false">扩展组件</button>
+        <button type="button" class="opt-tab" data-opt-tab="bridge" role="tab" aria-selected="false">本机 Bridge</button>
+      </div>
 
-    <fieldset>
-      <legend>Extensions</legend>
-      <label><input type="checkbox" id="mathEnabled" /> KaTeX math</label>
-      <label><input type="checkbox" id="mermaidEnabled" /> Mermaid diagrams</label>
-      <label>
-        Mermaid theme
-        <select id="mermaidTheme">
-          <option value="vscode">VS Code (recommended)</option>
-          <option value="default">Mermaid default</option>
-          <option value="dark">Mermaid dark</option>
-          <option value="forest">Mermaid forest</option>
-          <option value="neutral">Mermaid neutral</option>
-          <option value="base">Mermaid base (no VS Code vars)</option>
-        </select>
-      </label>
-    </fieldset>
+      <!-- 1. General Settings -->
+      <section class="opt-panel opt-card active" data-opt-panel="general" role="tabpanel">
+        <div class="opt-card-header">
+          <span class="opt-card-title">常规设置 General</span>
+        </div>
+        <label class="opt-check-label">
+          <input type="checkbox" id="autoPreview" />
+          <span>本地 <code>file://</code> 与 GitHub/Gist raw 页面自动唤起预览</span>
+        </label>
+        <div class="opt-field-row">
+          <span>界面主题</span>
+          <select id="theme" aria-label="界面主题">
+            <option value="auto">跟随系统 (Auto)</option>
+            <option value="light">浅色 (Light)</option>
+            <option value="dark">深色 (Dark)</option>
+          </select>
+        </div>
+        <div class="opt-field-row">
+          <span>预览区域宽度</span>
+          <select id="previewWidth" aria-label="预览区域宽度">
+            <option value="comfortable">舒适 (~980px)</option>
+            <option value="wide">宽屏 (~1280px，推荐)</option>
+            <option value="fluid">超宽 (~1600px / 96vw)</option>
+            <option value="full">铺满内容区 (Full)</option>
+          </select>
+        </div>
+      </section>
 
-    <fieldset>
-      <legend>Local Bridge (SSH / WSL)</legend>
-      <p class="hint" style="margin-top:0">
-        Chrome 无法直接 SSH/调用 wsl.exe。请在本机运行桥接：
-        <code>cd ssh-bridge && npm install && npm start</code>，
-        将终端打印的 Token 填到下方。WSL 工作区需 Bridge 运行在 <strong>Windows</strong> 主机上。
-      </p>
-      <label style="flex-direction:column;align-items:stretch;gap:0.35rem">
-        Bridge URL
-        <input id="sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" style="padding:0.4rem 0.5rem" />
-      </label>
-      <label style="flex-direction:column;align-items:stretch;gap:0.35rem">
-        Bridge Token
-        <input id="sshBridgeToken" type="password" autocomplete="off" style="padding:0.4rem 0.5rem" />
-      </label>
-      <p id="sshBridgeStatus">Bridge status: <span class="bridge-state">—</span></p>
-    </fieldset>
+      <!-- 2. Markdown Parsing -->
+      <section class="opt-panel opt-card" data-opt-panel="markdown" role="tabpanel" hidden>
+        <div class="opt-card-header">
+          <span class="opt-card-title">Markdown 渲染</span>
+        </div>
+        <label class="opt-check-label">
+          <input type="checkbox" id="breaks" />
+          <span>GFM 软换行转为硬换行（Breaks → &lt;br&gt;）</span>
+        </label>
+        <label class="opt-check-label">
+          <input type="checkbox" id="linkify" />
+          <span>自动识别纯文本 URL 为可点击超链接</span>
+        </label>
+        <label class="opt-check-label">
+          <input type="checkbox" id="typographer" />
+          <span>排版增强（智能引号、破折号转换）</span>
+        </label>
+        <label class="opt-check-label">
+          <input type="checkbox" id="sanitizeHtml" />
+          <span>禁用 Markdown 中的原始 HTML（安全沙箱模式）</span>
+        </label>
+      </section>
 
-    <p class="status" id="status" aria-live="polite"></p>
+      <!-- 3. Extensions (KaTeX & Mermaid) -->
+      <section class="opt-panel opt-card" data-opt-panel="extensions" role="tabpanel" hidden>
+        <div class="opt-card-header">
+          <span class="opt-card-title">扩展组件 Extensions</span>
+        </div>
+        <label class="opt-check-label">
+          <input type="checkbox" id="mathEnabled" />
+          <span>KaTeX 数学公式渲染（<code>$inline$</code> 与 <code>$$block$$</code>）</span>
+        </label>
+        <label class="opt-check-label">
+          <input type="checkbox" id="mermaidEnabled" />
+          <span>Mermaid 架构图与流程图渲染</span>
+        </label>
+        <div class="opt-field-row">
+          <span>Mermaid 图表配色</span>
+          <select id="mermaidTheme" aria-label="Mermaid 主题配色">
+            <option value="vscode">VS Code 变量自适应（推荐）</option>
+            <option value="default">Mermaid 默认 (Default)</option>
+            <option value="dark">暗色主题 (Dark)</option>
+            <option value="forest">森绿 (Forest)</option>
+            <option value="neutral">中性灰 (Neutral)</option>
+            <option value="base">基础模式 (Base)</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- 4. Local Bridge -->
+      <section class="opt-panel opt-card" data-opt-panel="bridge" role="tabpanel" hidden>
+        <div class="opt-card-header">
+          <span class="opt-card-title">本机 Bridge（SSH / WSL 远程工作区）</span>
+        </div>
+        <p class="opt-hint">
+          Chrome 扩展无法直接建立 SSH 或调用 wsl.exe。请在本机终端执行 <code>npm run ssh-bridge</code>，并将终端输出的 Token 填入下方。
+        </p>
+        <div class="opt-field-col">
+          <span class="opt-label">Bridge 服务地址</span>
+          <input id="sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" />
+        </div>
+        <div class="opt-field-col">
+          <span class="opt-label">Bridge 鉴权 Token</span>
+          <input id="sshBridgeToken" type="password" autocomplete="off" placeholder="未设置 Token 时可留空" />
+        </div>
+        <div id="sshBridgeStatus">
+          <span>Bridge 状态:</span> <span class="bridge-state">—</span>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Status Indicator -->
+    <div class="opt-status-toast" id="status" role="status" aria-live="polite"></div>
+
     <script type="module" src="./options.js"></script>
   </body>
 </html>

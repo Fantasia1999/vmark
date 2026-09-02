@@ -39,7 +39,7 @@ async function refreshBridgeStatus(): Promise<void> {
     return;
   }
   const h = await sshHealth();
-  const { tone, html } = formatBridgeStatus(h, 'en');
+  const { tone, html } = formatBridgeStatus(h, 'zh');
   applyBridgeStatusTone(el, tone);
   el.innerHTML = html;
 }
@@ -83,6 +83,25 @@ async function init(): Promise<void> {
     }
   });
 
+  // Wire 4 tabs switching
+  const tabs = document.querySelectorAll<HTMLButtonElement>('.opt-tab[data-opt-tab]');
+  const panels = document.querySelectorAll<HTMLElement>('.opt-panel[data-opt-panel]');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.optTab;
+      tabs.forEach((t) => {
+        const isTarget = t.dataset.optTab === target;
+        t.classList.toggle('active', isTarget);
+        t.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+      });
+      panels.forEach((p) => {
+        const isTarget = p.dataset.optPanel === target;
+        p.hidden = !isTarget;
+        p.classList.toggle('active', isTarget);
+      });
+    });
+  });
+
   const bridge = await loadSshBridgeSettings();
   const bridgeUrl = $('sshBridgeUrl') as HTMLInputElement;
   const bridgeToken = $('sshBridgeToken') as HTMLInputElement;
@@ -99,10 +118,10 @@ async function init(): Promise<void> {
   async function persist(partial: Partial<PreviewSettings>): Promise<void> {
     await saveSettings(partial);
     const status = $('status');
-    status.textContent = 'Saved. Reload open preview tabs to apply layout/theme changes.';
+    status.textContent = '✓ 设置已实时保存';
     setTimeout(() => {
       status.textContent = '';
-    }, 2500);
+    }, 2200);
   }
 
   async function persistBridge(): Promise<void> {
@@ -111,11 +130,11 @@ async function init(): Promise<void> {
       bridgeToken: bridgeToken.value.trim(),
     });
     const status = $('status');
-    status.textContent = 'SSH Bridge settings saved.';
+    status.textContent = '✓ Bridge 设置已保存';
     void refreshBridgeStatus();
     setTimeout(() => {
       status.textContent = '';
-    }, 2000);
+    }, 2200);
   }
 }
 

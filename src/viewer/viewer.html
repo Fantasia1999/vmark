@@ -60,18 +60,19 @@
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
       }
 
-      /* —— empty state —— */
+      /* —— empty state (Single Screen Workbench Dashboard) —— */
       #empty-state {
         box-sizing: border-box;
-        min-height: 100vh;
+        height: 100vh;
+        max-height: 100vh;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 32px 16px;
+        justify-content: flex-start;
+        padding: 16px 24px 14px;
         background: var(--vscode-editor-background, #1e1e1e);
         color: var(--vscode-editor-foreground, #d4d4d4);
+        overflow: hidden;
       }
 
       #empty-state[hidden],
@@ -79,14 +80,19 @@
         display: none !important;
       }
 
+      .wb-container {
+        width: 100%;
+        max-width: 1200px;
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-sizing: border-box;
+      }
+
       .dropzone {
-        width: min(560px, 100%);
-        border: 1px solid var(--vscode-editorWidget-border, #454545);
         border-radius: var(--r-lg, 14px);
-        padding: 44px 34px;
-        text-align: center;
-        background: var(--vscode-editorWidget-background, #252526);
-        box-shadow: var(--sh-2);
         transition: border-color var(--dur) var(--ease),
           background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
       }
@@ -97,126 +103,715 @@
       }
 
       .dropzone.dragover {
-        border-color: var(--vscode-focusBorder, #007fd4);
-        background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 10%, var(--vscode-editorWidget-background, #252526));
-        box-shadow: var(--sh-2), 0 0 0 3px var(--acc-ring);
+        border-color: var(--vscode-focusBorder, #007fd4) !important;
+        box-shadow: 0 0 0 3px var(--acc-ring) !important;
       }
 
-      .dropzone h1 {
-        margin: 0 0 10px;
-        font-size: 1.4rem;
-        font-weight: 650;
-        letter-spacing: -0.015em;
-        color: var(--acc, #2f7fe6);
-        background: linear-gradient(135deg, var(--acc, #2f7fe6) 0%, color-mix(in srgb, var(--acc, #2f7fe6) 55%, var(--vscode-editor-foreground, #888)) 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-
-      .dropzone p {
-        margin: 0 0 22px;
-        opacity: 0.72;
-        line-height: 1.55;
-        font-size: 0.95rem;
-      }
-
-      .dropzone .actions {
+      /* Header Bar */
+      .wb-header {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+        flex-shrink: 0;
+      }
+
+      .wb-brand {
+        display: flex;
+        align-items: center;
         gap: 10px;
+      }
+
+      .wb-logo {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-md, 8px);
+        background: var(--acc-grad);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: var(--sh-1);
+        flex-shrink: 0;
+      }
+
+      .wb-logo .vsc-icon,
+      .wb-logo .vsc-icon svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .wb-brand-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .wb-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .wb-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--vscode-editor-foreground, #fff);
+        letter-spacing: -0.015em;
+      }
+
+      .wb-version-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: var(--r-pill, 999px);
+        background: var(--acc-soft);
+        color: var(--acc);
+        border: 1px solid var(--acc-ring);
+        font-weight: 600;
+      }
+
+      .wb-desc {
+        margin: 0;
+        font-size: 11.5px;
+        opacity: 0.65;
+        line-height: 1.35;
+      }
+
+      .wb-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .wb-search-wrap {
+        position: relative;
+        width: 240px;
+        display: flex;
+        align-items: center;
+      }
+
+      .wb-search-icon {
+        position: absolute;
+        left: 8px;
+        width: 13px;
+        height: 13px;
+        opacity: 0.55;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
         justify-content: center;
       }
 
-      .dropzone button,
-      .ws-toolbar button,
-      .ws-sidebar-actions button,
-      .ws-tree-toolbar button {
-        appearance: none;
-        border: 1px solid transparent;
-        border-radius: var(--r-sm, 6px);
-        padding: 9px 15px;
+      .wb-search-icon .vsc-icon,
+      .wb-search-icon .vsc-icon svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      #wb-search-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px 28px 5px 26px;
         font: inherit;
-        font-weight: 550;
-        cursor: pointer;
-        background: var(--acc-grad, var(--vscode-button-background, #0e639c));
-        color: var(--vscode-button-foreground, #fff);
-        box-shadow: var(--sh-1);
-        transition: filter var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
-          transform var(--dur) var(--ease), background var(--dur) var(--ease);
-      }
-
-      .dropzone button:hover,
-      .ws-toolbar button:hover,
-      .ws-sidebar-actions button:hover,
-      .ws-tree-toolbar button:hover {
-        filter: brightness(1.08);
-        box-shadow: var(--sh-2);
-      }
-
-      .dropzone button:active,
-      .ws-toolbar button:active,
-      .ws-sidebar-actions button:active,
-      .ws-tree-toolbar button:active {
-        transform: translateY(0.5px) scale(0.99);
-        filter: brightness(0.97);
-      }
-
-      .dropzone button:focus-visible,
-      .ws-toolbar button:focus-visible,
-      .ws-sidebar-actions button:focus-visible,
-      .ws-tree-toolbar button:focus-visible {
-        outline: 2px solid var(--vscode-focusBorder, #007fd4);
-        outline-offset: 2px;
-      }
-
-      .dropzone button.secondary,
-      .ws-sidebar-actions button.secondary,
-      .ws-tree-toolbar button.secondary,
-      .ws-toolbar button.secondary {
-        background: var(--vscode-editor-background, transparent);
-        color: inherit;
-        border: 1px solid var(--vscode-editorWidget-border, #454545);
-        box-shadow: none;
-        font-weight: 500;
-      }
-
-      .dropzone button.secondary:hover,
-      .ws-sidebar-actions button.secondary:hover,
-      .ws-tree-toolbar button.secondary:hover,
-      .ws-toolbar button.secondary:hover {
-        filter: none;
-        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
-        border-color: color-mix(in srgb, var(--acc) 40%, var(--vscode-editorWidget-border, #454545));
-        box-shadow: none;
-      }
-
-      .dropzone .meta {
-        margin-top: 20px;
         font-size: 12px;
-        opacity: 0.55;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-input-border, #3c3c3c);
+        background: var(--vscode-input-background, #252526);
+        color: var(--vscode-input-foreground, #ccc);
+        transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
       }
 
-      /* Recent history on empty state */
+      #wb-search-input:focus {
+        outline: none;
+        border-color: var(--vscode-focusBorder, #007fd4);
+        box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+      }
+
+      .wb-search-kbd {
+        position: absolute;
+        right: 7px;
+        font-size: 9.5px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 12%, transparent);
+        opacity: 0.6;
+        font-family: monospace;
+        pointer-events: none;
+      }
+
+      .wb-bridge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        font-size: 11px;
+        cursor: pointer;
+        transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      }
+
+      .wb-bridge-status:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--acc);
+      }
+
+      .wb-status-dot {
+        width: 6.5px;
+        height: 6.5px;
+        border-radius: 50%;
+        background: #888;
+        transition: background 0.2s;
+      }
+
+      .wb-bridge-status.online .wb-status-dot {
+        background: var(--vscode-charts-green, #3dd68c);
+      }
+
+      .wb-bridge-status.offline .wb-status-dot {
+        background: var(--vscode-editorWarning-foreground, #e8a33d);
+      }
+
+      .wb-icon-btn {
+        appearance: none;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 6px;
+        padding: 5px;
+        background: var(--vscode-editorWidget-background, #252526);
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        box-sizing: border-box;
+        transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      }
+
+      .wb-icon-btn:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--acc);
+      }
+
+      .wb-icon-btn .vsc-icon,
+      .wb-icon-btn .vsc-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Quick Actions 4-Card Grid */
+      .wb-quick-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .wb-section-title {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.5;
+      }
+
+      .wb-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .wb-action-card {
+        appearance: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px 12px;
+        min-height: 74px;
+        border-radius: var(--r-md, 8px);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+        box-shadow: var(--sh-1);
+        box-sizing: border-box;
+        font: inherit;
+      }
+
+      .wb-action-card:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--sh-2);
+        border-color: color-mix(in srgb, var(--card-accent, var(--acc)) 60%, var(--vscode-editorWidget-border, #454545));
+        background: color-mix(in srgb, var(--card-accent, var(--acc)) 5%, var(--vscode-editorWidget-background, #252526));
+      }
+
+      .wb-action-card:active {
+        transform: translateY(0.5px);
+      }
+
+      .wb-action-card:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+      }
+
+      .wb-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+
+      .wb-card-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .wb-card-icon .vsc-icon,
+      .wb-card-icon .vsc-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .wb-card-local { --card-accent: #2f7fe6; }
+      .wb-card-local .wb-card-icon {
+        background: color-mix(in srgb, #2f7fe6 16%, transparent);
+        color: #3f92f5;
+      }
+
+      .wb-card-wsl { --card-accent: #8957e5; }
+      .wb-card-wsl .wb-card-icon {
+        background: color-mix(in srgb, #8957e5 16%, transparent);
+        color: #ab7df8;
+      }
+
+      .wb-card-ssh { --card-accent: #238636; }
+      .wb-card-ssh .wb-card-icon {
+        background: color-mix(in srgb, #238636 16%, transparent);
+        color: #3fb950;
+      }
+
+      .wb-card-file { --card-accent: #d29922; }
+      .wb-card-file .wb-card-icon {
+        background: color-mix(in srgb, #d29922 16%, transparent);
+        color: #d29922;
+      }
+
+      .wb-card-tag {
+        font-size: 9.5px;
+        font-weight: 600;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--card-accent, #888) 15%, transparent);
+        color: var(--card-accent, inherit);
+        border: 1px solid color-mix(in srgb, var(--card-accent, #888) 30%, transparent);
+      }
+
+      .wb-card-shortcut {
+        font-size: 9.5px;
+        font-family: monospace;
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 10%, transparent);
+        opacity: 0.6;
+      }
+
+      .wb-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .wb-card-title {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--vscode-editor-foreground, #fff);
+      }
+
+      .wb-card-desc {
+        font-size: 11px;
+        opacity: 0.6;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Split Dashboard Layout */
       .history-panel {
-        width: min(560px, 100%);
-        margin-top: 20px;
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        margin-top: 0;
         text-align: left;
       }
+
       .history-panel[hidden] {
         display: none !important;
       }
-      .history-head {
+
+      .wb-dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: stretch;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+      }
+
+      .wb-col-workspaces,
+      .wb-col-files {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+      }
+
+      .wb-panel-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+        height: 26px;
+        min-height: 26px;
+        flex-shrink: 0;
       }
-      .history-head h3 {
+
+      .wb-head-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .wb-head-left h3 {
         margin: 0;
         font-size: 11px;
         font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.55;
+      }
+
+      .wb-head-right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .wb-count-badge {
+        font-size: 10px;
+        font-weight: 600;
+        font-family: monospace;
+        padding: 1px 5px;
+        border-radius: var(--r-pill, 999px);
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 12%, transparent);
+        opacity: 0.7;
+      }
+
+      .wb-filter-tabs {
+        display: inline-flex;
+        align-items: center;
+        background: var(--vscode-editorWidget-background, #252526);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 5px;
+        padding: 2px;
+        gap: 2px;
+      }
+
+      .wb-tab {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 500;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: all 0.12s;
+      }
+
+      .wb-tab:hover {
+        opacity: 1;
+      }
+
+      .wb-tab.active {
+        opacity: 1;
+        background: var(--acc);
+        color: var(--acc-contrast, #fff);
+        font-weight: 600;
+      }
+
+      .wb-text-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: var(--acc);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 2px 5px;
+        border-radius: 4px;
+        transition: all 0.12s;
+      }
+
+      .wb-text-btn:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+
+      .wb-text-btn.danger {
+        color: var(--vscode-errorForeground, #f48771);
+      }
+
+      .wb-empty-filter-hint {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+        font-size: 12px;
+        opacity: 0.55;
+        border: 1px dashed var(--vscode-editorWidget-border, #454545);
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+
+      .wb-empty-filter-hint[hidden] {
+        display: none !important;
+      }
+
+      .wb-history-list {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: none;
+        overflow-y: auto;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: 8px;
+        background: var(--vscode-editorWidget-background, #252526);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+      }
+
+      .wb-history-list::-webkit-scrollbar {
+        width: 5px;
+      }
+
+      .wb-history-list::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 15%, transparent);
+        border-radius: 3px;
+      }
+
+      /* Pagination controls */
+      .wb-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 4px 0;
+        margin-top: auto;
+        font-size: 11px;
+        opacity: 0.85;
+        flex-shrink: 0;
+        height: 28px;
+        box-sizing: border-box;
+      }
+
+      .wb-pagination[hidden] {
+        display: none !important;
+      }
+
+      .wb-page-info {
+        font-size: 11px;
+        opacity: 0.6;
+      }
+
+      .wb-page-btns {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .wb-page-btn {
+        appearance: none;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        color: inherit;
+        border-radius: 4px;
+        padding: 2px 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        box-sizing: border-box;
+        transition: background 0.12s, border-color 0.12s;
+      }
+
+      .wb-page-btn:hover:not(:disabled) {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--acc);
+      }
+
+      .wb-page-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+
+      .wb-page-btn .vsc-icon,
+      .wb-page-btn .vsc-icon svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      .wb-page-num {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 0 4px;
+        min-width: 26px;
+        text-align: center;
+      }
+
+      /* Workspace environment badges */
+      .wb-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: 700;
+        padding: 1.5px 4.5px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .wb-badge-wsl {
+        background: rgba(137, 87, 229, 0.18);
+        color: #ab7df8;
+        border: 1px solid rgba(137, 87, 229, 0.35);
+      }
+
+      .wb-badge-ssh {
+        background: rgba(35, 134, 54, 0.18);
+        color: #3fb950;
+        border: 1px solid rgba(35, 134, 54, 0.35);
+      }
+
+      .wb-badge-local {
+        background: rgba(210, 153, 34, 0.18);
+        color: #d29922;
+        border: 1px solid rgba(210, 153, 34, 0.35);
+      }
+
+      /* Footer Bar */
+      .wb-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 7px 14px;
+        border-radius: 7px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: color-mix(in srgb, var(--vscode-editorWidget-background, #252526) 60%, transparent);
+        font-size: 11px;
+        opacity: 0.75;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        margin-top: 0;
+      }
+
+      .wb-footer-tip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .wb-tip-icon {
+        display: inline-flex;
+        align-items: center;
+        color: var(--acc);
+      }
+
+      .wb-tip-icon .vsc-icon,
+      .wb-tip-icon .vsc-icon svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .wb-footer-meta code {
+        padding: 1.5px 5px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 10%, transparent);
+        font-family: monospace;
+        font-size: 10.5px;
+        color: var(--acc);
+      }
+
+      /* Responsive breakpoints */
+      @media (max-width: 1024px) {
+        #empty-state {
+          height: auto;
+          min-height: 100vh;
+          max-height: none;
+          overflow-y: auto;
+        }
+        .wb-dashboard-grid {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+        .wb-history-list {
+          height: 320px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .wb-cards-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .wb-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .wb-search-wrap {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .wb-cards-grid {
+          grid-template-columns: 1fr;
+        }
+      }
         letter-spacing: 0.04em;
         text-transform: uppercase;
         opacity: 0.55;
@@ -251,7 +846,11 @@
       }
       .history-item {
         display: flex;
-        align-items: stretch;
+        align-items: center;
+        height: 50px;
+        min-height: 50px;
+        max-height: 50px;
+        box-sizing: border-box;
         border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #454545) 70%, transparent);
       }
       .history-item:last-child {
@@ -260,16 +859,18 @@
       .history-item-main {
         flex: 1;
         min-width: 0;
+        height: 100%;
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 9px 10px;
+        padding: 6px 10px;
         border: none;
         background: transparent;
         color: inherit;
         font: inherit;
         text-align: left;
         cursor: pointer;
+        box-sizing: border-box;
       }
       .history-item-main:hover {
         background: var(--vscode-list-hoverBackground, #2a2d2e);
@@ -284,6 +885,9 @@
         height: 18px;
         opacity: 0.85;
         color: var(--vscode-focusBorder, #3794ff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .history-item-icon .vsc-icon,
       .history-item-icon .vsc-icon svg {
@@ -295,14 +899,34 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
+        justify-content: center;
         gap: 2px;
       }
+      .history-item-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
       .history-item-title {
-        font-size: 13px;
+        font-size: 12.5px;
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        flex-shrink: 0;
+        max-width: 65%;
+      }
+      .history-item-ws-path {
+        font-size: 11px;
+        font-weight: 400;
+        opacity: 0.5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-left: 2px;
+        flex: 1 1 auto;
+        min-width: 0;
       }
       .history-item-sub {
         font-size: 11px;
@@ -316,9 +940,11 @@
         font-size: 11px;
         opacity: 0.45;
         padding-left: 6px;
+        font-family: monospace;
       }
       .history-item-remove {
         flex-shrink: 0;
+        height: 100%;
         appearance: none;
         border: none;
         background: transparent;
@@ -327,7 +953,11 @@
         cursor: pointer;
         padding: 0 10px;
         font-size: 14px;
-        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.12s;
+        box-sizing: border-box;
       }
       .history-item-remove:hover {
         opacity: 1;
@@ -534,54 +1164,160 @@
         cursor: pointer;
       }
       #options-dialog .ssh-dialog-card {
-        width: min(520px, 100%);
-        max-height: min(92vh, 760px);
+        width: min(560px, 95vw);
+        max-height: min(92vh, 780px);
+        border-radius: var(--r-lg, 12px);
       }
-      #options-dialog .opt-fieldset {
-        margin: 0 0 14px;
-        padding: 10px 12px 6px;
+      #options-dialog .opt-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2px;
+        margin: 0 22px 14px;
+        padding: 3px;
+        border-radius: var(--r-md, 8px);
+        background: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 70%, transparent);
         border: 1px solid var(--vscode-editorWidget-border, #454545);
-        border-radius: 8px;
       }
-      #options-dialog .opt-fieldset legend {
-        padding: 0 6px;
+      #options-dialog .opt-tab {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 500;
+        padding: 6px 4px;
+        border-radius: 6px;
+        cursor: pointer;
+        opacity: 0.7;
+        text-align: center;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      #options-dialog .opt-tab:hover {
+        opacity: 1;
+      }
+      #options-dialog .opt-tab.active {
+        opacity: 1;
+        background: var(--acc);
+        color: var(--acc-contrast, #fff);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
+      #options-dialog .opt-tab:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+      }
+      #options-dialog .opt-panel[hidden] {
+        display: none !important;
+      }
+      #options-dialog .opt-section-card {
+        margin: 0 0 8px;
+        padding: 14px 16px;
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: var(--r-md, 8px);
+        background: color-mix(in srgb, var(--vscode-editorWidget-background, #252526) 60%, transparent);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 180px;
+      }
+      #options-dialog .opt-section-title {
         font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        opacity: 0.55;
+        color: var(--acc);
+        margin-bottom: 2px;
       }
       #options-dialog .opt-check {
+        display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 8px;
-        margin: 0 0 8px;
-        font-size: 13px;
+        gap: 9px;
+        margin: 0;
+        padding: 2px 0;
+        font-size: 12.5px;
         cursor: pointer;
+        user-select: none;
       }
       #options-dialog .opt-check input[type='checkbox'] {
-        width: auto;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        border: 1px solid var(--vscode-input-border, #3c3c3c);
+        background: var(--vscode-input-background, #252526);
+        cursor: pointer;
+        display: inline-grid;
+        place-content: center;
         margin: 0;
-        accent-color: var(--vscode-focusBorder, #007fd4);
+        flex-shrink: 0;
+        transition: all 0.12s;
+      }
+      #options-dialog .opt-check input[type='checkbox']::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        transform: scale(0);
+        transition: transform 0.12s ease-in-out;
+        box-shadow: inset 1em 1em var(--acc-contrast, #fff);
+        transform-origin: center;
+        clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+      }
+      #options-dialog .opt-check input[type='checkbox']:checked {
+        background: var(--acc);
+        border-color: var(--acc);
+      }
+      #options-dialog .opt-check input[type='checkbox']:checked::before {
+        transform: scale(1);
+      }
+      #options-dialog .opt-check input[type='checkbox']:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
       }
       #options-dialog .opt-row {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0;
+        padding: 2px 0;
+        font-size: 12.5px;
+      }
+      #options-dialog .opt-row select {
+        min-width: 170px;
+      }
+      #options-dialog .opt-row-col {
+        display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin: 0 0 10px;
+        gap: 5px;
+        margin: 0;
+        padding: 2px 0;
         font-size: 12px;
+      }
+      #options-dialog .opt-row-col .dlg-field-label {
+        font-weight: 500;
+        opacity: 0.85;
       }
       #options-dialog .opt-status {
         min-height: 1.2em;
-        margin: 0 22px 4px;
+        margin: 0 22px 6px;
         font-size: 12px;
-        opacity: 0.75;
-        color: var(--vscode-charts-green, #89d185);
+        opacity: 0.9;
+        color: var(--vscode-charts-green, #3dd68c);
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
       #options-dialog .opt-bridge-status {
-        margin: 4px 0 8px;
-        font-size: 12px;
-        opacity: 0.85;
+        margin: 2px 0 0;
+        font-size: 11.5px;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
       }
       #options-dialog .opt-bridge-status .bridge-state {
         font-weight: 600;
@@ -602,8 +1338,8 @@
       }
       #options-dialog .opt-bridge-status .bridge-token-preview {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.92em;
-        padding: 0.05em 0.35em;
+        font-size: 11px;
+        padding: 1px 5px;
         border-radius: 4px;
         background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 10%, transparent);
         user-select: all;
@@ -881,21 +1617,45 @@
 
       .ws-sidebar-actions {
         display: flex;
+        align-items: center;
         flex-wrap: wrap;
         gap: 6px;
         padding: 8px 10px;
         border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: color-mix(in srgb, var(--vscode-editorWidget-background, #252526) 40%, transparent);
       }
 
-      .ws-sidebar-actions button,
-      .ws-tree-toolbar button {
-        padding: 5px 9px;
-        font-size: 12px;
+      .ws-sidebar-actions button {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 500;
         line-height: 1.2;
+        padding: 4px 8px;
+        border-radius: var(--r-sm, 4px);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        color: var(--vscode-editor-foreground, #ccc);
+        cursor: pointer;
+        transition: all 0.12s;
+        box-sizing: border-box;
       }
 
-      .ws-sidebar-actions button:focus-visible,
-      .ws-tree-toolbar button:focus-visible {
+      .ws-sidebar-actions button:hover {
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--acc);
+        color: var(--vscode-editor-foreground, #fff);
+      }
+
+      .ws-sidebar-actions button:active {
+        transform: translateY(0.5px);
+      }
+
+      .ws-sidebar-actions button:focus-visible {
         outline: 1px solid var(--vscode-focusBorder, #007fd4);
         outline-offset: 1px;
       }
@@ -905,21 +1665,49 @@
         align-items: center;
         justify-content: flex-end;
         gap: 6px;
-        padding: 4px 10px 2px;
-        border-bottom: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.2));
+        padding: 5px 10px;
+        border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #454545) 50%, transparent);
         flex-shrink: 0;
       }
 
       .ws-tree-fold-btn {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.2;
+        padding: 3px 8px;
+        border-radius: var(--r-sm, 4px);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        background: var(--vscode-editorWidget-background, #252526);
+        color: var(--vscode-editor-foreground, #ccc);
+        opacity: 0.9;
+        cursor: pointer;
+        transition: all 0.12s;
+        box-sizing: border-box;
+      }
+
+      .ws-tree-fold-btn:hover {
+        opacity: 1;
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+        border-color: var(--acc);
+        color: var(--vscode-editor-foreground, #fff);
+      }
+
+      .ws-tree-fold-btn:active {
+        transform: translateY(0.5px);
       }
 
       .ws-tree-fold-btn .vsc-icon {
         width: 12px;
         height: 12px;
         flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .ws-tree-fold-btn .vsc-icon svg {
@@ -1503,35 +2291,210 @@
     />
 
     <div id="empty-state">
-      <div class="dropzone" id="dropzone" tabindex="0">
-        <h1>Markdown 工作台</h1>
-        <p>
-          像 VS Code 一样打开整个文件夹作为工作区，浏览并预览其中的 Markdown 与 SVG（含火焰图）；也可以只打开单个文件。
-        </p>
-        <div class="actions">
-          <button type="button" id="btn-open-folder">打开文件夹…</button>
-          <button type="button" class="secondary" id="btn-open-ssh">SSH 工作区…</button>
-          <button type="button" class="secondary" id="btn-open-wsl">WSL 工作区…</button>
-          <button type="button" class="secondary" id="btn-open">打开文件…</button>
-          <button type="button" class="secondary" id="btn-options">选项</button>
-        </div>
-        <p class="meta" id="empty-meta">
-          本地工作区使用 File System Access API。SSH/WSL 需本机桥接
-          <code>npm run ssh-bridge</code>（WSL 仅 Windows + wsl.exe）。也可直接打开
-          <code>file://wsl.localhost/…</code> 路径。
-        </p>
-      </div>
+      <div class="wb-container dropzone" id="dropzone" tabindex="0">
+        <!-- Header: Brand + Search + Status + Options -->
+        <header class="wb-header">
+          <div class="wb-brand">
+            <div class="wb-logo" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25">
+                <rect x="1.5" y="2.5" width="13" height="11" rx="1.25"/>
+                <path d="M5.5 2.5v11M1.5 5.5h4"/>
+              </svg>
+            </div>
+            <div class="wb-brand-info">
+              <div class="wb-title-row">
+                <h1 class="wb-title">Markdown 工作台</h1>
+                <span class="wb-version-badge">Preview</span>
+              </div>
+              <p class="wb-desc">像 VS Code 一样浏览与预览 Markdown 及 SVG 火焰图，支持本地、WSL 与 SSH 工作区</p>
+            </div>
+          </div>
 
-      <div class="history-panel" id="history-panel" hidden>
-        <div class="history-head">
-          <h3>最近工作区</h3>
-          <button type="button" id="history-clear-all" title="清空全部历史">清空全部</button>
+          <div class="wb-header-actions">
+            <!-- Search Filter -->
+            <div class="wb-search-wrap">
+              <span class="wb-search-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6.5 11.5a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM10.5 10.5l4 4"/>
+                </svg>
+              </span>
+              <input
+                type="text"
+                id="wb-search-input"
+                placeholder="搜索工作区或文件 (/) ..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <kbd class="wb-search-kbd">/</kbd>
+            </div>
+
+            <!-- Bridge Status Indicator -->
+            <div class="wb-bridge-status" id="wb-bridge-status" title="本机 WSL/SSH 桥接服务状态 (点击打开选项)">
+              <span class="wb-status-dot"></span>
+              <span class="wb-status-text" id="wb-bridge-text">Bridge 探测中</span>
+            </div>
+
+            <!-- Options Button -->
+            <button type="button" class="wb-icon-btn" id="btn-options" title="选项与偏好设置" aria-label="选项与偏好设置">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round">
+                <path d="M6.4 1.6h3.2l.4 1.7c.45.15.88.38 1.25.66l1.6-.55 1.6 1.6-.55 1.6c.28.37.51.8.66 1.25l1.7.4v3.2l-1.7.4c-.15.45-.38.88-.66 1.25l.55 1.6-1.6 1.6-1.6-.55c-.37.28-.8.51-1.25.66l-.4 1.7H6.4l-.4-1.7a5.6 5.6 0 0 1-1.25-.66l-1.6.55-1.6-1.6.55-1.6A5.6 5.6 0 0 1 2.04 9.6L.34 9.2V6l1.7-.4c.15-.45.38-.88.66-1.25l-.55-1.6 1.6-1.6 1.6.55c.37-.28.8-.51 1.25-.66L6.4 1.6z"/>
+                <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.2"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Quick Action 4-Card Grid -->
+        <section class="wb-quick-actions" aria-label="快捷启动">
+          <div class="wb-section-title">快捷启动</div>
+          <div class="wb-cards-grid">
+            <!-- 1: Local Folder -->
+            <button type="button" class="wb-action-card wb-card-local" id="btn-open-folder">
+              <div class="wb-card-head">
+                <span class="wb-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round">
+                    <path d="M1.5 4.5h4l1.2 1.5H14.5v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1z"/>
+                    <path d="M1.5 6.5h13"/>
+                  </svg>
+                </span>
+                <span class="wb-card-shortcut">Ctrl+K O</span>
+              </div>
+              <div class="wb-card-body">
+                <span class="wb-card-title">打开本地文件夹</span>
+                <span class="wb-card-desc">打开本地目录作为工作区，或直接拖入</span>
+              </div>
+            </button>
+
+            <!-- 2: WSL Workspace -->
+            <button type="button" class="wb-action-card wb-card-wsl" id="btn-open-wsl">
+              <div class="wb-card-head">
+                <span class="wb-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="12" height="9" rx="1.5"/>
+                    <path d="M5 14h6M8 11v3"/>
+                  </svg>
+                </span>
+                <span class="wb-card-tag">WSL2</span>
+              </div>
+              <div class="wb-card-body">
+                <span class="wb-card-title">WSL 工作区</span>
+                <span class="wb-card-desc">连接 Linux 子系统 (openEuler/Debian/Ubuntu)</span>
+              </div>
+            </button>
+
+            <!-- 3: SSH Workspace -->
+            <button type="button" class="wb-action-card wb-card-ssh" id="btn-open-ssh">
+              <div class="wb-card-head">
+                <span class="wb-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1.5" y="3" width="13" height="10" rx="1.5"/>
+                    <path d="M4 7.5l2 2-2 2M8 11.5h3.5"/>
+                  </svg>
+                </span>
+                <span class="wb-card-tag">SSH</span>
+              </div>
+              <div class="wb-card-body">
+                <span class="wb-card-title">SSH 远程工作区</span>
+                <span class="wb-card-desc">连接远程 Linux 服务器或开发机</span>
+              </div>
+            </button>
+
+            <!-- 4: Open File -->
+            <button type="button" class="wb-action-card wb-card-file" id="btn-open">
+              <div class="wb-card-head">
+                <span class="wb-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round">
+                    <path d="M4 1.5h5.5L12.5 4.5V13.5a1 1 0 0 1-1 1h-7.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z"/>
+                    <path d="M9.5 1.5V4.5H12.5"/>
+                    <path d="M5.5 8h5M5.5 10.5h3.5" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <span class="wb-card-shortcut">Ctrl+O</span>
+              </div>
+              <div class="wb-card-body">
+                <span class="wb-card-title">打开单个文件</span>
+                <span class="wb-card-desc">浏览单篇 Markdown 或性能火焰图 SVG</span>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        <!-- Main Split Dashboard: Workspaces & Files -->
+        <div class="history-panel" id="history-panel" hidden>
+          <div class="wb-dashboard-grid">
+            <!-- Left: Workspaces (7 cols) -->
+            <section class="wb-col-workspaces">
+              <div class="wb-panel-head">
+                <div class="wb-head-left">
+                  <h3>最近工作区</h3>
+                  <span class="wb-count-badge" id="ws-total-count">0</span>
+                </div>
+                <div class="wb-filter-tabs" id="ws-filter-tabs" role="tablist" aria-label="工作区类型筛选">
+                  <button type="button" class="wb-tab active" data-filter="all">全部</button>
+                  <button type="button" class="wb-tab" data-filter="wsl">WSL</button>
+                  <button type="button" class="wb-tab" data-filter="ssh">SSH</button>
+                  <button type="button" class="wb-tab" data-filter="local">本地</button>
+                </div>
+              </div>
+              <ul class="history-list wb-history-list" id="history-workspaces" aria-label="最近工作区"></ul>
+              <div class="wb-empty-filter-hint" id="ws-filter-empty" hidden>未找到匹配的工作区</div>
+              <div class="wb-pagination" id="ws-pagination">
+                <span class="wb-page-info" id="ws-page-info">第 1 / 1 页</span>
+                <div class="wb-page-btns">
+                  <button type="button" class="wb-page-btn" id="ws-page-prev" title="上一页" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l-4 4 4 4"/></svg>
+                  </button>
+                  <span class="wb-page-num" id="ws-page-num">1</span>
+                  <button type="button" class="wb-page-btn" id="ws-page-next" title="下一页" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Right: Files (5 cols) -->
+            <section class="wb-col-files">
+              <div class="wb-panel-head">
+                <div class="wb-head-left">
+                  <h3>最近文件</h3>
+                  <span class="wb-count-badge" id="files-total-count">0</span>
+                </div>
+                <div class="wb-head-right">
+                  <button type="button" class="wb-text-btn danger" id="history-clear-all" title="清空全部历史记录">清空全部</button>
+                </div>
+              </div>
+              <ul class="history-list wb-history-list" id="history-files" aria-label="最近文件"></ul>
+              <div class="wb-empty-filter-hint" id="files-filter-empty" hidden>未找到匹配的文件</div>
+              <div class="wb-pagination" id="files-pagination">
+                <span class="wb-page-info" id="files-page-info">第 1 / 1 页</span>
+                <div class="wb-page-btns">
+                  <button type="button" class="wb-page-btn" id="files-page-prev" title="上一页" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l-4 4 4 4"/></svg>
+                  </button>
+                  <span class="wb-page-num" id="files-page-num">1</span>
+                  <button type="button" class="wb-page-btn" id="files-page-next" title="下一页" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
-        <ul class="history-list" id="history-workspaces" aria-label="最近工作区"></ul>
-        <div class="history-head">
-          <h3>最近文件</h3>
-        </div>
-        <ul class="history-list" id="history-files" aria-label="最近文件"></ul>
+
+        <!-- Footer Bar -->
+        <footer class="wb-footer">
+          <div class="wb-footer-tip">
+            <span class="wb-tip-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.5 10.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M8 1.5v9M4.5 7.5L8 11l3.5-3.5"/>
+              </svg>
+            </span>
+            <span>可将任意文件夹或 <code>.md</code> / <code>.svg</code> 拖入窗口任意位置直接打开</span>
+          </div>
+          <div class="wb-footer-meta">
+            <span>WSL/SSH 桥接指令: <code>npm run ssh-bridge</code></span>
+          </div>
+        </footer>
       </div>
     </div>
 
@@ -1609,89 +2572,107 @@
         aria-labelledby="options-dialog-title"
       >
         <div class="dlg-header">
-          <h2 id="options-dialog-title">选项</h2>
-          <p class="dlg-sub">修改会立即保存；已打开的预览会自动应用主题与布局。</p>
+          <h2 id="options-dialog-title">选项与偏好设置</h2>
+          <p class="dlg-sub">修改将实时生效，已打开的预览将同步更新主题与排版。</p>
         </div>
+
+        <div class="opt-tabs" id="opt-dialog-tabs" role="tablist" aria-label="选项分类">
+          <button type="button" class="opt-tab active" data-opt-tab="general" role="tab" aria-selected="true">常规设置</button>
+          <button type="button" class="opt-tab" data-opt-tab="markdown" role="tab" aria-selected="false">Markdown</button>
+          <button type="button" class="opt-tab" data-opt-tab="extensions" role="tab" aria-selected="false">扩展组件</button>
+          <button type="button" class="opt-tab" data-opt-tab="bridge" role="tab" aria-selected="false">本机 Bridge</button>
+        </div>
+
         <div class="dlg-body">
-          <fieldset class="opt-fieldset">
-            <legend>常规</legend>
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-autoPreview" /> 本地 file:// 与 GitHub/Gist raw 自动预览</label
-            >
-            <label class="opt-row">
-              <span class="dlg-field-label">主题</span>
-              <select id="opt-theme">
-                <option value="auto">跟随系统</option>
-                <option value="light">浅色</option>
-                <option value="dark">深色</option>
-              </select>
+          <!-- 1. General -->
+          <div class="opt-panel opt-section-card active" data-opt-panel="general" role="tabpanel">
+            <span class="opt-section-title">常规设置 General</span>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-autoPreview" />
+              <span>本地 file:// 与 GitHub/Gist raw 自动唤起预览</span>
             </label>
-            <label class="opt-row">
-              <span class="dlg-field-label">预览宽度</span>
-              <select id="opt-previewWidth">
-                <option value="comfortable">舒适（~980px）</option>
-                <option value="wide">宽屏（~1280px，推荐）</option>
-                <option value="fluid">更宽（~1600px / 96vw）</option>
-                <option value="full">铺满内容区</option>
+            <div class="opt-row">
+              <span class="dlg-field-label">界面主题</span>
+              <select id="opt-theme" aria-label="界面主题">
+                <option value="auto">跟随系统 (Auto)</option>
+                <option value="light">浅色 (Light)</option>
+                <option value="dark">深色 (Dark)</option>
               </select>
+            </div>
+            <div class="opt-row">
+              <span class="dlg-field-label">预览区域宽度</span>
+              <select id="opt-previewWidth" aria-label="预览区域宽度">
+                <option value="comfortable">舒适 (~980px)</option>
+                <option value="wide">宽屏 (~1280px，推荐)</option>
+                <option value="fluid">更宽 (~1600px / 96vw)</option>
+                <option value="full">铺满内容区 (Full)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 2. Markdown -->
+          <div class="opt-panel opt-section-card" data-opt-panel="markdown" role="tabpanel" hidden>
+            <span class="opt-section-title">Markdown 渲染</span>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-breaks" />
+              <span>GFM 软换行转为硬换行（Breaks → &lt;br&gt;）</span>
             </label>
-          </fieldset>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-linkify" />
+              <span>自动识别纯文本 URL 为可点击链接</span>
+            </label>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-typographer" />
+              <span>排版增强（智能引号、破折号转换）</span>
+            </label>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-sanitizeHtml" />
+              <span>禁用 Markdown 中的原始 HTML（安全沙箱）</span>
+            </label>
+          </div>
 
-          <fieldset class="opt-fieldset">
-            <legend>Markdown</legend>
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-breaks" /> Breaks（换行 → &lt;br&gt;）</label
-            >
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-linkify" /> 自动识别 URL 链接</label
-            >
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-typographer" /> 排版增强（智能引号等）</label
-            >
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-sanitizeHtml" /> 禁用 Markdown 中的原始 HTML</label
-            >
-          </fieldset>
-
-          <fieldset class="opt-fieldset">
-            <legend>扩展</legend>
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-mathEnabled" /> KaTeX 公式</label
-            >
-            <label class="opt-check"
-              ><input type="checkbox" id="opt-mermaidEnabled" /> Mermaid 图表</label
-            >
-            <label class="opt-row">
+          <!-- 3. Extensions -->
+          <div class="opt-panel opt-section-card" data-opt-panel="extensions" role="tabpanel" hidden>
+            <span class="opt-section-title">扩展组件 Extensions</span>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-mathEnabled" />
+              <span>KaTeX 数学公式渲染（$inline$ 与 $$block$$）</span>
+            </label>
+            <label class="opt-check">
+              <input type="checkbox" id="opt-mermaidEnabled" />
+              <span>Mermaid 架构与流程图渲染</span>
+            </label>
+            <div class="opt-row">
               <span class="dlg-field-label">Mermaid 主题</span>
-              <select id="opt-mermaidTheme">
-                <option value="vscode">VS Code（推荐）</option>
-                <option value="default">Mermaid default</option>
-                <option value="dark">Mermaid dark</option>
-                <option value="forest">Mermaid forest</option>
-                <option value="neutral">Mermaid neutral</option>
-                <option value="base">Mermaid base</option>
+              <select id="opt-mermaidTheme" aria-label="Mermaid 主题">
+                <option value="vscode">VS Code 变量自适应（推荐）</option>
+                <option value="default">Mermaid 默认 (Default)</option>
+                <option value="dark">暗色主题 (Dark)</option>
+                <option value="forest">森绿 (Forest)</option>
+                <option value="neutral">中性灰 (Neutral)</option>
+                <option value="base">基础模式 (Base)</option>
               </select>
-            </label>
-          </fieldset>
+            </div>
+          </div>
 
-          <fieldset class="opt-fieldset">
-            <legend>Local Bridge（SSH / WSL）</legend>
-            <p class="dlg-field-hint" style="margin-bottom: 10px">
-              本机运行 <code>npm run ssh-bridge</code>，把 Token 填到下方。WSL 需 Bridge 跑在
-              Windows 上。
+          <!-- 4. Bridge -->
+          <div class="opt-panel opt-section-card" data-opt-panel="bridge" role="tabpanel" hidden>
+            <span class="opt-section-title">本机 Bridge（SSH / WSL 远程工作区）</span>
+            <p class="dlg-field-hint" style="margin: 0 0 4px">
+              本机运行 <code>npm run ssh-bridge</code>，将 Token 填入下方。WSL 需 Bridge 跑在 Windows 上。
             </p>
-            <label class="opt-row">
-              <span class="dlg-field-label">Bridge URL</span>
+            <div class="opt-row-col">
+              <span class="dlg-field-label">Bridge 服务地址</span>
               <input id="opt-sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" />
-            </label>
-            <label class="opt-row">
-              <span class="dlg-field-label">Bridge Token</span>
-              <input id="opt-sshBridgeToken" type="password" autocomplete="off" />
-            </label>
+            </div>
+            <div class="opt-row-col">
+              <span class="dlg-field-label">Bridge 鉴权 Token</span>
+              <input id="opt-sshBridgeToken" type="password" autocomplete="off" placeholder="未设置 Token 时可留空" />
+            </div>
             <p class="opt-bridge-status" id="opt-bridge-status">
-              Bridge：<span class="bridge-state">—</span>
+              <span>Bridge 状态:</span> <span class="bridge-state">—</span>
             </p>
-          </fieldset>
+          </div>
         </div>
         <p class="opt-status" id="opt-status" aria-live="polite"></p>
         <div class="ssh-actions">

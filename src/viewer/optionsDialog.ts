@@ -85,14 +85,14 @@ async function refreshBridgeStatus(): Promise<void> {
 // settings changed meanwhile from the full options page.
 async function persistSettings(partial: Partial<PreviewSettings>): Promise<void> {
   await saveSettings(partial);
-  setStatus('已保存');
+  setStatus('✓ 已实时保存');
 }
 
 async function persistBridge(): Promise<void> {
   const url = ($('opt-sshBridgeUrl') as HTMLInputElement).value.trim() || DEFAULT_SSH_BRIDGE_URL;
   const token = ($('opt-sshBridgeToken') as HTMLInputElement).value.trim();
   await saveSshBridgeSettings({ bridgeUrl: url, bridgeToken: token });
-  setStatus('Bridge 设置已保存');
+  setStatus('✓ Bridge 设置已保存');
   void refreshBridgeStatus();
 }
 
@@ -143,6 +143,25 @@ function wireOnce(): void {
   );
   $('opt-sshBridgeUrl').addEventListener('change', () => void persistBridge());
   $('opt-sshBridgeToken').addEventListener('change', () => void persistBridge());
+
+  // Wire 4 tabs switching
+  const tabs = document.querySelectorAll<HTMLButtonElement>('#options-dialog .opt-tab[data-opt-tab]');
+  const panels = document.querySelectorAll<HTMLElement>('#options-dialog .opt-panel[data-opt-panel]');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.optTab;
+      tabs.forEach((t) => {
+        const isTarget = t.dataset.optTab === target;
+        t.classList.toggle('active', isTarget);
+        t.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+      });
+      panels.forEach((p) => {
+        const isTarget = p.dataset.optPanel === target;
+        p.hidden = !isTarget;
+        p.classList.toggle('active', isTarget);
+      });
+    });
+  });
 
   document.getElementById('opt-close')?.addEventListener('click', () => showOptionsDialog(false));
   document

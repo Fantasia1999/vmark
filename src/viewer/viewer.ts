@@ -2140,12 +2140,55 @@ function wireUi(): void {
   wireHistoryClearButton(historyHandlersRef);
   void refreshHistoryPanel(historyHandlersRef);
 
-  if (!isDirectoryPickerSupported()) {
-    const meta = document.getElementById('empty-meta');
-    if (meta) {
-      meta.textContent =
-        '当前环境不支持打开文件夹，请使用「打开文件」或直接在浏览器中打开 file:// 路径。';
+  // Probe Bridge status on home dashboard
+  const updateBridgeStatus = async (): Promise<void> => {
+    const statusEl = document.getElementById('wb-bridge-status');
+    const textEl = document.getElementById('wb-bridge-text');
+    if (!statusEl || !textEl) {
+      return;
     }
+    try {
+      const h = await sshHealth();
+      if (h.ok) {
+        statusEl.className = 'wb-bridge-status online';
+        textEl.textContent = 'Bridge 在线';
+        statusEl.title = `本机 Bridge 在线 (HTTP ${h.auth === 'ok' ? '已鉴权' : '未开启鉴权'}) - 点击配置`;
+      } else {
+        statusEl.className = 'wb-bridge-status offline';
+        textEl.textContent = 'Bridge 离线';
+        statusEl.title = '本机 Bridge 服务未连接 (npm run ssh-bridge) - 点击查看选项';
+      }
+    } catch {
+      statusEl.className = 'wb-bridge-status offline';
+      textEl.textContent = 'Bridge 离线';
+    }
+  };
+  void updateBridgeStatus();
+  document.getElementById('wb-bridge-status')?.addEventListener('click', () => {
+    showOptionsDialog(true);
+  });
+
+  // Global search shortcut '/' and 'Esc' for workbench search
+  window.addEventListener('keydown', (e) => {
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState && !emptyState.hidden) {
+      const searchInput = document.getElementById('wb-search-input') as HTMLInputElement | null;
+      if (searchInput) {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (e.key === '/' && activeTag !== 'input' && activeTag !== 'textarea' && activeTag !== 'select') {
+          e.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+        } else if (e.key === 'Escape' && document.activeElement === searchInput) {
+          searchInput.value = '';
+          searchInput.dispatchEvent(new Event('input'));
+          searchInput.blur();
+        }
+      }
+    }
+  });
+
+  if (!isDirectoryPickerSupported()) {
     const btn = document.getElementById('btn-open-folder') as HTMLButtonElement | null;
     if (btn) {
       btn.disabled = true;
