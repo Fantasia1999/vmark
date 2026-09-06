@@ -114,6 +114,11 @@ import {
 import { renderSourceWithLineNumbers } from '../shared/sourceView';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
 import { isOptionsDialogOpen, showOptionsDialog } from './optionsDialog';
+import {
+  closeBridgePopover,
+  initBridgePopover,
+  isBridgePopoverOpen,
+} from './bridgePopover';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -2109,9 +2114,18 @@ function wireUi(): void {
 
   $('btn-open').addEventListener('click', () => pickFile());
   $('btn-open-folder')?.addEventListener('click', () => void openWorkspaceFolder());
-  $('btn-open-ssh')?.addEventListener('click', () => showSshDialog(true));
-  $('btn-open-wsl')?.addEventListener('click', () => showWslDialog(true));
-  $('btn-options').addEventListener('click', () => showOptionsDialog(true));
+  $('btn-open-ssh')?.addEventListener('click', () => {
+    closeBridgePopover();
+    showSshDialog(true);
+  });
+  $('btn-open-wsl')?.addEventListener('click', () => {
+    closeBridgePopover();
+    showWslDialog(true);
+  });
+  $('btn-options').addEventListener('click', () => {
+    closeBridgePopover();
+    showOptionsDialog(true);
+  });
 
   $('ws-btn-refresh')?.addEventListener('click', () => void refreshWorkspace());
   wireTreeFoldButton({
@@ -2224,32 +2238,9 @@ function wireUi(): void {
   wireHistoryClearButton(historyHandlersRef);
   void refreshHistoryPanel(historyHandlersRef);
 
-  // Probe Bridge status on home dashboard
-  const updateBridgeStatus = async (): Promise<void> => {
-    const statusEl = document.getElementById('wb-bridge-status');
-    const textEl = document.getElementById('wb-bridge-text');
-    if (!statusEl || !textEl) {
-      return;
-    }
-    try {
-      const h = await sshHealth();
-      if (h.ok) {
-        statusEl.className = 'wb-bridge-status online';
-        textEl.textContent = 'Bridge 在线';
-        statusEl.title = `本机 Bridge 在线 (HTTP ${h.auth === 'ok' ? '已鉴权' : '未开启鉴权'}) - 点击配置`;
-      } else {
-        statusEl.className = 'wb-bridge-status offline';
-        textEl.textContent = 'Bridge 离线';
-        statusEl.title = '本机 Bridge 服务未连接 (npm run ssh-bridge) - 点击查看选项';
-      }
-    } catch {
-      statusEl.className = 'wb-bridge-status offline';
-      textEl.textContent = 'Bridge 离线';
-    }
-  };
-  void updateBridgeStatus();
-  document.getElementById('wb-bridge-status')?.addEventListener('click', () => {
-    showOptionsDialog(true);
+  // Probe Bridge status on home dashboard and initialize dropdown popover
+  initBridgePopover({
+    onOpenOptions: () => showOptionsDialog(true),
   });
 
   // Global search shortcut '/' and 'Esc' for workbench search
@@ -2396,6 +2387,11 @@ function wireModalKeyboard(): void {
           void connectSshFromDialog();
         }
       }
+      return;
+    }
+    if (isBridgePopoverOpen()) {
+      e.preventDefault();
+      closeBridgePopover();
       return;
     }
     if (isOptionsDialogOpen()) {

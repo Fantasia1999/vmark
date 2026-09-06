@@ -19,6 +19,7 @@ import {
   saveSshBridgeSettings,
   sshHealth,
 } from '../shared/sshClient';
+import { updateBridgePopover } from './bridgePopover';
 
 export const OPTIONS_DIALOG_ID = 'options-dialog';
 
@@ -94,6 +95,7 @@ async function persistBridge(): Promise<void> {
   await saveSshBridgeSettings({ bridgeUrl: url, bridgeToken: token });
   setStatus('✓ Bridge 设置已保存');
   void refreshBridgeStatus();
+  void updateBridgePopover(true);
 }
 
 async function fillForm(): Promise<void> {

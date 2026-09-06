@@ -242,7 +242,16 @@
         pointer-events: none;
       }
 
+      .wb-bridge-wrap {
+        position: relative;
+        display: inline-flex;
+      }
+
       .wb-bridge-status {
+        appearance: none;
+        -webkit-appearance: none;
+        color: inherit;
+        font: inherit;
         display: inline-flex;
         align-items: center;
         gap: 5px;
@@ -252,6 +261,7 @@
         background: var(--vscode-editorWidget-background, #252526);
         font-size: 11px;
         cursor: pointer;
+        user-select: none;
         transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
       }
 
@@ -260,20 +270,288 @@
         border-color: var(--acc);
       }
 
+      .wb-bridge-status:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder, #007fd4);
+        outline-offset: 1px;
+      }
+
+      .wb-bridge-status[aria-expanded="true"] {
+        border-color: var(--vscode-focusBorder, #007fd4);
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+
+      .wb-bridge-caret {
+        opacity: 0.6;
+        transition: transform 0.15s ease;
+        margin-left: 1px;
+        flex-shrink: 0;
+      }
+
+      .wb-bridge-status[aria-expanded="true"] .wb-bridge-caret {
+        transform: rotate(180deg);
+      }
+
       .wb-status-dot {
         width: 6.5px;
         height: 6.5px;
         border-radius: 50%;
         background: #888;
         transition: background 0.2s;
+        flex-shrink: 0;
       }
 
-      .wb-bridge-status.online .wb-status-dot {
+      .wb-bridge-status.online .wb-status-dot,
+      .wb-bp-dot.online {
         background: var(--vscode-charts-green, #3dd68c);
       }
 
-      .wb-bridge-status.offline .wb-status-dot {
+      .wb-bridge-status.offline .wb-status-dot,
+      .wb-bp-dot.offline {
         background: var(--vscode-editorWarning-foreground, #e8a33d);
+      }
+
+      /* Bridge Popover Dropdown */
+      .wb-bridge-popover {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 320px;
+        max-width: min(320px, 90vw);
+        box-sizing: border-box;
+        background: var(--vscode-editorWidget-background, #252526);
+        border: 1px solid var(--vscode-editorWidget-border, #454545);
+        border-radius: var(--r-md, 8px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        padding: 12px 14px;
+        z-index: 1000;
+        font-size: 11.5px;
+        color: var(--vscode-editor-foreground, #cccccc);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: wbBridgeFadeIn 0.12s ease-out;
+      }
+
+      .wb-bridge-popover[hidden] {
+        display: none !important;
+      }
+
+      @keyframes wbBridgeFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .wb-bp-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 7px;
+        border-bottom: 1px solid var(--vscode-editorWidget-border, #3a3a3a);
+      }
+
+      .wb-bp-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .wb-bp-refresh-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        opacity: 0.7;
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+      }
+
+      .wb-bp-refresh-btn:hover {
+        opacity: 1;
+        background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+      }
+
+      .wb-bp-refresh-btn.spinning svg {
+        animation: wbBridgeSpin 0.7s linear infinite;
+      }
+
+      @keyframes wbBridgeSpin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .wb-bp-details {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .wb-bp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11.5px;
+      }
+
+      .wb-bp-label {
+        opacity: 0.65;
+        white-space: nowrap;
+      }
+
+      .wb-bp-val {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px;
+        text-align: right;
+        word-break: break-all;
+      }
+
+      .wb-bp-val.ok {
+        color: var(--vscode-charts-green, #3dd68c);
+        font-weight: 600;
+      }
+
+      .wb-bp-val.warn {
+        color: var(--vscode-editorWarning-foreground, #e8a33d);
+        font-weight: 600;
+      }
+
+      .wb-bp-val.bad {
+        color: var(--vscode-errorForeground, #f48771);
+        font-weight: 600;
+      }
+
+      .wb-bp-token-preview {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10.5px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #ccc) 10%, transparent);
+        margin-left: 4px;
+      }
+
+      .wb-bp-hint {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .wb-bp-notice {
+        border-radius: 6px;
+        padding: 8px 10px;
+        line-height: 1.45;
+        font-size: 11px;
+      }
+
+      .wb-bp-notice-offline {
+        background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #e8a33d) 8%, var(--vscode-editorWidget-background));
+        border: 1px solid color-mix(in srgb, var(--vscode-editorWarning-foreground, #e8a33d) 25%, var(--vscode-editorWidget-border));
+      }
+
+      .wb-bp-notice-warn {
+        background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #e8a33d) 8%, var(--vscode-editorWidget-background));
+        border: 1px solid color-mix(in srgb, var(--vscode-editorWarning-foreground, #e8a33d) 25%, var(--vscode-editorWidget-border));
+      }
+
+      .wb-bp-notice-bad {
+        background: color-mix(in srgb, var(--vscode-errorForeground, #f48771) 8%, var(--vscode-editorWidget-background));
+        border: 1px solid color-mix(in srgb, var(--vscode-errorForeground, #f48771) 25%, var(--vscode-editorWidget-border));
+      }
+
+      .wb-bp-notice-ok {
+        background: color-mix(in srgb, var(--vscode-charts-green, #3dd68c) 8%, var(--vscode-editorWidget-background));
+        border: 1px solid color-mix(in srgb, var(--vscode-charts-green, #3dd68c) 25%, var(--vscode-editorWidget-border));
+      }
+
+      .wb-bp-notice-desc {
+        margin-bottom: 6px;
+      }
+
+      .wb-bp-code-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #888) 7%, transparent);
+        border: 1px solid color-mix(in srgb, var(--vscode-editor-foreground, #888) 15%, transparent);
+        border-radius: 4px;
+        padding: 3px 6px 3px 8px;
+        margin-bottom: 5px;
+      }
+
+      .wb-bp-code-line code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px;
+        color: var(--vscode-editor-foreground, inherit);
+        user-select: all;
+      }
+
+      .wb-bp-copy-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        opacity: 0.75;
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+      }
+
+      .wb-bp-copy-btn:hover {
+        opacity: 1;
+        background: color-mix(in srgb, var(--vscode-editor-foreground, #888) 12%, transparent);
+      }
+
+      .wb-bp-subnote {
+        font-size: 10.5px;
+        opacity: 0.75;
+      }
+
+      .wb-bp-subnote code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px;
+        padding: 0 3px;
+        background: color-mix(in srgb, var(--vscode-editor-foreground) 10%, transparent);
+        border-radius: 3px;
+      }
+
+      .wb-bp-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-top: 6px;
+        border-top: 1px solid var(--vscode-editorWidget-border, #3a3a3a);
+      }
+
+      .wb-bp-link-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: var(--acc, #007fd4);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+      }
+
+      .wb-bp-link-btn:hover {
+        text-decoration: underline;
       }
 
       .wb-icon-btn {
@@ -2326,10 +2604,62 @@
               <kbd class="wb-search-kbd">/</kbd>
             </div>
 
-            <!-- Bridge Status Indicator -->
-            <div class="wb-bridge-status" id="wb-bridge-status" title="本机 WSL/SSH 桥接服务状态 (点击打开选项)">
-              <span class="wb-status-dot"></span>
-              <span class="wb-status-text" id="wb-bridge-text">Bridge 探测中</span>
+            <!-- Bridge Status Indicator & Dropdown Popover -->
+            <div class="wb-bridge-wrap">
+              <button
+                type="button"
+                class="wb-bridge-status"
+                id="wb-bridge-status"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                title="本机 WSL/SSH 桥接服务状态 (点击查看提示信息)"
+              >
+                <span class="wb-status-dot"></span>
+                <span class="wb-status-text" id="wb-bridge-text">Bridge 探测中</span>
+                <svg class="wb-bridge-caret" width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M4.427 6.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 6H4.604a.25.25 0 0 0-.177.427z"/>
+                </svg>
+              </button>
+              <div class="wb-bridge-popover" id="wb-bridge-popover" role="dialog" aria-label="Bridge 状态与提示" hidden>
+                <div class="wb-bp-header">
+                  <div class="wb-bp-title-wrap">
+                    <span class="wb-status-dot" id="wb-bp-status-dot"></span>
+                    <span class="wb-bp-title" id="wb-bp-title">Bridge 探测中</span>
+                  </div>
+                  <button type="button" class="wb-bp-refresh-btn" id="wb-bp-refresh-btn" title="重新检测 Bridge 状态" aria-label="重新检测 Bridge 状态">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M13.5 2.5v3.5h-3.5"/>
+                      <path d="M2.5 13.5v-3.5h3.5"/>
+                      <path d="M12.5 6A5.5 5.5 0 0 0 3.3 4.5L2.5 6"/>
+                      <path d="M3.5 10a5.5 5.5 0 0 0 9.2 1.5l.8-1.5"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="wb-bp-details">
+                  <div class="wb-bp-row">
+                    <span class="wb-bp-label">服务地址</span>
+                    <span class="wb-bp-val" id="wb-bp-url">http://127.0.0.1:17823</span>
+                  </div>
+                  <div class="wb-bp-row">
+                    <span class="wb-bp-label">Token 鉴权</span>
+                    <span class="wb-bp-val" id="wb-bp-auth">未校验</span>
+                  </div>
+                  <div class="wb-bp-row" id="wb-bp-wsl-row">
+                    <span class="wb-bp-label">WSL 支持</span>
+                    <span class="wb-bp-val" id="wb-bp-wsl">—</span>
+                  </div>
+                  <div class="wb-bp-row" id="wb-bp-session-row" hidden>
+                    <span class="wb-bp-label">活动会话</span>
+                    <span class="wb-bp-val" id="wb-bp-session">—</span>
+                  </div>
+                </div>
+                <div class="wb-bp-hint" id="wb-bp-hint"></div>
+                <div class="wb-bp-footer">
+                  <button type="button" class="wb-bp-link-btn" id="wb-bp-open-options">
+                    打开 Bridge 设置…
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Options Button -->
