@@ -217,4 +217,4 @@ npm run icons
 
 ## 许可说明
 
-本项目采用 **MIT 许可证**。部分渲染样式与扩展逻辑派生自 [VS Code](https://github.com/microsoft/vscode)（Copyright © Microsoft Corporation，MIT 许可）。第三方组件声明详见 `THIRD_PARTY_NOTICES.md`。
+本项目采用 [MIT 许可证](LICENSE)。部分渲染样式与扩展逻辑派生自 [VS Code](https://github.com/microsoft/vscode)（Copyright © Microsoft Corporation，MIT 许可）。第三方组件声明详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
