@@ -5,202 +5,206 @@
 </p>
 
 <p align="center">
-  <b>把 VS Code 的 Open as Preview 体验完整带入 Chrome 浏览器</b>
+  <b>Brings the complete VS Code "Open as Preview" experience into Google Chrome</b>
 </p>
 
 <p align="center">
-  支持本地文件夹工作区、SSH 远程服务器、WSL 发行版与单文件预览，提供代码块一键复制、浮动大纲、多媒体/PDF 智能预览、SVG 火焰图对比与无缝 <b>Preview ↔ Source</b> 模式切换。
+  English | <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
+  Full-featured Markdown workbench supporting local folder workspaces, remote SSH servers, WSL distributions, and standalone files. Features one-click code block copying, floating outline (TOC), smart multimedia and PDF preview, interactive SVG flame graphs with side-by-side comparison, and seamless <b>Preview ↔ Source</b> mode switching.
 </p>
 
 ---
 
-## 亮点特性
+## Key Features
 
-- **高度对齐 VS Code 内置渲染栈**
-  - 解析引擎：`markdown-it` + `highlight.js`（对标 VS Code `markdown-language-features`）。
-  - 官方样式：采用 VS Code 原生 `markdown.css`、`highlight.css` 与自适应变量主题（深色 / 浅色跟随系统或手动指定）。
-  - 数学公式：`KaTeX` 支持行内 `$...$` 与多行块级 `$$...$$` 公式（对标 `@vscode/markdown-it-katex`）。
-  - 图表渲染：`Mermaid` 流程图与架构图渲染，支持 VS Code 派生主题变量配色及 PNG/JPEG 导出。
+- **Pixel-Perfect Alignment with VS Code's Rendering Stack**
+  - **Core Engine**: `markdown-it` + `highlight.js` (matching VS Code's `markdown-language-features`).
+  - **Official Styles**: Built-in VS Code `markdown.css`, `highlight.css`, and adaptive CSS variable themes (automatic light/dark system matching or manual selection).
+  - **Math Expressions**: Full `KaTeX` support for inline `$...$` and multiline block `$$...$$` syntax (matching `@vscode/markdown-it-katex`).
+  - **Diagrams**: `Mermaid` architecture diagrams and flowcharts, styled with VS Code-derived theme variables, with one-click export to PNG/JPEG or clipboard.
 
-- **三位一体的多源工作区（Workspace）**
-  - **本地工作区**：基于浏览器的 File System Access API 打开目录，左侧树状展示所有 Markdown 与 SVG 文件，支持持久化 Handle 自动恢复历史会话。
-  - **SSH 远程工作区**：通过本机轻量 Bridge（监听 `127.0.0.1`）连接 Linux 服务器，远程执行 GNU `find` 极速批量扫描，支持读取 `~/.ssh/config` 配置、记住密码与静默免密重连。
-  - **WSL 工作区**：自动识别 `file://wsl.localhost/` 路径，或经本机 Bridge 调用 `wsl.exe` 读取 Windows WSL 发行版文件。
+- **Multi-Source Workspaces**
+  - **Local Workspaces**: Open any local directory via the browser's File System Access API. Displays a recursive file tree of all Markdown and SVG files with persistent handle storage for instant session recovery.
+  - **Remote SSH Workspaces**: Connect to Linux servers via a lightweight local bridge (listening on `127.0.0.1`). Utilizes high-performance remote GNU `find` bulk scanning, native `~/.ssh/config` Host alias parsing, password remembering, and silent reconnects.
+  - **WSL Workspaces**: Automatically detects `file://wsl.localhost/` paths or connects via local bridge using `wsl.exe` to browse any WSL distribution.
 
-- **智能相对资源解析与多媒体 / PDF 预览**
-  - 文档内相对 `.md` 链接点击后平滑在工作台中切换；
-  - 相对路径的本地 `.pdf` 文档以 Blob URL 在新标签页原生预览；
-  - 图片（`.png`, `.jpg`, `.svg` 等）与音视频（`.mp4`, `.mp3` 等）自动匹配正确 MIME 类型在新标签页展示；
-  - 压缩包（`.zip`, `.tar.gz` 等）二进制资产自动触发下载；
-  - 外部 `http(s)://` 超链接自动在新标签页打开，保护当前工作台会话不被冲掉。
+- **Smart Relative Resource Resolution & Media / PDF Preview**
+  - Relative `.md` links switch smoothly within the workbench.
+  - Relative `.pdf` documents open in a new tab with Chrome's native PDF viewer via Blob URLs (`application/pdf`).
+  - Images (`.png`, `.jpg`, `.svg`, etc.) and media files (`.mp4`, `.mp3`, etc.) open in new tabs with exact MIME types.
+  - Binary archives (`.zip`, `.tar.gz`, etc.) automatically trigger browser downloads.
+  - External `http(s)://` links safely open in new tabs (`target="_blank"`, `rel="noopener noreferrer"`) to prevent overriding your active workbench session.
 
-- **现代化效率工作台（Workbench）**
-  - **快捷操作仪表盘**：提供直观的快速启动卡片，最近工作区与文件历史面板支持关键词即时过滤（快捷键 `/`）、类型标签筛选、分页以及一键清空全部。
-  - **阅读进度记忆**：自动按文件独立记录滚动阅读进度，切换文件或刷新时平滑还原。
-  - **代码块一键复制**：GitHub 风格的代码块复制按钮，具备操作状态反馈与选区溢出优化。
-  - **路径一键复制**：工作台顶部提供相对路径与绝对路径快捷复制按钮。
-  - **目录树操作优化**：文件树工具栏支持一键「收起全部」与展开；侧边栏支持折叠/展开与拖拽调节宽度（双击复位）。
-  - **大纲悬浮窗（TOC）**：紧凑的大纲视图，支持自由拖动标题栏，支持 **Pin 钉住固定**，方便长文档跳转。
-  - **源码与缩放控制**：一键切换预览与源码视图（源码视图带行号）；支持 50% ~ 250% 页面内容缩放。
+- **Modern Productivity Workbench**
+  - **Quick Action Dashboard**: Clean start cards for rapid navigation. The unified history panel supports instant fuzzy search (press `/` shortcut), category filters (All / Local / WSL / SSH), pagination, and clear-all actions.
+  - **Reading Position Memory**: Remembers scroll positions per file and restores them smoothly upon reopening or refreshing.
+  - **Fenced Code Block Copying**: GitHub-style copy buttons on code blocks with visual feedback and selection bounds handling.
+  - **One-Click Path Copy**: Workbench header provides dedicated buttons to copy relative and absolute paths to clipboard.
+  - **File Tree Controls**: Tree toolbar includes a quick "Collapse All" toggle; the workbench sidebar supports collapsible rail mode and drag-to-resize width (double-click to reset).
+  - **Floating Document Outline (TOC)**: Compact heading tree that can be freely dragged and **Pinned** in place for easy long-document navigation.
+  - **Source View & Zoom Controls**: Instant toggle between rendered preview and source view (with line numbers); zoom content from 50% to 250%.
 
-- **交互式 SVG 火焰图与双栏并排比对**
-  - SVG 文件安全沙箱渲染，完整保留脚本交互、悬浮与点击缩放（特别适用于性能火焰图）；
-  - 类 Beyond Compare 的 **SVG 左右比对**模式：文件树右键「选为左侧/右侧」或「与左侧比较」，在同屏左右并排显示，支持各自独立交互。
+- **Interactive SVG Flame Graphs & Dual-Pane Comparison**
+  - Secure sandboxed rendering for SVG files, retaining embedded scripts, hover tooltips, and click-to-zoom (ideal for performance profiling and flame graphs).
+  - **Side-by-Side SVG Comparison** (Beyond Compare style): Right-click tree items to "Select as Left / Right" or "Compare with Left" to inspect two SVGs concurrently.
 
-- **页面内自动唤起（Content Script）**
-  - 打开本地 `file://` 的 Markdown 文件或 GitHub / Gist raw 页面时，防闪烁自动唤起预览；
-  - 严格作用域控制，不劫持普通网页浏览。
+- **In-Page Auto-Preview (Content Script)**
+  - Automatically activates preview on local `file://` Markdown files and GitHub/Gist raw pages with anti-FOUC prehide guards.
+  - Strictly scoped to prevent hijacking normal web browsing or general SVG files.
 
 ---
 
-## 安装（开发者模式）
+## Installation (Developer Mode)
 
-1. **克隆仓库并编译构建**：
+1. **Clone and build**:
    ```bash
    npm install
    npm run build
    ```
 
-2. **在 Chrome 中加载扩展**：
-   1. 浏览器打开 `chrome://extensions`；
-   2. 右上角开启 **开发者模式 (Developer mode)**；
-   3. 点击 **加载已解压的扩展程序 (Load unpacked)**，选择本项目的 `dist/` 目录；
-   4. **关键步骤（本地文件预览必备）**：进入该扩展的「详情」页面，开启 **“允许访问文件网址 (Allow access to file URLs)”**。
+2. **Load into Google Chrome**:
+   1. Open `chrome://extensions` in your browser;
+   2. Toggle on **Developer mode** in the top-right corner;
+   3. Click **Load unpacked** and select the `dist/` directory of this repository;
+   4. **Crucial Step (Required for local files)**: Click **Details** on the extension card and enable **"Allow access to file URLs"**.
 
 ---
 
-## 快速使用
+## Quick Usage
 
-| 入口 / 场景 | 操作与行为 |
-|-------------|------------|
-| **扩展弹窗 → Markdown 工作台** | 打开工作台仪表盘，查看最近工作区/最近文件、搜索历史记录或发起新建连接 |
-| **扩展弹窗 → 打开工作区文件夹…** | 选择本地目录，左侧展示树状文件列表，右侧沉浸式预览，支持刷新与换夹 |
-| **扩展弹窗 → 打开 SSH 工作区…** | 连接远程 Linux 服务器目录，浏览并预览远程 Markdown 文档 |
-| **扩展弹窗 → 打开 WSL 工作区…** | 通过 WSL 发行版与路径选择或直接粘贴 WSL 路径打开工作区 |
-| **扩展弹窗 → 打开本地 Markdown…** | 选择本地单文件预览（支持通过顶部工具栏换夹或打开其他文件） |
-| **直接访问 `file://wsl.localhost/…`** | Chrome 打开 WSL 路径下的 `.md` 文件时自动识别并预览 |
-| **直接打开本地 `file://` 或 GitHub Raw** | 页面内直接渲染为 VS Code 预览样式，左上角悬浮工具栏可随时切换源码 |
-| **扩展弹窗 → 切换当前页预览** | 对当前标签页强制开启/关闭 Markdown 预览 |
-| **选项与偏好设置** | 点击工作台齿轮图标或扩展弹窗「选项」，配置主题、布局宽度、GFM 选项与扩展组件 |
+| Entry / Scenario | Behavior |
+|------------------|----------|
+| **Extension Popup → Markdown Workbench** | Opens the workbench dashboard to view recent workspaces/files, search history, or start a new connection |
+| **Extension Popup → Open Workspace Folder…** | Select a local folder; displays the tree on the left and preview on the right |
+| **Extension Popup → Open SSH Workspace…** | Connect to a remote Linux directory via local bridge and preview Markdown files |
+| **Extension Popup → Open WSL Workspace…** | Select a WSL distro and path, or paste a WSL path directly |
+| **Extension Popup → Open Local Markdown…** | Select an individual `.md` file to preview (with options to switch folders or open external files) |
+| **Direct URL `file://wsl.localhost/…`** | Automatically detects and renders Markdown files located on WSL shares |
+| **Direct local `file://` or GitHub Raw** | Renders in-page with VS Code styling; floating toolbar in top-left allows toggling source |
+| **Extension Popup → Toggle Preview** | Forces preview mode on/off for the active browser tab |
+| **Options & Settings** | Click the gear icon in the workbench or "Options" in the popup to configure themes, layout width, and rendering options |
 
 ---
 
-## 本机 Bridge（SSH / WSL 远程工作区）
+## Local Bridge (SSH & WSL Remote Workspaces)
 
-由于 Chrome 扩展运行在浏览器沙箱中，**无法直接建立原生 SSH TCP 连接，也无法在扩展内部执行 `wsl.exe`**。本项目提供了安全的轻量级本机桥接服务（默认仅监听 `127.0.0.1:17823`）：
+Because Chrome extensions run inside a secure browser sandbox, **they cannot open raw TCP SSH sockets directly, nor can they invoke `wsl.exe` from extension processes**. This repository provides a secure, lightweight local bridge server (listening strictly on `127.0.0.1:17823`):
 
-### 1. 启动桥接服务
+### 1. Start the Bridge Service
 
 ```bash
-# 首次使用时安装桥接依赖
+# Install bridge dependencies (first-time setup)
 npm run ssh-bridge:install
 
-# 启动桥接服务（终端将输出生成的 Bridge Token）
+# Start the bridge server (prints the authentication Token in your terminal)
 npm run ssh-bridge
 ```
 
-### 2. 配置与连接
+### 2. Configure Extension Settings
 
-1. 打开扩展 **选项 → 本机 Bridge**（或在工作台右上角点击 Bridge 状态按钮）；
-2. 填入 Bridge 地址（默认 `http://127.0.0.1:17823`）与终端输出的鉴权 Token；
-3. 打开弹窗即可畅享 SSH / WSL 工作区。
+1. In the extension **Options → Local Bridge** (or click the Bridge status indicator in the workbench header);
+2. Enter the Bridge address (default `http://127.0.0.1:17823`) and the generated Token;
+3. Open SSH or WSL workspaces directly from the popup or workbench dashboard.
 
-### 3. SSH 工作区特性
+### 3. SSH Workspace Capabilities
 
-- **认证方式**：
-  - **密码认证**：支持勾选「记住密码（保存在本地）」，保存在 `chrome.storage.local` 中；
-  - **私钥文件**：支持选取本机私钥文件及口令连接；
-  - **本机 OpenSSH 配置**：直接从本机 `~/.ssh/config`（支持 `Include` 指令）解析 `Host` 别名列表，用户名、端口和 `IdentityFile` 由 Bridge 在本机执行 `ssh -G` 解析，私钥内容绝不发送给浏览器，支持 SSH Agent。
-- **连接优化**：
-  - **历史静默重连**：从历史记录打开 SSH 工作区时自动在后台静默重连，遇到密码变更等异常优雅弹出连接面板；
-  - **Bridge 会话复用**：同一服务器不同子目录切换复用已建立的 SSH 会话，无需二次握手。
-- **远程环境要求**：
-  - 目录索引基于高效的 GNU `find … -print0 | head -z` 批量流式传输。**目标机须为 Linux 或兼容 POSIX 环境**；**不支持以 Windows 作为 SSH 远程目标**。
-  - 本机 Bridge 服务本身可运行在 macOS、Linux 或 Windows 环境上。
+- **Authentication Options**:
+  - **Password**: Supports optional "Remember password (saved locally)" stored securely in `chrome.storage.local`.
+  - **Private Key**: Select a local private key file and enter an optional passphrase.
+  - **Native OpenSSH Config**: Automatically reads Host aliases from `~/.ssh/config` (including `Include` directives). The Bridge parses hostname, user, port, and `IdentityFile` via `ssh -G` on the host machine. Private keys are never transmitted to the browser, and SSH Agent is fully supported.
+- **Connection Optimizations**:
+  - **Silent Reconnect**: Reopening an SSH workspace from history connects silently in the background, gracefully prompting only if credentials expire.
+  - **Session Reuse**: Switching between directories on the same server reuses the active SSH session without secondary handshakes.
+- **Remote Target Requirements**:
+  - Workspace directory listing uses streaming GNU `find … -print0 | head -z`. **Target machines must be Linux or a POSIX-compliant environment with GNU find**; **Windows SSH servers are not supported**.
+  - The local Bridge server itself can run on macOS, Linux, or Windows.
 
-### 4. SSH 诊断工具
+### 4. SSH Diagnostics Tool
 
-如果连接远程 SSH 工作区遇到配置或检索问题，可使用内置的诊断脚本排查：
+If you run into connection or listing issues on a remote host, run the built-in diagnostic script:
 
 ```bash
-# 测试 OpenSSH 别名解析与远程 GNU find 遍历
+# Diagnose OpenSSH alias resolution and remote GNU find listing
 npm run diagnose:ssh -- <ssh-alias-or-host> <remote-root-path>
 
-# 示例：诊断 my-server 别名下的 /var/docs 目录
+# Example: Diagnose Host alias 'my-server' at /var/docs
 npm run diagnose:ssh -- my-server /var/docs
 
-# 连带测试 Bridge HTTP API (/connect + /list + /read)
+# Include live Bridge HTTP API tests (/connect + /list + /read)
 DIAG_BRIDGE_API=1 npm run diagnose:ssh -- my-server /var/docs
 ```
 
-### 5. WSL 路径支持形式
+### 5. Supported WSL Path Formats
 
-在 Windows 下通过 Bridge 调用 `wsl.exe`，支持以下格式的 WSL 路径自动识别与转换：
+When running the Bridge on Windows, `wsl.exe` handles the following path formats automatically:
 - `\\wsl$\Ubuntu\home\user\repo`
 - `\\wsl.localhost\Ubuntu\home\user\repo`
 - `file://wsl.localhost/Ubuntu/home/user/repo/a.md`
 - `wsl://Ubuntu/home/user/repo`
 - `vscode-remote://wsl+Ubuntu/home/user/repo`
 
-> **安全承诺**：所有凭证与文件数据流仅在 `127.0.0.1` 本机回环地址通信，绝不经过第三方服务器。
+> **Security Note**: All credentials and file content remain strictly on the `127.0.0.1` local loopback and are never sent to external servers.
 
 ---
 
-## 偏好设置
+## Preferences & Settings
 
-在选项页或工作台内嵌设置中，可自由调整以下偏好：
+Customizable via the Options page or the in-workbench settings modal:
 
-- **常规设置**：
-  - 自动预览：本地 `file://` 与 GitHub/Gist raw 页面自动唤起；
-  - 界面主题：跟随系统 (Auto) / 浅色 (Light) / 深色 (Dark)；
-  - 预览区域宽度：舒适 (`~980px`) / 宽屏 (`~1280px`，推荐) / 超宽 (`~1600px` / `96vw`) / 铺满内容区 (`Full`)。
-- **Markdown 渲染**：
-  - GFM 换行：将软换行转为硬换行（`Breaks → <br>`）；
-  - 自动超链接：纯文本 URL 自动识别为可点击链接；
-  - 排版增强：开启引号与破折号等智能转换；
-  - HTML 沙箱保护：默认过滤原始 HTML 标签，保障本地预览安全。
-- **扩展组件**：
-  - KaTeX：数学公式渲染开关；
-  - Mermaid：图表渲染开关；
-  - Mermaid 配色主题：VS Code 变量自适应（推荐）、Default、Dark、Forest、Neutral、Base。
-- **本机 Bridge**：
-  - 服务地址、Token 配置与实时连通性探测。
+- **General Settings**:
+  - **Auto-preview**: Automatically renders local `file://` and GitHub/Gist raw markdown;
+  - **Color Theme**: Follow system (Auto) / Light / Dark;
+  - **Preview Width**: Comfortable (`~980px`) / Wide (`~1280px`, recommended default) / Fluid (`~1600px` / `96vw`) / Full width (`Full`).
+- **Markdown Rendering**:
+  - **GFM Line Breaks**: Converts soft line breaks into hard `<br>` breaks;
+  - **Linkify**: Automatically converts plain text URLs into clickable links;
+  - **Typographer**: Enables smart quotes, dashes, and typography enhancements;
+  - **HTML Sanitization**: Disables raw HTML in markdown by default for sandbox security.
+- **Extensions**:
+  - **KaTeX**: Toggle LaTeX math formula rendering;
+  - **Mermaid**: Toggle diagram and flowchart rendering;
+  - **Mermaid Theme**: VS Code adaptive theme (recommended), Default, Dark, Forest, Neutral, Base.
+- **Local Bridge**:
+  - Service URL, Token configuration, and real-time connectivity status.
 
 ---
 
-## 开发与测试
+## Development & Testing
 
 ```bash
-# 实时增量构建（watch 模式）
+# Incremental build with watch mode
 npm run dev
 
-# 生产环境打包构建输出到 dist/
+# Production build output to dist/
 npm run build
 
-# TypeScript 类型检查
+# TypeScript static type check
 npm run typecheck
 
-# 运行完整单元测试套件（105+ 自动化测试）
+# Run complete unit test suite (105+ automated tests)
 npm test
 
-# 运行 Playwright 端到端集成测试（验证链接、媒体预览与下载）
+# Run Playwright end-to-end integration tests (links, media, downloads)
 npm run test:e2e
 
-# 运行渲染冒烟测试
+# Run smoke rendering test
 npm run smoke
 
-# 重新生成扩展各尺寸 PNG 图标
+# Regenerate extension PNG icons from SVG source
 npm run icons
 ```
 
 ---
 
-## VS Code 源码对齐映射
+## VS Code Upstream Alignment
 
-本项目核心排版逻辑与样式规则严谨派生自 [VS Code](https://github.com/microsoft/vscode) 官方仓库：
+The rendering engine, styling, and plugins in this project are derived directly from the official [VS Code](https://github.com/microsoft/vscode) repository:
 
-| 本仓库对应模块 | VS Code 上游相对路径 |
-|----------------|----------------------|
+| This Repository | VS Code Upstream Path |
+|-----------------|-----------------------|
 | `src/preview/engine.ts` | `extensions/markdown-language-features/src/markdownEngine.ts` |
 | `src/preview/slugify.ts` | `extensions/markdown-language-features/src/slugify.ts` |
 | `src/preview/plugins/sourceMap.ts` | `extensions/markdown-language-features/src/markdownEngine.ts` (`pluginSourceMap`) |
@@ -211,6 +215,6 @@ npm run icons
 
 ---
 
-## 许可说明
+## License
 
-本项目采用 **MIT 许可证**。部分渲染样式与扩展逻辑派生自 [VS Code](https://github.com/microsoft/vscode)（Copyright © Microsoft Corporation，MIT 许可）。第三方组件声明详见 `THIRD_PARTY_NOTICES.md`。
+MIT License. Styles and portions of the preview logic are derived from [VS Code](https://github.com/microsoft/vscode) (Copyright © Microsoft Corporation, MIT License). See `THIRD_PARTY_NOTICES.md` for full third-party notices.
