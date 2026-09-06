@@ -611,3 +611,75 @@ pre.frontmatter {
 	background: transparent;
 	padding: 0;
 }
+
+/* Standard HTML elements in Markdown */
+details {
+	display: block;
+	margin-top: 0;
+	margin-bottom: 16px;
+}
+
+details summary {
+	cursor: pointer;
+	font-weight: 500;
+	outline: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+details summary:focus-visible {
+	outline: 2px solid var(--vscode-focusBorder, #007fd4);
+	outline-offset: 2px;
+}
+
+details[open] > summary {
+	margin-bottom: 8px;
+}
+
+kbd {
+	background-color: var(--vscode-keybindingLabel-background, rgba(128, 128, 128, 0.17));
+	color: var(--vscode-keybindingLabel-foreground, inherit);
+	border: 1px solid var(--vscode-keybindingLabel-border, rgba(128, 128, 128, 0.35));
+	border-bottom-color: var(--vscode-keybindingLabel-bottomBorder, rgba(128, 128, 128, 0.5));
+	box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+	display: inline-block;
+	font-size: 11px;
+	font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+	line-height: 10px;
+	padding: 3px 5px;
+	vertical-align: middle;
+	border-radius: 3px;
+}
+
+mark {
+	background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
+	color: inherit;
+	padding: 0.1em 0.2em;
+	border-radius: 2px;
+}
+
+figure {
+	margin: 1em 0;
+	text-align: center;
+}
+
+figcaption {
+	font-size: 0.85em;
+	opacity: 0.75;
+	margin-top: 0.5em;
+}
+
+/* Common text alignment attributes and tags */
+[align="center"],
+center {
+	text-align: center;
+}
+
+[align="right"] {
+	text-align: right;
+}
+
+[align="left"] {
+	text-align: left;
+}
+

@@ -20,7 +20,7 @@ const ids = [
   'breaks',
   'linkify',
   'typographer',
-  'sanitizeHtml',
+  'html',
   'mathEnabled',
   'mermaidEnabled',
 ] as const;

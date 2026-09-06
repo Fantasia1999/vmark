@@ -29,8 +29,8 @@ export interface PreviewSettings {
   theme: ThemeMode;
   /** Mermaid look; default `vscode` uses VS Code-derived colors */
   mermaidTheme: MermaidThemeSetting;
-  /** Disable raw HTML passthrough in Markdown (markdown-it `html: false`) */
-  sanitizeHtml: boolean;
+  /** Enable raw HTML rendering in Markdown (sanitized via DOMPurify) */
+  html: boolean;
   /** Max width of the rendered markdown column */
   previewWidth: PreviewWidthSetting;
 }
@@ -44,9 +44,7 @@ export const DEFAULT_SETTINGS: PreviewSettings = {
   mermaidEnabled: true,
   theme: 'auto',
   mermaidTheme: 'vscode',
-  // Raw HTML is injected via innerHTML without a sanitizer, so it must be
-  // off by default — inline handlers in a .md file would run on file:// pages.
-  sanitizeHtml: true,
+  html: true,
   previewWidth: 'wide',
 };
 

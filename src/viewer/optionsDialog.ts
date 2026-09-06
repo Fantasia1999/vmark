@@ -28,7 +28,7 @@ const CHECKBOX_IDS = [
   'opt-breaks',
   'opt-linkify',
   'opt-typographer',
-  'opt-sanitizeHtml',
+  'opt-html',
   'opt-mathEnabled',
   'opt-mermaidEnabled',
 ] as const;
@@ -38,7 +38,7 @@ const SETTING_BY_CHECKBOX: Record<(typeof CHECKBOX_IDS)[number], keyof PreviewSe
   'opt-breaks': 'breaks',
   'opt-linkify': 'linkify',
   'opt-typographer': 'typographer',
-  'opt-sanitizeHtml': 'sanitizeHtml',
+  'opt-html': 'html',
   'opt-mathEnabled': 'mathEnabled',
   'opt-mermaidEnabled': 'mermaidEnabled',
 };

@@ -35,7 +35,7 @@ try {
     mermaidEnabled: true,
     theme: 'auto',
     mermaidTheme: 'vscode',
-    sanitizeHtml: false,
+    html: true,
     previewWidth: 'wide',
   });
   const out = engine.render(md, 'file:///tmp/sample.md');
@@ -45,6 +45,8 @@ try {
     ['katex or math', out.html.includes('katex') || out.html.includes('math')],
     ['mermaid', out.hasMermaid === true],
     ['table', out.html.includes('<table')],
+    ['html details', out.html.includes('<details') && out.html.includes('<summary')],
+    ['html kbd', out.html.includes('<kbd>Ctrl</kbd>')],
   ];
   let failed = 0;
   for (const [name, ok] of checks) {

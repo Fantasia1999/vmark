@@ -162,7 +162,7 @@ DIAG_BRIDGE_API=1 npm run diagnose:ssh -- my-server /var/docs
   - GFM 换行：将软换行转为硬换行（`Breaks → <br>`）；
   - 自动超链接：纯文本 URL 自动识别为可点击链接；
   - 排版增强：开启引号与破折号等智能转换；
-  - HTML 沙箱保护：默认过滤原始 HTML 标签，保障本地预览安全。
+  - HTML 标签渲染：支持 Markdown 中的原始 HTML 标签（如 `<details>`、`<kbd>`、HTML 表格、内联样式等），内置 DOMPurify 净化保护过滤脚本与注入风险；
 - **扩展组件**：
   - KaTeX：数学公式渲染开关；
   - Mermaid：图表渲染开关；

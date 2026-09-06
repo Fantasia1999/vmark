@@ -44,3 +44,13 @@ flowchart LR
 | Col A | Col B |
 |-------|-------|
 | hello | world |
+
+## HTML Elements
+
+<details>
+<summary>Click to expand</summary>
+
+Press <kbd>Ctrl</kbd> + <kbd>C</kbd> to copy.
+
+</details>
+

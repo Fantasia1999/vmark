@@ -5,11 +5,63 @@
 
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import DOMPurify from 'dompurify';
 import { githubSlugifier, type ISlugifier, type SlugBuilder } from './slugify';
 import { pluginSourceMap } from './plugins/sourceMap';
 import { extendMarkdownItWithMermaid } from './plugins/mermaidFence';
 import { applyKatexPlugin } from './plugins/katex';
 import type { PreviewSettings } from './config';
+
+export function sanitizeHtmlContent(html: string): string {
+  if (typeof window !== 'undefined' && DOMPurify.isSupported) {
+    return DOMPurify.sanitize(html, {
+      USE_PROFILES: { html: true, mathMl: true, svg: true },
+      ADD_TAGS: [
+        'details',
+        'summary',
+        'kbd',
+        'mark',
+        'font',
+        'del',
+        'ins',
+        'sub',
+        'sup',
+        'video',
+        'audio',
+        'source',
+        'figure',
+        'figcaption',
+        'wbr',
+        'ruby',
+        'rt',
+        'rp',
+      ],
+      ADD_ATTR: [
+        'target',
+        'align',
+        'color',
+        'controls',
+        'poster',
+        'preload',
+        'autoplay',
+        'loop',
+        'muted',
+        'playsinline',
+        'width',
+        'height',
+        'data-line',
+        'data-href',
+        'data-src',
+        'data-workspace-src',
+      ],
+      ALLOW_DATA_ATTR: true,
+    });
+  }
+  // Headless / fallback environment (e.g. Node tests / smoke tests where DOM is absent)
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\s+on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+}
 
 export interface RenderOutput {
   html: string;
@@ -83,7 +135,7 @@ export class MarkdownPreviewEngine {
 
   #createEngine(): MarkdownIt {
     const md: MarkdownIt = new MarkdownIt({
-      html: !this.#settings.sanitizeHtml,
+      html: Boolean(this.#settings.html),
       linkify: this.#settings.linkify,
       typographer: this.#settings.typographer,
       breaks: this.#settings.breaks,
@@ -136,6 +188,7 @@ export class MarkdownPreviewEngine {
       breaks: this.#settings.breaks,
       linkify: this.#settings.linkify,
       typographer: this.#settings.typographer,
+      html: Boolean(this.#settings.html),
     });
     return this.#md;
   }
@@ -231,7 +284,10 @@ export class MarkdownPreviewEngine {
       slugBuilder: this.slugifier.createBuilder(),
     };
 
-    const html = engine.render(text, env);
+    let html = engine.render(text, env);
+    if (this.#settings.html) {
+      html = sanitizeHtmlContent(html);
+    }
     const hasMermaid =
       this.#settings.mermaidEnabled &&
       (html.includes('class="mermaid"') || html.includes("class='mermaid'"));

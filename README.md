@@ -162,7 +162,7 @@ Customizable via the Options page or the in-workbench settings modal:
   - **GFM Line Breaks**: Converts soft line breaks into hard `<br>` breaks;
   - **Linkify**: Automatically converts plain text URLs into clickable links;
   - **Typographer**: Enables smart quotes, dashes, and typography enhancements;
-  - **HTML Sanitization**: Disables raw HTML in markdown by default for sandbox security.
+  - **HTML Rendering & Sanitization**: Renders raw HTML in Markdown (e.g. `<details>`, `<kbd>`, `<table>`, inline styles) with DOMPurify sandbox protection to strip scripts and malicious handlers.
 - **Extensions**:
   - **KaTeX**: Toggle LaTeX math formula rendering;
   - **Mermaid**: Toggle diagram and flowchart rendering;
