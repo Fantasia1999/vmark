@@ -16,6 +16,18 @@
   Full-featured Markdown workbench supporting local folder workspaces, remote SSH servers, WSL distributions, and standalone files. Features one-click code block copying, floating outline (TOC), smart multimedia and PDF preview, interactive SVG flame graphs with side-by-side comparison, and seamless <b>Preview ↔ Source</b> mode switching.
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-annotated.png" alt="VMark Document Preview Workbench & Key Features" width="100%" />
+</p>
+
+<p align="center">
+  <b>Start Dashboard & Multi-Source History Hub</b>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-dashboard-annotated.png" alt="VMark Workbench Start Dashboard & History Hub" width="100%" />
+</p>
+
 ---
 
 ## Key Features
@@ -195,6 +207,9 @@ npm run smoke
 
 # Regenerate extension PNG icons from SVG source
 npm run icons
+
+# Regenerate high-resolution workbench screenshots (clean and annotated)
+npm run screenshot
 ```
 
 ---

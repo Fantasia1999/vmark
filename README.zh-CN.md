@@ -16,6 +16,18 @@
   支持本地文件夹工作区、SSH 远程服务器、WSL 发行版与单文件预览，提供代码块一键复制、浮动大纲、多媒体/PDF 智能预览、SVG 火焰图对比与无缝 <b>Preview ↔ Source</b> 模式切换。
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-annotated.zh-CN.png" alt="VMark 文档预览工作台与核心功能标注" width="100%" />
+</p>
+
+<p align="center">
+  <b>启动工作台与多源历史中心</b>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-dashboard-annotated.zh-CN.png" alt="VMark 启动工作台与多源历史中心" width="100%" />
+</p>
+
 ---
 
 ## 亮点特性
@@ -195,6 +207,9 @@ npm run smoke
 
 # 重新生成扩展各尺寸 PNG 图标
 npm run icons
+
+# 重新生成高分辨率工作台截图（包含无标注版与中英双语标注版）
+npm run screenshot
 ```
 
 ---

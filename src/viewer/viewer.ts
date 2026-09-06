@@ -2906,6 +2906,49 @@ if (typeof window !== 'undefined') {
       workspaceKind,
       hasWorkspaceRoot: !!workspaceRoot,
     }),
+    loadShowcase: async (opts: {
+      workspaceName: string;
+      currentPath: string;
+      files: WorkspaceFileEntry[];
+      doc: LocalMarkdownDoc;
+      showOutline?: boolean;
+      theme?: 'light' | 'dark';
+    }) => {
+      settings.theme = opts.theme || 'light';
+      applyThemeClass();
+
+      workspaceRoot = { name: opts.workspaceName } as unknown as FileSystemDirectoryHandle;
+      workspaceKind = 'local';
+      currentPath = opts.currentPath;
+      workspaceFiles = opts.files;
+      setWorkspaceChrome(true, opts.workspaceName);
+
+      const tree = buildFileTree(opts.files);
+      const treeEl = document.getElementById('ws-file-tree');
+      if (treeEl) {
+        renderFileTree(treeEl, tree, opts.currentPath, {
+          onOpenFile: (p) => void openWorkspaceFile(p),
+        });
+      }
+
+      setEmptyPreviewVisible(false);
+      doc = opts.doc;
+      const root = $(ROOT_ID);
+      root.hidden = false;
+      await showPreviewView();
+      updatePathBar();
+      updatePathCopyButtons();
+
+      if (opts.showOutline) {
+        outlinePanel.open(root);
+        const pinBtn = document.querySelector<HTMLButtonElement>(
+          '#vscode-md-outline-panel [data-action="pin"]',
+        );
+        if (pinBtn && !outlinePanel.isPinned) {
+          pinBtn.click();
+        }
+      }
+    },
   };
 }
 
