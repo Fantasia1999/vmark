@@ -95,7 +95,8 @@
         gap: 10px;
       }
 
-      .opt-logo {
+      .opt-logo,
+      .wb-logo {
         width: 34px;
         height: 34px;
         border-radius: var(--r-md);
@@ -108,7 +109,8 @@
         flex-shrink: 0;
       }
 
-      .opt-logo svg {
+      .opt-logo svg,
+      .wb-logo svg {
         width: 20px;
         height: 20px;
       }
@@ -454,10 +456,10 @@
       <!-- Header -->
       <header class="opt-header">
         <div class="opt-brand">
-          <div class="opt-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-              <rect x="1.5" y="1.5" width="13" height="13" rx="3" stroke-width="1.25"/>
-              <path d="M4.5 10.5V5.5L6.8 9l2.3-3.5v5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+          <div class="opt-logo wb-logo" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25">
+              <rect x="1.5" y="2.5" width="13" height="11" rx="1.25"/>
+              <path d="M5.5 2.5v11M1.5 5.5h4"/>
             </svg>
           </div>
           <div class="opt-title-group">

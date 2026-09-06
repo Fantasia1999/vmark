@@ -93,10 +93,10 @@ export const iconMdFile = svg(`
     stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
 `);
 
-/** Brand mark for toolbar */
+/** Brand mark for toolbar (unified with wb-logo) */
 export const iconBrand = svg(`
-  <rect x="1.5" y="1.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.25"/>
-  <path d="M4.5 10.5V5.5L6.8 9l2.3-3.5v5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="1.5" y="2.5" width="13" height="11" rx="1.25" stroke="currentColor" stroke-width="1.25"/>
+  <path d="M5.5 2.5v11M1.5 5.5h4" stroke="currentColor" stroke-width="1.25"/>
 `);
 
 /** SSH / remote terminal */

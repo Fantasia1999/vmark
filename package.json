@@ -11,7 +11,7 @@
     "test": "node scripts/test.mjs",
     "test:e2e": "node test/e2e-links.test.mjs",
     "smoke": "node scripts/smoke-render.mjs",
-    "icons": "python3 scripts/generate-icons.py",
+    "icons": "node scripts/generate-icons.mjs",
     "ssh-bridge": "npm --prefix ssh-bridge start",
     "ssh-bridge:install": "npm --prefix ssh-bridge install",
     "diagnose:ssh": "node scripts/diagnose-ssh-workspace.mjs"
