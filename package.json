@@ -1,21 +1,23 @@
 {
-  "name": "vscode-md-preview",
+  "name": "vmark",
   "version": "0.5.0",
   "private": true,
-  "description": "Chrome extension: VS Code-style Markdown Open as Preview",
+  "description": "VMark: VS Code-style Markdown Workbench for Google Chrome",
   "author": "Fantasia1999",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fantasia1999/vscode-md-preview.git"
+    "url": "https://github.com/Fantasia1999/vmark.git"
   },
-  "homepage": "https://github.com/Fantasia1999/vscode-md-preview#readme",
+  "homepage": "https://github.com/Fantasia1999/vmark#readme",
   "bugs": {
-    "url": "https://github.com/Fantasia1999/vscode-md-preview/issues"
+    "url": "https://github.com/Fantasia1999/vmark/issues"
   },
   "keywords": [
+    "vmark",
     "chrome-extension",
     "markdown",
     "markdown-preview",
+    "markdown-workbench",
     "vscode",
     "katex",
     "mermaid"

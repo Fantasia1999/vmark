@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest release of **VS Code Markdown Preview** receives active security updates and vulnerability patches.
+Only the latest release of **VMark** receives active security updates and vulnerability patches.
 
 | Version | Supported          |
 | ------- | ------------------ |

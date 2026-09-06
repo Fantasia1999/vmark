@@ -91,7 +91,7 @@ export function mountToolbar(
 
     const label = document.createElement('span');
     label.className = 'vsc-md-label';
-    label.title = 'VS Code Markdown Preview';
+    label.title = 'VMark (Markdown Preview)';
     label.appendChild(createIconEl('brand'));
     bar.appendChild(label);
 

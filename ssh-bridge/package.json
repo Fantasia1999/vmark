@@ -1,13 +1,13 @@
 {
-  "name": "vscode-md-preview-ssh-bridge",
+  "name": "vmark-ssh-bridge",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local SSH/SFTP bridge for VS Code Markdown Preview Chrome extension",
+  "description": "Local SSH/SFTP bridge for VMark Chrome extension",
   "author": "Fantasia1999",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fantasia1999/vscode-md-preview.git",
+    "url": "https://github.com/Fantasia1999/vmark.git",
     "directory": "ssh-bridge"
   },
   "keywords": [
@@ -15,7 +15,7 @@
     "sftp",
     "bridge",
     "wsl",
-    "vscode-md-preview"
+    "vmark"
   ],
   "scripts": {
     "start": "node server.mjs",

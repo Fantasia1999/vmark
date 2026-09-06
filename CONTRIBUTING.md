@@ -1,6 +1,6 @@
-# Contributing to VS Code Markdown Preview
+# Contributing to VMark
 
-Thank you for your interest in contributing to **VS Code Markdown Preview**!
+Thank you for your interest in contributing to **VMark**!
 
 This project brings the pixel-perfect VS Code Markdown preview experience to Google Chrome, supporting local folders, remote SSH servers, WSL distributions, and standalone files.
 
@@ -26,8 +26,8 @@ Please review and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md) in all pro
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/<your-username>/vscode-md-preview.git
-   cd vscode-md-preview
+   git clone https://github.com/<your-username>/vmark.git
+   cd vmark
    ```
 
 2. **Install dependencies**:

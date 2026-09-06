@@ -1,7 +1,7 @@
-# VS Code Markdown Preview (Chrome)
+# VMark (Chrome)
 
 <p align="center">
-  <img src="public/icons/logo-512.png" width="128" height="128" alt="VS Code Markdown Preview logo" />
+  <img src="public/icons/logo-512.png" width="128" height="128" alt="VMark logo" />
 </p>
 
 <p align="center">

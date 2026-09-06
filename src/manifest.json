@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "VS Code Markdown Preview",
+  "name": "VMark - Markdown Workbench (VS Code Style)",
   "version": "0.5.0",
-  "description": "VS Code-style Markdown preview for Chrome: local/SSH/WSL workspaces, files, and remote .md pages.",
+  "description": "VS Code-style Markdown workbench for Chrome: local/SSH/WSL workspaces, files, and remote .md pages.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "VS Code Markdown Preview",
+    "default_title": "VMark - Markdown Preview",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
