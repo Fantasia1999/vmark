@@ -215,6 +215,8 @@ The rendering engine, styling, and plugins in this project are derived directly 
 
 ---
 
-## License
+## License & Disclaimer
 
 [MIT License](LICENSE). Styles and portions of the preview logic are derived from [VS Code](https://github.com/microsoft/vscode) (Copyright © Microsoft Corporation, MIT License). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full third-party notices.
+
+> **Disclaimer**: This extension is an independent open-source project and is not affiliated with, endorsed by, or sponsored by Microsoft Corporation. Visual Studio Code and VS Code are registered trademarks of Microsoft Corporation.

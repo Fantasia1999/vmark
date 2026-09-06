@@ -18,7 +18,9 @@ Relevant upstream packages:
 
 See `package.json` / `package-lock.json` for versions of:
 
-- markdown-it  
-- highlight.js  
-- katex / @vscode/markdown-it-katex  
-- mermaid  
+- markdown-it (MIT)
+- highlight.js (BSD-3-Clause)
+- katex / @vscode/markdown-it-katex (MIT)
+- mermaid (MIT)
+- dompurify (Apache-2.0 or MPL-2.0)
+- ssh2 (MIT, used in `ssh-bridge`)

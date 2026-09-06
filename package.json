@@ -1,8 +1,25 @@
 {
   "name": "vscode-md-preview",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Chrome extension: VS Code-style Markdown Open as Preview",
+  "author": "Fantasia1999",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fantasia1999/vscode-md-preview.git"
+  },
+  "homepage": "https://github.com/Fantasia1999/vscode-md-preview#readme",
+  "bugs": {
+    "url": "https://github.com/Fantasia1999/vscode-md-preview/issues"
+  },
+  "keywords": [
+    "chrome-extension",
+    "markdown",
+    "markdown-preview",
+    "vscode",
+    "katex",
+    "mermaid"
+  ],
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",

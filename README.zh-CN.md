@@ -215,6 +215,8 @@ npm run icons
 
 ---
 
-## 许可说明
+## 许可与免责声明
 
 本项目采用 [MIT 许可证](LICENSE)。部分渲染样式与扩展逻辑派生自 [VS Code](https://github.com/microsoft/vscode)（Copyright © Microsoft Corporation，MIT 许可）。第三方组件声明详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+> **免责声明**：本扩展为独立开源项目，与微软公司（Microsoft Corporation）无附属、认可或赞助关系。Visual Studio Code 与 VS Code 为微软公司的注册商标。

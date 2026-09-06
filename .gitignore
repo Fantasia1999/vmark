@@ -4,4 +4,17 @@ dist/
 .DS_Store
 ssh-bridge/node_modules/
 .vscode-md-preview-ssh-token
+
+# Test & Build outputs
+.test-dist/
+*.zip
+coverage/
+playwright-report/
+test-results/
+
+# Editor & OS files
 .idea/
+.vscode/
+*.tsbuildinfo
+Thumbs.db
+

@@ -21,7 +21,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm run ssh-bridge:install
 
       - name: Typecheck
         run: npm run typecheck
