@@ -4,6 +4,7 @@
  */
 
 import { isPreviewableFileName } from './localDoc';
+import { getMimeType } from './mime';
 
 const DB_NAME = 'vscode-md-preview-workspace';
 const DB_VERSION = 1;
@@ -435,11 +436,18 @@ export async function readWorkspaceTextFile(
 export async function createWorkspaceObjectUrl(
   root: FileSystemDirectoryHandle,
   relativePath: string,
+  mimeHint?: string,
 ): Promise<string | null> {
   const fh = await getFileHandleByPath(root, relativePath);
   if (!fh) {
     return null;
   }
   const file = await fh.getFile();
-  return URL.createObjectURL(file);
+  const mime = mimeHint || file.type || getMimeType(relativePath);
+  const blob =
+    file.type && (!mimeHint || file.type === mimeHint)
+      ? file
+      : new Blob([await file.arrayBuffer()], { type: mime });
+  return URL.createObjectURL(blob);
 }
+

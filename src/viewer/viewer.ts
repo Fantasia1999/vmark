@@ -16,6 +16,7 @@ import {
   saveLocalDoc,
   type LocalMarkdownDoc,
 } from '../shared/localDoc';
+import { getMimeType, isBrowserViewable } from '../shared/mime';
 import {
   buildFileTree,
   clearWorkspace,
@@ -1511,40 +1512,123 @@ async function resolveWorkspaceAssets(
 }
 
 /**
- * Intercept clicks on relative .md / .svg links to open within the workspace.
- * Bound once on the content host (not per render).
+ * Intercept clicks on links within the preview content:
+ * - External URLs (http/https/mailto/ftp): open in a new tab to avoid unloading the workbench.
+ * - In-page anchors (#...): retain native in-page jump.
+ * - Workspace files (.md / .svg): switch preview within the workbench.
+ * - Other workspace files (.pdf, images, audio/video, text, zip, etc.):
+ *   open in a new tab if viewable, or trigger download if binary, without crashing into 404.
  */
 function onPreviewClick(e: MouseEvent): void {
   const a = (e.target as HTMLElement).closest('a');
-  if (!a || !currentPath) {
+  if (!a) {
     return;
   }
-  if (workspaceKind !== 'local' && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') {
+
+  const rawHref = a.getAttribute('data-href') || a.getAttribute('href') || '';
+  if (!rawHref) {
     return;
   }
-  if (workspaceKind === 'local' && !workspaceRoot) {
+
+  // 1. External protocols: safely open in new tab
+  if (/^(https?:|mailto:|ftp:)/i.test(rawHref)) {
+    e.preventDefault();
+    window.open(rawHref, '_blank', 'noopener,noreferrer');
     return;
   }
-  const href = a.getAttribute('data-href') || a.getAttribute('href') || '';
-  if (!href || /^(https?:|mailto:|data:|blob:)/i.test(href)) {
+
+  // 2. Data / Blob URLs: let browser handle
+  if (/^(data:|blob:)/i.test(rawHref)) {
     return;
   }
-  if (href.startsWith('#')) {
+
+  // 3. In-page anchor
+  if (rawHref.startsWith('#')) {
     return;
   }
-  const pathOnly = href.split('#')[0].split('?')[0];
-  if (!isPreviewableFileName(pathOnly)) {
-    return;
-  }
+
+  // 4. Relative paths: always prevent default to avoid chrome-extension://... 404
   e.preventDefault();
+
+  if (
+    !currentPath ||
+    (workspaceKind !== 'local' && workspaceKind !== 'ssh' && workspaceKind !== 'wsl') ||
+    (workspaceKind === 'local' && !workspaceRoot)
+  ) {
+    alert('当前为单文件模式，无法访问相对路径文件。请使用「打开文件夹」打开工作区。');
+    return;
+  }
+
+  const pathOnly = rawHref.split('#')[0].split('?')[0];
+  if (!pathOnly) {
+    return;
+  }
+
   const targetPath = resolveRelativePath(currentPath, pathOnly);
-  const hash = href.includes('#') ? href.slice(href.indexOf('#')) : '';
-  void openWorkspaceFile(targetPath).then(() => {
-    if (hash && !isSvgFileName(pathOnly)) {
-      const id = decodeURIComponent(hash.slice(1));
-      document.getElementById(id)?.scrollIntoView();
+  const hash = rawHref.includes('#') ? rawHref.slice(rawHref.indexOf('#')) : '';
+
+  // Case A: Workspace previewable file (.md, .markdown, .txt, .svg)
+  if (isPreviewableFileName(pathOnly)) {
+    void openWorkspaceFile(targetPath).then(() => {
+      if (hash && !isSvgFileName(pathOnly)) {
+        const id = decodeURIComponent(hash.slice(1));
+        document.getElementById(id)?.scrollIntoView();
+      }
+    });
+    return;
+  }
+
+  // Case B: Other workspace file (.pdf, images, video/audio, zip, etc.)
+  void openWorkspaceAsset(targetPath, hash);
+}
+
+async function openWorkspaceAsset(targetPath: string, hash = ''): Promise<void> {
+  const mime = getMimeType(targetPath);
+  let url: string | null = null;
+
+  try {
+    if (workspaceKind === 'ssh') {
+      url = await sshCreateObjectUrl(targetPath, mime);
+    } else if (workspaceKind === 'wsl') {
+      url = await wslCreateObjectUrl(targetPath, mime);
+    } else if (workspaceRoot) {
+      url = await createWorkspaceObjectUrl(workspaceRoot, targetPath, mime);
     }
-  });
+  } catch (err) {
+    alert(`无法读取文件: ${targetPath}\n${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  if (!url) {
+    alert(`工作区中未找到文件: ${targetPath}`);
+    return;
+  }
+
+  // Revoke object URL after 60s to prevent memory leaks while giving new tab time to load
+  const cleanupUrl = url;
+  setTimeout(() => URL.revokeObjectURL(cleanupUrl), 60_000);
+
+  const fileName = targetPath.split('/').pop() || 'file';
+  if (isBrowserViewable(targetPath, mime)) {
+    const fullUrl = hash ? `${url}${hash}` : url;
+    const opened = window.open(fullUrl, '_blank');
+    if (!opened) {
+      const tempLink = document.createElement('a');
+      tempLink.href = fullUrl;
+      tempLink.target = '_blank';
+      tempLink.rel = 'noopener,noreferrer';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      tempLink.remove();
+    }
+  } else {
+    const tempLink = document.createElement('a');
+    tempLink.href = url;
+    tempLink.download = fileName;
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    tempLink.remove();
+  }
 }
 
 function showSourceView(): void {
@@ -2732,6 +2816,7 @@ function promptEmptyAction(buttonId: string, hint: string): void {
 }
 
 async function init(): Promise<void> {
+  document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
   settings = await loadSettings();
   engine = new MarkdownPreviewEngine(settings);
   injectStyles();
@@ -2741,7 +2826,6 @@ async function init(): Promise<void> {
   await outlinePanel.loadPinPreference();
   wireUi();
   wirePreviewZoomShortcuts();
-  document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
 
   const params = new URLSearchParams(location.search);
   const shouldPickFile = params.get('pick') === '1';
@@ -2802,6 +2886,31 @@ async function init(): Promise<void> {
       engine.updateSettings(settings);
     }
   });
+  if (typeof window !== 'undefined' && (window as any).__testHooks) {
+    (window as any).__testHooks.ready = true;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__testHooks = {
+    ready: false,
+    setWorkspace: (root: FileSystemDirectoryHandle, kind: 'local', path: string) => {
+      workspaceRoot = root;
+      workspaceKind = kind;
+      currentPath = path;
+      setWorkspaceChrome(true, root.name);
+      const content = document.getElementById('ws-content');
+      if (content) {
+        content.hidden = false;
+      }
+    },
+    getState: () => ({
+      currentPath,
+      workspaceKind,
+      hasWorkspaceRoot: !!workspaceRoot,
+    }),
+  };
 }
 
 void init();

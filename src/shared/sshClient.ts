@@ -3,6 +3,7 @@
  */
 
 import type { WorkspaceFileEntry } from './workspaceFs';
+import { getMimeType } from './mime';
 
 export const DEFAULT_SSH_BRIDGE_URL = 'http://127.0.0.1:17823';
 
@@ -603,21 +604,10 @@ export async function sshCreateObjectUrl(path: string, mimeHint?: string): Promi
     for (let i = 0; i < bin.length; i++) {
       bytes[i] = bin.charCodeAt(i);
     }
-    const mime = mimeHint || guessMime(path);
+    const mime = mimeHint || getMimeType(path);
     const blob = new Blob([bytes], { type: mime });
     return URL.createObjectURL(blob);
   } catch {
     return null;
   }
-}
-
-function guessMime(path: string): string {
-  const lower = path.toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.gif')) return 'image/gif';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  if (lower.endsWith('.svg')) return 'image/svg+xml';
-  if (lower.endsWith('.pdf')) return 'application/pdf';
-  return 'application/octet-stream';
 }

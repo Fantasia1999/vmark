@@ -3,6 +3,7 @@
  */
 
 import type { WorkspaceFileEntry } from './workspaceFs';
+import { getMimeType } from './mime';
 import { loadSshBridgeSettings } from './sshClient';
 import {
   parseWslLocation,
@@ -89,7 +90,7 @@ export async function wslReadText(path: string): Promise<string> {
   return data.content;
 }
 
-export async function wslCreateObjectUrl(path: string): Promise<string | null> {
+export async function wslCreateObjectUrl(path: string, mimeHint?: string): Promise<string | null> {
   try {
     const data = await request<{ content: string }>('GET', '/wsl/read', undefined, {
       path,
@@ -100,7 +101,8 @@ export async function wslCreateObjectUrl(path: string): Promise<string | null> {
     for (let i = 0; i < bin.length; i++) {
       bytes[i] = bin.charCodeAt(i);
     }
-    const blob = new Blob([bytes]);
+    const mime = mimeHint || getMimeType(path);
+    const blob = new Blob([bytes], { type: mime });
     return URL.createObjectURL(blob);
   } catch {
     return null;
