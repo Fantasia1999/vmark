@@ -6,6 +6,7 @@ import {
   type WorkspaceHistoryEntry,
 } from '../shared/history';
 import { createIconEl, type IconName } from '../shared/icons';
+import { t } from '../shared/i18n/index';
 
 export interface HistoryUiHandlers {
   onOpenWorkspace: (entry: WorkspaceHistoryEntry) => void;
@@ -103,10 +104,10 @@ function fileSub(entry: FileHistoryEntry): string {
     return `${sshTarget} • ${rel}`;
   }
   if (entry.source === 'local') {
-    const ws = entry.localName || entry.workspaceTitle || '本地工作区';
+    const ws = entry.localName || entry.workspaceTitle || t('workbench.localWorkspace');
     return `${ws} • ${rel}`;
   }
-  return entry.source === 'standalone' ? `本地单文件 • ${rel}` : rel;
+  return entry.source === 'standalone' ? `${t('workbench.localSingleFile')} • ${rel}` : rel;
 }
 
 function matchesSearch(text: string, query: string): boolean {
@@ -127,7 +128,7 @@ function renderWorkspaceItem(
   const main = document.createElement('button');
   main.type = 'button';
   main.className = 'history-item-main';
-  main.title = `打开工作区：${entry.title}`;
+  main.title = t('workbench.openWorkspaceTitle', { title: entry.title });
 
   const icon = document.createElement('span');
   icon.className = 'history-item-icon';
@@ -164,8 +165,11 @@ function renderWorkspaceItem(
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'history-item-remove';
-  remove.title = '删除此记录';
-  remove.setAttribute('aria-label', `删除工作区记录 ${entry.title}`);
+  remove.title = t('workbench.deleteRecord');
+  remove.setAttribute(
+    'aria-label',
+    t('workbench.deleteRecordAria', { title: entry.title }),
+  );
   remove.appendChild(createIconEl('close', 'vsc-icon vsc-icon-sm'));
   remove.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -184,7 +188,9 @@ function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): H
   const main = document.createElement('button');
   main.type = 'button';
   main.className = 'history-item-main';
-  main.title = entry.path ? `打开 ${entry.path}` : `打开 ${entry.title}`;
+  main.title = entry.path
+    ? t('workbench.openFileTitle', { path: entry.path })
+    : t('workbench.openFileTitle', { path: entry.title });
 
   const icon = document.createElement('span');
   icon.className = 'history-item-icon';
@@ -211,7 +217,7 @@ function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): H
     const wsPathEl = document.createElement('span');
     wsPathEl.className = 'history-item-ws-path';
     wsPathEl.textContent = wsPath;
-    wsPathEl.title = `工作区路径: ${wsPath}`;
+    wsPathEl.title = t('workbench.workspacePathTitle', { path: wsPath });
     titleRow.appendChild(wsPathEl);
   }
 
@@ -230,8 +236,11 @@ function renderFileItem(entry: FileHistoryEntry, handlers: HistoryUiHandlers): H
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'history-item-remove';
-  remove.title = '删除此记录';
-  remove.setAttribute('aria-label', `删除文件记录 ${entry.title}`);
+  remove.title = t('workbench.deleteRecord');
+  remove.setAttribute(
+    'aria-label',
+    t('workbench.deleteRecordAria', { title: entry.title }),
+  );
   remove.appendChild(createIconEl('close', 'vsc-icon vsc-icon-sm'));
   remove.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -316,7 +325,11 @@ function renderFilteredHistory(handlers: HistoryUiHandlers): void {
     wsPagination.hidden = filteredWorkspaces.length === 0;
   }
   if (wsPageInfo) {
-    wsPageInfo.textContent = `第 ${wsCurrentPage} / ${wsTotalPages} 页 (共 ${filteredWorkspaces.length} 个)`;
+    wsPageInfo.textContent = t('workbench.pageInfoExt', {
+      page: wsCurrentPage,
+      total: wsTotalPages,
+      count: filteredWorkspaces.length,
+    });
   }
   if (wsPageNum) {
     wsPageNum.textContent = `${wsCurrentPage} / ${wsTotalPages}`;
@@ -369,7 +382,11 @@ function renderFilteredHistory(handlers: HistoryUiHandlers): void {
     filesPagination.hidden = filteredFiles.length === 0;
   }
   if (filesPageInfo) {
-    filesPageInfo.textContent = `第 ${filesCurrentPage} / ${filesTotalPages} 页 (共 ${filteredFiles.length} 个)`;
+    filesPageInfo.textContent = t('workbench.pageInfoExt', {
+      page: filesCurrentPage,
+      total: filesTotalPages,
+      count: filteredFiles.length,
+    });
   }
   if (filesPageNum) {
     filesPageNum.textContent = `${filesCurrentPage} / ${filesTotalPages}`;
@@ -410,7 +427,7 @@ export async function refreshHistoryPanel(handlers: HistoryUiHandlers): Promise<
 export function wireHistoryControls(handlers: HistoryUiHandlers): void {
   // Clear all button
   document.getElementById('history-clear-all')?.addEventListener('click', () => {
-    if (confirm('确定清空全部工作区与文件历史？')) {
+    if (confirm(t('workbench.clearAllConfirm'))) {
       handlers.onClearAll();
     }
   });

@@ -137,6 +137,19 @@ export const iconChevronLeft = svg(`
   <path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
 `);
 
+/** Download arrow into tray */
+export const iconDownload = svg(`
+  <path d="M8 2v7.5M5 6.5L8 9.5l3-3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+`);
+
+/** Globe / language */
+export const iconGlobe = svg(`
+  <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.2"/>
+  <path d="M1.75 8h12.5" stroke="currentColor" stroke-width="1.2"/>
+  <ellipse cx="8" cy="8" rx="3.2" ry="6.25" stroke="currentColor" stroke-width="1.2"/>
+`);
+
 export type IconName =
   | 'folder'
   | 'file'
@@ -156,7 +169,9 @@ export type IconName =
   | 'copy'
   | 'check'
   | 'copyAbsolute'
-  | 'search';
+  | 'download'
+  | 'search'
+  | 'globe';
 
 const map: Record<IconName, string> = {
   folder: iconFolder,
@@ -177,7 +192,9 @@ const map: Record<IconName, string> = {
   copy: iconCopy,
   check: iconCheck,
   copyAbsolute: iconCopyAbsolute,
+  download: iconDownload,
   search: iconSearch,
+  globe: iconGlobe,
 };
 
 export function iconHtml(name: IconName): string {
@@ -207,4 +224,58 @@ export function setButtonIcon(
     t.textContent = options.label;
     btn.appendChild(t);
   }
+}
+
+const feedbackTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+export interface FlashFeedbackOptions {
+  idleIcon: IconName;
+  feedbackIcon?: IconName;
+  idleTitle?: string;
+  feedbackTitle?: string;
+  idleLabel?: string;
+  feedbackLabel?: string;
+  durationMs?: number;
+  activeClass?: string;
+}
+
+/** Temporarily flash an icon/label/title on a button to provide tactile user feedback. */
+export function flashButtonFeedback(
+  btn: HTMLElement,
+  options: FlashFeedbackOptions,
+): void {
+  const prevTimer = feedbackTimers.get(btn);
+  if (prevTimer) {
+    clearTimeout(prevTimer);
+  }
+  const feedbackIcon = options.feedbackIcon ?? 'check';
+  setButtonIcon(
+    btn,
+    feedbackIcon,
+    options.feedbackLabel ? { label: options.feedbackLabel } : undefined,
+  );
+  if (options.feedbackTitle) {
+    btn.title = options.feedbackTitle;
+    btn.setAttribute('aria-label', options.feedbackTitle);
+  }
+  const activeClass = options.activeClass ?? 'active';
+  btn.classList.add(activeClass);
+
+  const durationMs = options.durationMs ?? 1800;
+  const timer = setTimeout(() => {
+    if (typeof document !== 'undefined') {
+      setButtonIcon(
+        btn,
+        options.idleIcon,
+        options.idleLabel ? { label: options.idleLabel } : undefined,
+      );
+      if (options.idleTitle) {
+        btn.title = options.idleTitle;
+        btn.setAttribute('aria-label', options.idleTitle);
+      }
+      btn.classList.remove(activeClass);
+    }
+    feedbackTimers.delete(btn);
+  }, durationMs);
+  feedbackTimers.set(btn, timer);
 }

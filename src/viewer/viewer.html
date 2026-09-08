@@ -301,11 +301,13 @@
       }
 
       .wb-bridge-status.online .wb-status-dot,
+      .wb-status-dot.online,
       .wb-bp-dot.online {
         background: var(--vscode-charts-green, #3dd68c);
       }
 
       .wb-bridge-status.offline .wb-status-dot,
+      .wb-status-dot.offline,
       .wb-bp-dot.offline {
         background: var(--vscode-editorWarning-foreground, #e8a33d);
       }
@@ -552,6 +554,11 @@
 
       .wb-bp-link-btn:hover {
         text-decoration: underline;
+      }
+
+      #wb-lang-dropdown-slot {
+        display: inline-flex;
+        align-items: center;
       }
 
       .wb-icon-btn {
@@ -2579,10 +2586,10 @@
             </div>
             <div class="wb-brand-info">
               <div class="wb-title-row">
-                <h1 class="wb-title">Markdown 工作台</h1>
+                <h1 class="wb-title" data-i18n="workbench.title">Markdown 工作台</h1>
                 <span class="wb-version-badge">Preview</span>
               </div>
-              <p class="wb-desc">像 VS Code 一样浏览与预览 Markdown 及 SVG 火焰图，支持本地、WSL 与 SSH 工作区</p>
+              <p class="wb-desc" data-i18n="workbench.desc">像 VS Code 一样浏览与预览 Markdown 及 SVG 火焰图，支持本地、WSL 与 SSH 工作区</p>
             </div>
           </div>
 
@@ -2597,6 +2604,7 @@
               <input
                 type="text"
                 id="wb-search-input"
+                data-i18n-placeholder="workbench.searchPlaceholder"
                 placeholder="搜索工作区或文件 (/) ..."
                 autocomplete="off"
                 spellcheck="false"
@@ -2610,6 +2618,7 @@
                 type="button"
                 class="wb-bridge-status"
                 id="wb-bridge-status"
+                data-i18n-title="workbench.bridgeTitle"
                 aria-haspopup="dialog"
                 aria-expanded="false"
                 title="本机 WSL/SSH 桥接服务状态 (点击查看提示信息)"
@@ -2626,7 +2635,7 @@
                     <span class="wb-status-dot" id="wb-bp-status-dot"></span>
                     <span class="wb-bp-title" id="wb-bp-title">Bridge 探测中</span>
                   </div>
-                  <button type="button" class="wb-bp-refresh-btn" id="wb-bp-refresh-btn" title="重新检测 Bridge 状态" aria-label="重新检测 Bridge 状态">
+                  <button type="button" class="wb-bp-refresh-btn" id="wb-bp-refresh-btn" data-i18n-title="workbench.recheckBridge" data-i18n-aria="workbench.recheckBridge" title="重新检测 Bridge 状态" aria-label="重新检测 Bridge 状态">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M13.5 2.5v3.5h-3.5"/>
                       <path d="M2.5 13.5v-3.5h3.5"/>
@@ -2636,34 +2645,37 @@
                   </button>
                 </div>
                 <div class="wb-bp-details">
-                  <div class="wb-bp-row">
-                    <span class="wb-bp-label">服务地址</span>
+                  <div class="wb-bp-row" id="wb-bp-url-row">
+                    <span class="wb-bp-label" data-i18n="workbench.bridgeUrlLabel">服务地址</span>
                     <span class="wb-bp-val" id="wb-bp-url">http://127.0.0.1:17823</span>
                   </div>
-                  <div class="wb-bp-row">
-                    <span class="wb-bp-label">Token 鉴权</span>
+                  <div class="wb-bp-row" id="wb-bp-auth-row">
+                    <span class="wb-bp-label" data-i18n="workbench.bridgeAuthLabel">Token 鉴权</span>
                     <span class="wb-bp-val" id="wb-bp-auth">未校验</span>
                   </div>
                   <div class="wb-bp-row" id="wb-bp-wsl-row">
-                    <span class="wb-bp-label">WSL 支持</span>
+                    <span class="wb-bp-label" data-i18n="workbench.bridgeWslLabel">WSL 支持</span>
                     <span class="wb-bp-val" id="wb-bp-wsl">—</span>
                   </div>
                   <div class="wb-bp-row" id="wb-bp-session-row" hidden>
-                    <span class="wb-bp-label">活动会话</span>
+                    <span class="wb-bp-label" data-i18n="workbench.bridgeSessionLabel">活动会话</span>
                     <span class="wb-bp-val" id="wb-bp-session">—</span>
                   </div>
                 </div>
                 <div class="wb-bp-hint" id="wb-bp-hint"></div>
                 <div class="wb-bp-footer">
-                  <button type="button" class="wb-bp-link-btn" id="wb-bp-open-options">
+                  <button type="button" class="wb-bp-link-btn" id="wb-bp-open-options" data-i18n="workbench.bridgeSettings">
                     打开 Bridge 设置…
                   </button>
                 </div>
               </div>
             </div>
 
+            <!-- Language Switcher Slot -->
+            <div id="wb-lang-dropdown-slot"></div>
+
             <!-- Options Button -->
-            <button type="button" class="wb-icon-btn" id="btn-options" title="选项与偏好设置" aria-label="选项与偏好设置">
+            <button type="button" class="wb-icon-btn" id="btn-options" data-i18n-title="workbench.optionsBtn" data-i18n-aria="workbench.optionsBtn" title="选项与偏好设置" aria-label="选项与偏好设置">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8.15 1.33h-.3a1.33 1.33 0 0 0-1.33 1.33v.12a1.33 1.33 0 0 1-.67 1.15l-.3.17a1.33 1.33 0 0 1-1.33 0l-.1-.05a1.33 1.33 0 0 0-1.82.49l-.15.25a1.33 1.33 0 0 0 .49 1.82l.1.07a1.33 1.33 0 0 1 .67 1.15v.34a1.33 1.33 0 0 1-.67 1.16l-.1.06a1.33 1.33 0 0 0-.49 1.82l.15.25a1.33 1.33 0 0 0 1.82.49l.1-.05a1.33 1.33 0 0 1 1.33 0l.3.17a1.33 1.33 0 0 1 .67 1.15v.12a1.33 1.33 0 0 0 1.33 1.33h.3a1.33 1.33 0 0 0 1.33-1.33v-.12a1.33 1.33 0 0 1 .67-1.15l.3-.17a1.33 1.33 0 0 1 1.33 0l.1.05a1.33 1.33 0 0 0 1.82-.49l.15-.26a1.33 1.33 0 0 0-.49-1.82l-.1-.05a1.33 1.33 0 0 1-.67-1.16v-.33a1.33 1.33 0 0 1 .67-1.16l.1-.06a1.33 1.33 0 0 0 .49-1.82l-.15-.25a1.33 1.33 0 0 0-1.82-.49l-.1.05a1.33 1.33 0 0 1-1.33 0l-.3-.17a1.33 1.33 0 0 1-.67-1.15V2.66a1.33 1.33 0 0 0-1.33-1.33z"/>
                 <circle cx="8" cy="8" r="2.1" stroke-width="1.2"/>
@@ -2673,8 +2685,8 @@
         </header>
 
         <!-- Quick Action 4-Card Grid -->
-        <section class="wb-quick-actions" aria-label="快捷启动">
-          <div class="wb-section-title">快捷启动</div>
+        <section class="wb-quick-actions" data-i18n-aria="workbench.quickStart" aria-label="快捷启动">
+          <div class="wb-section-title" data-i18n="workbench.quickStart">快捷启动</div>
           <div class="wb-cards-grid">
             <!-- 1: Local Folder -->
             <button type="button" class="wb-action-card wb-card-local" id="btn-open-folder">
@@ -2688,8 +2700,8 @@
                 <span class="wb-card-shortcut">Ctrl+K O</span>
               </div>
               <div class="wb-card-body">
-                <span class="wb-card-title">打开本地文件夹</span>
-                <span class="wb-card-desc">打开本地目录作为工作区，或直接拖入</span>
+                <span class="wb-card-title" data-i18n="workbench.openFolder">打开本地文件夹</span>
+                <span class="wb-card-desc" data-i18n="workbench.openFolderDesc">打开本地目录作为工作区，或直接拖入</span>
               </div>
             </button>
 
@@ -2705,8 +2717,8 @@
                 <span class="wb-card-tag">WSL2</span>
               </div>
               <div class="wb-card-body">
-                <span class="wb-card-title">WSL 工作区</span>
-                <span class="wb-card-desc">连接 Linux 子系统 (openEuler/Debian/Ubuntu)</span>
+                <span class="wb-card-title" data-i18n="workbench.openWsl">WSL 工作区</span>
+                <span class="wb-card-desc" data-i18n="workbench.openWslDesc">连接 Linux 子系统 (openEuler/Debian/Ubuntu)</span>
               </div>
             </button>
 
@@ -2722,8 +2734,8 @@
                 <span class="wb-card-tag">SSH</span>
               </div>
               <div class="wb-card-body">
-                <span class="wb-card-title">SSH 远程工作区</span>
-                <span class="wb-card-desc">连接远程 Linux 服务器或开发机</span>
+                <span class="wb-card-title" data-i18n="workbench.openSsh">SSH 远程工作区</span>
+                <span class="wb-card-desc" data-i18n="workbench.openSshDesc">连接远程 Linux 服务器或开发机</span>
               </div>
             </button>
 
@@ -2740,8 +2752,8 @@
                 <span class="wb-card-shortcut">Ctrl+O</span>
               </div>
               <div class="wb-card-body">
-                <span class="wb-card-title">打开单个文件</span>
-                <span class="wb-card-desc">浏览单篇 Markdown 或性能火焰图 SVG</span>
+                <span class="wb-card-title" data-i18n="workbench.openFile">打开单个文件</span>
+                <span class="wb-card-desc" data-i18n="workbench.openFileDesc">浏览单篇 Markdown 或性能火焰图 SVG</span>
               </div>
             </button>
           </div>
@@ -2754,26 +2766,26 @@
             <section class="wb-col-workspaces">
               <div class="wb-panel-head">
                 <div class="wb-head-left">
-                  <h3>最近工作区</h3>
+                  <h3 data-i18n="workbench.recentWorkspaces">最近工作区</h3>
                   <span class="wb-count-badge" id="ws-total-count">0</span>
                 </div>
-                <div class="wb-filter-tabs" id="ws-filter-tabs" role="tablist" aria-label="工作区类型筛选">
-                  <button type="button" class="wb-tab active" data-filter="all">全部</button>
+                <div class="wb-filter-tabs" id="ws-filter-tabs" role="tablist" data-i18n-aria="workbench.filterAriaLabel" aria-label="工作区类型筛选">
+                  <button type="button" class="wb-tab active" data-filter="all" data-i18n="workbench.filterAll">全部</button>
                   <button type="button" class="wb-tab" data-filter="wsl">WSL</button>
                   <button type="button" class="wb-tab" data-filter="ssh">SSH</button>
-                  <button type="button" class="wb-tab" data-filter="local">本地</button>
+                  <button type="button" class="wb-tab" data-filter="local" data-i18n="workbench.filterLocal">本地</button>
                 </div>
               </div>
               <ul class="history-list wb-history-list" id="history-workspaces" aria-label="最近工作区"></ul>
-              <div class="wb-empty-filter-hint" id="ws-filter-empty" hidden>未找到匹配的工作区</div>
+              <div class="wb-empty-filter-hint" id="ws-filter-empty" data-i18n="workbench.emptyFilterWorkspaces" hidden>未找到匹配的工作区</div>
               <div class="wb-pagination" id="ws-pagination">
                 <span class="wb-page-info" id="ws-page-info">第 1 / 1 页</span>
                 <div class="wb-page-btns">
-                  <button type="button" class="wb-page-btn" id="ws-page-prev" title="上一页" disabled>
+                  <button type="button" class="wb-page-btn" id="ws-page-prev" data-i18n-title="workbench.prevPage" title="上一页" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l-4 4 4 4"/></svg>
                   </button>
                   <span class="wb-page-num" id="ws-page-num">1</span>
-                  <button type="button" class="wb-page-btn" id="ws-page-next" title="下一页" disabled>
+                  <button type="button" class="wb-page-btn" id="ws-page-next" data-i18n-title="workbench.nextPage" title="下一页" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
                   </button>
                 </div>
@@ -2784,23 +2796,23 @@
             <section class="wb-col-files">
               <div class="wb-panel-head">
                 <div class="wb-head-left">
-                  <h3>最近文件</h3>
+                  <h3 data-i18n="workbench.recentFiles">最近文件</h3>
                   <span class="wb-count-badge" id="files-total-count">0</span>
                 </div>
                 <div class="wb-head-right">
-                  <button type="button" class="wb-text-btn danger" id="history-clear-all" title="清空全部历史记录">清空全部</button>
+                  <button type="button" class="wb-text-btn danger" id="history-clear-all" data-i18n="workbench.clearAll" data-i18n-title="workbench.clearAllTitle" title="清空全部历史记录">清空全部</button>
                 </div>
               </div>
               <ul class="history-list wb-history-list" id="history-files" aria-label="最近文件"></ul>
-              <div class="wb-empty-filter-hint" id="files-filter-empty" hidden>未找到匹配的文件</div>
+              <div class="wb-empty-filter-hint" id="files-filter-empty" data-i18n="workbench.emptyFilterFiles" hidden>未找到匹配的文件</div>
               <div class="wb-pagination" id="files-pagination">
                 <span class="wb-page-info" id="files-page-info">第 1 / 1 页</span>
                 <div class="wb-page-btns">
-                  <button type="button" class="wb-page-btn" id="files-page-prev" title="上一页" disabled>
+                  <button type="button" class="wb-page-btn" id="files-page-prev" data-i18n-title="workbench.prevPage" title="上一页" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l-4 4 4 4"/></svg>
                   </button>
                   <span class="wb-page-num" id="files-page-num">1</span>
-                  <button type="button" class="wb-page-btn" id="files-page-next" title="下一页" disabled>
+                  <button type="button" class="wb-page-btn" id="files-page-next" data-i18n-title="workbench.nextPage" title="下一页" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
                   </button>
                 </div>
@@ -2817,10 +2829,10 @@
                 <path d="M2.5 10.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M8 1.5v9M4.5 7.5L8 11l3.5-3.5"/>
               </svg>
             </span>
-            <span>可将任意文件夹或 <code>.md</code> / <code>.svg</code> 拖入窗口任意位置直接打开</span>
+            <span data-i18n-html="workbench.dropTip">可将任意文件夹或 <code>.md</code> / <code>.svg</code> 拖入窗口任意位置直接打开</span>
           </div>
           <div class="wb-footer-meta">
-            <span>WSL/SSH 桥接指令: <code>npm run ssh-bridge</code></span>
+            <span data-i18n-html="workbench.bridgeCmd">WSL/SSH 桥接指令: <code>npm run ssh-bridge</code></span>
           </div>
         </footer>
       </div>
@@ -2836,15 +2848,15 @@
         aria-labelledby="wsl-dialog-title"
       >
         <div class="dlg-header">
-          <h2 id="wsl-dialog-title">打开 WSL 工作区</h2>
-          <p class="dlg-sub">通过本机 Bridge 读取发行版内的 Markdown（需 Windows + 已启动 bridge）</p>
+          <h2 id="wsl-dialog-title" data-i18n="wsl.title">打开 WSL 工作区</h2>
+          <p class="dlg-sub" data-i18n="wsl.sub">通过本机 Bridge 读取发行版内的 Markdown（需 Windows + 已启动 bridge）</p>
         </div>
 
         <div class="dlg-tabs" role="tablist" aria-label="打开方式">
-          <button type="button" role="tab" id="wsl-mode-select" data-wsl-tab="select" class="active" aria-selected="true">
+          <button type="button" role="tab" id="wsl-mode-select" data-wsl-tab="select" data-i18n="wsl.tabSelect" class="active" aria-selected="true">
             选择目录
           </button>
-          <button type="button" role="tab" id="wsl-mode-paste" data-wsl-tab="paste" aria-selected="false">
+          <button type="button" role="tab" id="wsl-mode-paste" data-wsl-tab="paste" data-i18n="wsl.tabPaste" aria-selected="false">
             粘贴路径
           </button>
         </div>
@@ -2852,19 +2864,19 @@
         <div class="dlg-body">
           <div class="dlg-panel" id="wsl-panel-select" role="tabpanel" data-wsl-panel="select">
             <label class="dlg-field">
-              <span class="dlg-field-label">发行版</span>
+              <span class="dlg-field-label" data-i18n="wsl.distroLabel">发行版</span>
               <select id="wsl-distro" aria-label="WSL 发行版"><option value="">—</option></select>
             </label>
             <label class="dlg-field">
-              <span class="dlg-field-label">Linux 根目录</span>
+              <span class="dlg-field-label" data-i18n="wsl.rootLabel">Linux 根目录</span>
               <input id="wsl-root" type="text" placeholder="~ 或 /home/user/project" value="~" />
             </label>
-            <p class="dlg-field-hint">填写发行版内部路径，例如 <code>/home/you/repo</code>，不是 Windows 盘符。</p>
+            <p class="dlg-field-hint" data-i18n-html="wsl.rootHint">填写发行版内部路径，例如 <code>/home/you/repo</code>，不是 Windows 盘符。</p>
           </div>
 
           <div class="dlg-panel" id="wsl-panel-paste" role="tabpanel" data-wsl-panel="paste" hidden>
             <label class="dlg-field">
-              <span class="dlg-field-label">完整路径或 URI</span>
+              <span class="dlg-field-label" data-i18n="wsl.pathLabel">完整路径或 URI</span>
               <input
                 id="wsl-path"
                 type="text"
@@ -2884,8 +2896,8 @@
           <button type="button" class="secondary dlg-actions-left" id="wsl-open-file" hidden>
             用 file:// 打开
           </button>
-          <button type="button" class="secondary" id="wsl-cancel">取消</button>
-          <button type="button" id="wsl-connect">连接</button>
+          <button type="button" class="secondary" id="wsl-cancel" data-i18n="wsl.cancel">取消</button>
+          <button type="button" id="wsl-connect" data-i18n="wsl.connect">连接</button>
         </div>
       </div>
     </div>
@@ -2900,114 +2912,121 @@
         aria-labelledby="options-dialog-title"
       >
         <div class="dlg-header">
-          <h2 id="options-dialog-title">选项与偏好设置</h2>
-          <p class="dlg-sub">修改将实时生效，已打开的预览将同步更新主题与排版。</p>
+          <h2 id="options-dialog-title" data-i18n="options.title">选项与偏好设置</h2>
+          <p class="dlg-sub" data-i18n="options.sub">修改将实时生效，已打开的预览将同步更新主题与排版。</p>
         </div>
 
         <div class="opt-tabs" id="opt-dialog-tabs" role="tablist" aria-label="选项分类">
-          <button type="button" class="opt-tab active" data-opt-tab="general" role="tab" aria-selected="true">常规设置</button>
-          <button type="button" class="opt-tab" data-opt-tab="markdown" role="tab" aria-selected="false">Markdown</button>
-          <button type="button" class="opt-tab" data-opt-tab="extensions" role="tab" aria-selected="false">扩展组件</button>
-          <button type="button" class="opt-tab" data-opt-tab="bridge" role="tab" aria-selected="false">本机 Bridge</button>
+          <button type="button" class="opt-tab active" data-opt-tab="general" data-i18n="options.tabGeneral" role="tab" aria-selected="true">常规设置</button>
+          <button type="button" class="opt-tab" data-opt-tab="markdown" data-i18n="options.tabMarkdown" role="tab" aria-selected="false">Markdown</button>
+          <button type="button" class="opt-tab" data-opt-tab="extensions" data-i18n="options.tabExtensions" role="tab" aria-selected="false">扩展组件</button>
+          <button type="button" class="opt-tab" data-opt-tab="bridge" data-i18n="options.tabBridge" role="tab" aria-selected="false">本机 Bridge</button>
         </div>
 
         <div class="dlg-body">
           <!-- 1. General -->
           <div class="opt-panel opt-section-card active" data-opt-panel="general" role="tabpanel">
-            <span class="opt-section-title">常规设置 General</span>
+            <span class="opt-section-title" data-i18n="options.tabGeneral">常规设置 General</span>
             <label class="opt-check">
               <input type="checkbox" id="opt-autoPreview" />
-              <span>本地 file:// 与 GitHub/Gist raw 自动唤起预览</span>
+              <span data-i18n="options.autoPreview">本地 file:// 与 GitHub/Gist raw 自动唤起预览</span>
             </label>
             <div class="opt-row">
-              <span class="dlg-field-label">界面主题</span>
-              <select id="opt-theme" aria-label="界面主题">
-                <option value="auto">跟随系统 (Auto)</option>
-                <option value="light">浅色 (Light)</option>
-                <option value="dark">深色 (Dark)</option>
+              <span class="dlg-field-label" data-i18n="options.language">界面语言 Language</span>
+              <select id="opt-locale" aria-label="界面语言">
+                <option value="en">English</option>
+                <option value="zh-CN">简体中文 (Simplified Chinese)</option>
               </select>
             </div>
             <div class="opt-row">
-              <span class="dlg-field-label">预览区域宽度</span>
+              <span class="dlg-field-label" data-i18n="options.theme">界面主题</span>
+              <select id="opt-theme" aria-label="界面主题">
+                <option value="auto" data-i18n="options.themeAuto">跟随系统 (Auto)</option>
+                <option value="light" data-i18n="options.themeLight">浅色 (Light)</option>
+                <option value="dark" data-i18n="options.themeDark">深色 (Dark)</option>
+              </select>
+            </div>
+            <div class="opt-row">
+              <span class="dlg-field-label" data-i18n="options.previewWidth">预览区域宽度</span>
               <select id="opt-previewWidth" aria-label="预览区域宽度">
-                <option value="comfortable">舒适 (~980px)</option>
-                <option value="wide">宽屏 (~1280px，推荐)</option>
-                <option value="fluid">更宽 (~1600px / 96vw)</option>
-                <option value="full">铺满内容区 (Full)</option>
+                <option value="comfortable" data-i18n="options.widthComfortable">舒适 (~980px)</option>
+                <option value="wide" data-i18n="options.widthWide">宽屏 (~1280px，推荐)</option>
+                <option value="fluid" data-i18n="options.widthFluid">更宽 (~1600px / 96vw)</option>
+                <option value="full" data-i18n="options.widthFull">铺满内容区 (Full)</option>
               </select>
             </div>
           </div>
 
           <!-- 2. Markdown -->
           <div class="opt-panel opt-section-card" data-opt-panel="markdown" role="tabpanel" hidden>
-            <span class="opt-section-title">Markdown 渲染</span>
+            <span class="opt-section-title" data-i18n="options.markdownTitle">Markdown 渲染</span>
             <label class="opt-check">
               <input type="checkbox" id="opt-breaks" />
-              <span>GFM 软换行转为硬换行（Breaks → &lt;br&gt;）</span>
+              <span data-i18n="options.breaks">GFM 软换行转为硬换行（Breaks → &lt;br&gt;）</span>
             </label>
             <label class="opt-check">
               <input type="checkbox" id="opt-linkify" />
-              <span>自动识别纯文本 URL 为可点击链接</span>
+              <span data-i18n="options.linkify">自动识别纯文本 URL 为可点击链接</span>
             </label>
             <label class="opt-check">
               <input type="checkbox" id="opt-typographer" />
-              <span>排版增强（智能引号、破折号转换）</span>
+              <span data-i18n="options.typographer">排版增强（智能引号、破折号转换）</span>
             </label>
             <label class="opt-check">
               <input type="checkbox" id="opt-html" />
-              <span>允许渲染 HTML 标签（内置安全净化）</span>
+              <span data-i18n="options.html">允许渲染 HTML 标签（内置安全净化）</span>
             </label>
           </div>
 
           <!-- 3. Extensions -->
           <div class="opt-panel opt-section-card" data-opt-panel="extensions" role="tabpanel" hidden>
-            <span class="opt-section-title">扩展组件 Extensions</span>
+            <span class="opt-section-title" data-i18n="options.extensionsTitle">扩展组件 Extensions</span>
             <label class="opt-check">
               <input type="checkbox" id="opt-mathEnabled" />
-              <span>KaTeX 数学公式渲染（$inline$ 与 $$block$$）</span>
+              <span data-i18n="options.mathEnabled">KaTeX 数学公式渲染（$inline$ 与 $$block$$）</span>
             </label>
             <label class="opt-check">
               <input type="checkbox" id="opt-mermaidEnabled" />
-              <span>Mermaid 架构与流程图渲染</span>
+              <span data-i18n="options.mermaidEnabled">Mermaid 架构与流程图渲染</span>
             </label>
             <div class="opt-row">
-              <span class="dlg-field-label">Mermaid 主题</span>
+              <span class="dlg-field-label" data-i18n="options.mermaidTheme">Mermaid 主题</span>
               <select id="opt-mermaidTheme" aria-label="Mermaid 主题">
-                <option value="vscode">VS Code 变量自适应（推荐）</option>
-                <option value="default">Mermaid 默认 (Default)</option>
-                <option value="dark">暗色主题 (Dark)</option>
-                <option value="forest">森绿 (Forest)</option>
-                <option value="neutral">中性灰 (Neutral)</option>
-                <option value="base">基础模式 (Base)</option>
+                <option value="vscode" data-i18n="options.mermaidVscode">VS Code 变量自适应（推荐）</option>
+                <option value="default" data-i18n="options.mermaidDefault">Mermaid 默认 (Default)</option>
+                <option value="dark" data-i18n="options.mermaidDark">暗色主题 (Dark)</option>
+                <option value="forest" data-i18n="options.mermaidForest">森绿 (Forest)</option>
+                <option value="neutral" data-i18n="options.mermaidNeutral">中性灰 (Neutral)</option>
+                <option value="base" data-i18n="options.mermaidBase">基础模式 (Base)</option>
               </select>
             </div>
           </div>
 
           <!-- 4. Bridge -->
           <div class="opt-panel opt-section-card" data-opt-panel="bridge" role="tabpanel" hidden>
-            <span class="opt-section-title">本机 Bridge（SSH / WSL 远程工作区）</span>
-            <p class="dlg-field-hint" style="margin: 0 0 4px">
+            <span class="opt-section-title" data-i18n="options.bridgeTitle">本机 Bridge（SSH / WSL 远程工作区）</span>
+            <p class="dlg-field-hint" data-i18n="options.bridgeHint" style="margin: 0 0 4px">
               本机运行 <code>npm run ssh-bridge</code>，将 Token 填入下方。WSL 需 Bridge 跑在 Windows 上。
             </p>
             <div class="opt-row-col">
-              <span class="dlg-field-label">Bridge 服务地址</span>
+              <span class="dlg-field-label" data-i18n="options.bridgeUrl">Bridge 服务地址</span>
               <input id="opt-sshBridgeUrl" type="url" placeholder="http://127.0.0.1:17823" />
             </div>
             <div class="opt-row-col">
-              <span class="dlg-field-label">Bridge 鉴权 Token</span>
-              <input id="opt-sshBridgeToken" type="password" autocomplete="off" placeholder="未设置 Token 时可留空" />
+              <span class="dlg-field-label" data-i18n="options.bridgeToken">Bridge 鉴权 Token</span>
+              <input id="opt-sshBridgeToken" type="password" autocomplete="off" data-i18n-placeholder="options.bridgeTokenPlaceholder" placeholder="未设置 Token 时可留空" />
             </div>
             <p class="opt-bridge-status" id="opt-bridge-status">
-              <span>Bridge 状态:</span> <span class="bridge-state">—</span>
+              <span data-i18n="options.bridgeStatus">Bridge 状态:</span> <span class="bridge-state">—</span>
             </p>
           </div>
         </div>
         <p class="opt-status" id="opt-status" aria-live="polite"></p>
         <div class="ssh-actions">
-          <button type="button" class="secondary dlg-actions-left" id="opt-open-full" title="在独立标签打开完整选项页">
+          <button type="button" class="secondary dlg-actions-left" id="opt-open-full" data-i18n="options.openFull" data-i18n-title="options.openFullTitle" title="在独立标签打开完整选项页">
             独立选项页…
           </button>
-          <button type="button" id="opt-close">完成</button>
+          <button type="button" id="opt-close" data-i18n="options.done">完成</button>
         </div>
       </div>
     </div>
@@ -3022,15 +3041,15 @@
         aria-labelledby="ssh-dialog-title"
       >
         <div class="dlg-header">
-          <h2 id="ssh-dialog-title">打开 SSH 工作区</h2>
-          <p class="dlg-sub">
+          <h2 id="ssh-dialog-title" data-i18n="ssh.title">打开 SSH 工作区</h2>
+          <p class="dlg-sub" data-i18n-html="ssh.sub">
             经本机 Bridge 连接远程目录。凭证仅发送到 <code>127.0.0.1</code>。远程须为
             Linux（GNU find）；不支持 Windows SSH 目标。
           </p>
         </div>
         <div class="dlg-body">
           <label class="dlg-field">
-            <span class="dlg-field-label">主机</span>
+            <span class="dlg-field-label" data-i18n="ssh.host">主机</span>
             <input id="ssh-host" type="text" autocomplete="off" placeholder="example.com" />
             <select id="ssh-host-select" aria-label="OpenSSH Host" hidden>
               <option value="">正在读取 OpenSSH 配置…</option>
@@ -3039,25 +3058,25 @@
           <div id="ssh-manual-endpoint-fields">
             <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
               <label class="dlg-field">
-                <span class="dlg-field-label">端口</span>
+                <span class="dlg-field-label" data-i18n="ssh.port">端口</span>
                 <input id="ssh-port" type="number" value="22" min="1" max="65535" />
               </label>
               <label class="dlg-field">
-                <span class="dlg-field-label">用户名</span>
+                <span class="dlg-field-label" data-i18n="ssh.user">用户名</span>
                 <input id="ssh-user" type="text" autocomplete="username" />
               </label>
             </div>
           </div>
           <label class="dlg-field">
-            <span class="dlg-field-label">远程根目录</span>
+            <span class="dlg-field-label" data-i18n="ssh.remoteRoot">远程根目录</span>
             <input id="ssh-root" type="text" placeholder="." value="." />
           </label>
           <label class="dlg-field">
-            <span class="dlg-field-label">认证方式</span>
+            <span class="dlg-field-label" data-i18n="ssh.auth">认证方式</span>
             <select id="ssh-auth">
-              <option value="password">密码</option>
-              <option value="key">私钥</option>
-              <option value="openssh">本机 OpenSSH 配置</option>
+              <option value="password" data-i18n="ssh.authPassword">密码</option>
+              <option value="key" data-i18n="ssh.authKey">私钥</option>
+              <option value="openssh" data-i18n="ssh.authOpenSsh">本机 OpenSSH 配置</option>
             </select>
             <span class="dlg-field-hint" id="ssh-openssh-hint" hidden>
               从 <code>~/.ssh/config</code> 选择 Host 别名；用户名、端口与 IdentityFile 由
@@ -3066,21 +3085,21 @@
             </span>
           </label>
           <label class="dlg-field" id="ssh-password-row">
-            <span class="dlg-field-label">密码</span>
+            <span class="dlg-field-label" data-i18n="ssh.password">密码</span>
             <input id="ssh-password" type="password" autocomplete="current-password" />
           </label>
           <label class="dlg-checkbox" id="ssh-remember-password-row">
             <input id="ssh-remember-password" type="checkbox" />
-            <span>记住密码（保存在本地）</span>
+            <span data-i18n="ssh.rememberPassword">记住密码（保存在本地）</span>
           </label>
           <div id="ssh-key-row" hidden>
             <label class="dlg-field">
-              <span class="dlg-field-label">私钥文件</span>
+              <span class="dlg-field-label" data-i18n="ssh.privateKeyFile">私钥文件</span>
               <input id="ssh-key-file" type="file" />
             </label>
           </div>
           <label class="dlg-field" id="ssh-passphrase-row" hidden>
-            <span class="dlg-field-label">私钥口令（可选）</span>
+            <span class="dlg-field-label" data-i18n="ssh.passphrase">私钥口令（可选）</span>
             <input id="ssh-passphrase" type="password" autocomplete="off" />
           </label>
         </div>
@@ -3090,8 +3109,8 @@
           <span id="ssh-progress-text">正在连接…</span>
         </p>
         <div class="ssh-actions">
-          <button type="button" class="secondary" id="ssh-cancel">取消</button>
-          <button type="button" id="ssh-connect">连接</button>
+          <button type="button" class="secondary" id="ssh-cancel" data-i18n="ssh.cancel">取消</button>
+          <button type="button" id="ssh-connect" data-i18n="ssh.connect">连接</button>
         </div>
       </div>
     </div>
@@ -3103,6 +3122,8 @@
             type="button"
             id="ws-btn-expand"
             class="ws-sidebar-collapse-btn"
+            data-i18n-title="sidebar.expand"
+            data-i18n-aria="sidebar.expand"
             title="展开侧边栏"
             aria-label="展开侧边栏"
           >
@@ -3111,13 +3132,15 @@
         </div>
         <div class="ws-sidebar-header">
           <div class="ws-header-text">
-            <div class="ws-caption">工作区</div>
+            <div class="ws-caption" data-i18n="sidebar.caption">工作区</div>
             <div id="ws-title">—</div>
           </div>
           <button
             type="button"
             id="ws-btn-collapse"
             class="ws-sidebar-collapse-btn"
+            data-i18n-title="sidebar.collapse"
+            data-i18n-aria="sidebar.collapse"
             title="收起侧边栏"
             aria-label="收起侧边栏"
             aria-expanded="true"
@@ -3126,10 +3149,10 @@
           </button>
         </div>
         <div class="ws-sidebar-actions">
-          <button type="button" id="ws-btn-refresh" class="secondary" title="重新扫描 Markdown / SVG 文件">刷新</button>
-          <button type="button" id="ws-btn-open-file" class="secondary" title="打开工作区外的单个文件">文件…</button>
-          <button type="button" id="ws-btn-change-folder" class="secondary" title="更换文件夹">换夹…</button>
-          <button type="button" id="ws-btn-close" class="secondary" title="关闭工作区">关闭</button>
+          <button type="button" id="ws-btn-refresh" class="secondary" data-i18n="sidebar.refresh" data-i18n-title="sidebar.refreshTitle" title="重新扫描 Markdown / SVG 文件">刷新</button>
+          <button type="button" id="ws-btn-open-file" class="secondary" data-i18n="sidebar.openFile" data-i18n-title="sidebar.openFileTitle" title="打开工作区外的单个文件">文件…</button>
+          <button type="button" id="ws-btn-change-folder" class="secondary" data-i18n="sidebar.changeFolder" data-i18n-title="sidebar.changeFolderTitle" title="更换工作区文件夹">更换文件夹…</button>
+          <button type="button" id="ws-btn-close" class="secondary" data-i18n="sidebar.close" data-i18n-title="sidebar.closeTitle" title="关闭工作区">关闭</button>
         </div>
         <div class="ws-tree-toolbar">
           <button
@@ -3142,12 +3165,14 @@
             收起全部
           </button>
         </div>
-        <div id="ws-file-tree" aria-label="Markdown / SVG 文件列表"></div>
+        <div id="ws-file-tree" data-i18n-aria="workbench.fileTreeAria" aria-label="Markdown / SVG 文件列表"></div>
         <div
           id="ws-sidebar-resizer"
           class="ws-sidebar-resizer"
           role="separator"
           aria-orientation="vertical"
+          data-i18n-title="sidebar.resizerTitle"
+          data-i18n-aria="sidebar.resizerAria"
           aria-label="调整侧边栏宽度"
           tabindex="0"
           title="拖动调整宽度；双击复位；方向键微调"
@@ -3156,12 +3181,14 @@
       <main class="ws-main">
         <div class="ws-main-bar">
           <div class="ws-path-group">
-            <span id="ws-current-path">选择左侧 Markdown / SVG 文件开始预览</span>
+            <span id="ws-current-path" data-i18n="workbench.selectFileHint">选择左侧 Markdown / SVG 文件开始预览</span>
             <span class="ws-path-actions" role="group" aria-label="复制路径">
               <button
                 type="button"
                 id="ws-btn-copy-path"
                 class="ws-path-copy-btn vsc-icon-btn"
+                data-i18n-title="sidebar.copyRelPath"
+                data-i18n-aria="sidebar.copyRelPath"
                 title="复制路径"
                 aria-label="复制路径"
                 hidden
@@ -3171,6 +3198,8 @@
                 type="button"
                 id="ws-btn-copy-abspath"
                 class="ws-path-copy-btn vsc-icon-btn"
+                data-i18n-title="sidebar.copyAbsPath"
+                data-i18n-aria="sidebar.copyAbsPath"
                 title="复制绝对路径"
                 aria-label="复制绝对路径"
                 hidden
@@ -3181,7 +3210,7 @@
           <span class="hint" id="ws-file-count"></span>
         </div>
         <div class="ws-content" id="ws-content">
-          <div class="ws-empty-preview" id="ws-empty-preview">从左侧选择一个 .md 或 .svg 文件</div>
+          <div class="ws-empty-preview" id="ws-empty-preview" data-i18n="sidebar.emptyPreview">从左侧选择一个 .md 或 .svg 文件</div>
           <div id="vscode-md-preview-root" class="vscode-md-preview-root" hidden></div>
           <div id="vscode-md-preview-source" class="md-source-view" hidden></div>
         </div>

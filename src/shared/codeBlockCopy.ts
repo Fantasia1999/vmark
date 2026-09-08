@@ -4,6 +4,7 @@
 
 import { copyText } from './clipboard';
 import { createIconEl } from './icons';
+import { t } from './i18n/index';
 
 export const CODE_BLOCK_WRAP_CLASS = 'md-code-block';
 export const CODE_COPY_BTN_CLASS = 'md-code-copy';
@@ -24,29 +25,29 @@ function setCopyButtonState(
     btn.appendChild(createIconEl('check', 'vsc-icon md-code-copy-icon'));
     const label = document.createElement('span');
     label.className = 'md-code-copy-label';
-    label.textContent = '已复制';
+    label.textContent = t('codeBlock.copied');
     btn.appendChild(label);
-    btn.setAttribute('aria-label', '已复制');
-    btn.title = '已复制';
+    btn.setAttribute('aria-label', t('codeBlock.copied'));
+    btn.title = t('codeBlock.copied');
     return;
   }
   if (state === 'fail') {
     btn.appendChild(createIconEl('copy', 'vsc-icon md-code-copy-icon'));
     const label = document.createElement('span');
     label.className = 'md-code-copy-label';
-    label.textContent = '失败';
+    label.textContent = t('codeBlock.failed');
     btn.appendChild(label);
-    btn.setAttribute('aria-label', '复制失败');
-    btn.title = '复制失败';
+    btn.setAttribute('aria-label', t('codeBlock.failed'));
+    btn.title = t('codeBlock.failed');
     return;
   }
   btn.appendChild(createIconEl('copy', 'vsc-icon md-code-copy-icon'));
   const label = document.createElement('span');
   label.className = 'md-code-copy-label';
-  label.textContent = '复制';
+  label.textContent = t('codeBlock.copy');
   btn.appendChild(label);
-  btn.setAttribute('aria-label', '复制代码');
-  btn.title = '复制';
+  btn.setAttribute('aria-label', t('codeBlock.copyAria'));
+  btn.title = t('codeBlock.copy');
 }
 
 function shouldSkipPre(pre: HTMLElement): boolean {

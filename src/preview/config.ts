@@ -1,3 +1,6 @@
+import type { SupportedLocale } from '../shared/i18n/index';
+export type { SupportedLocale };
+
 export type ThemeMode = 'auto' | 'light' | 'dark';
 
 /** Mermaid theme: `vscode` matches VS Code (base + CSS themeVariables). */
@@ -33,6 +36,8 @@ export interface PreviewSettings {
   html: boolean;
   /** Max width of the rendered markdown column */
   previewWidth: PreviewWidthSetting;
+  /** Interface language (default: 'en') */
+  locale: SupportedLocale;
 }
 
 export const DEFAULT_SETTINGS: PreviewSettings = {
@@ -46,6 +51,7 @@ export const DEFAULT_SETTINGS: PreviewSettings = {
   mermaidTheme: 'vscode',
   html: true,
   previewWidth: 'wide',
+  locale: 'en',
 };
 
 export async function loadSettings(): Promise<PreviewSettings> {

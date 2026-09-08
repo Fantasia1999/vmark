@@ -4,6 +4,7 @@
  */
 
 import type { SshAuthMode } from './sshClient';
+import { getLocale } from './i18n/index';
 
 export type HistorySource = 'local' | 'ssh' | 'wsl';
 
@@ -312,7 +313,8 @@ export async function clearAllHistory(): Promise<void> {
   await chrome.storage.local.remove([WS_KEY, FILE_KEY, 'historyFileGroupExpanded']);
 }
 
-export function formatHistoryTime(ts: number): string {
+export function formatHistoryTime(ts: number, locale?: string): string {
+  const loc = locale ?? (getLocale() === 'en' ? 'en' : 'zh-CN');
   const d = new Date(ts);
   const now = new Date();
   const sameDay =
@@ -320,7 +322,7 @@ export function formatHistoryTime(ts: number): string {
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
   if (sameDay) {
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
   }
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
 }

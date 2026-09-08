@@ -1,4 +1,5 @@
 import { copyText } from '../shared/clipboard';
+import { t, localizeDom } from '../shared/i18n/index';
 import {
   DEFAULT_SSH_BRIDGE_URL,
   loadSshBridgeSettings,
@@ -7,6 +8,16 @@ import {
   type SshHealth,
 } from '../shared/sshClient';
 
+export type BridgeAuthStatus =
+  | 'ok'
+  | 'missing'
+  | 'unauthorized'
+  | 'error'
+  | 'configured_offline'
+  | 'unchecked';
+
+export type BridgeWslStatus = 'ready' | 'not_windows' | 'not_ready' | 'none';
+
 export interface BridgePopoverModel {
   online: boolean;
   statusText: string;
@@ -14,8 +25,10 @@ export interface BridgePopoverModel {
   url: string;
   authText: string;
   authTone: 'ok' | 'warn' | 'bad';
+  authStatus?: BridgeAuthStatus;
   tokenPreview?: string;
   wslText: string;
+  wslStatus?: BridgeWslStatus;
   sessionText?: string;
   hintKind: 'offline' | 'warn-missing-token' | 'warn-invalid-token' | 'ok';
   hintDescription: string;
@@ -41,9 +54,11 @@ export function getBridgePopoverModel(
   if (!h.ok) {
     let authText = '未配置';
     let authTone: 'ok' | 'warn' | 'bad' = 'warn';
+    let authStatus: BridgeAuthStatus = 'missing';
     if (h.tokenConfigured || h.tokenPreview) {
       authText = '已配置 (离线未校验)';
       authTone = 'warn';
+      authStatus = 'configured_offline';
     }
     return {
       online: false,
@@ -52,8 +67,10 @@ export function getBridgePopoverModel(
       url,
       authText,
       authTone,
+      authStatus,
       tokenPreview: h.tokenPreview,
       wslText: '—',
+      wslStatus: 'none',
       hintKind: 'offline',
       hintDescription:
         '本机 Bridge 服务未运行。如需连接 SSH 远程工作区或读取 WSL 文件，请在终端启动：',
@@ -64,6 +81,7 @@ export function getBridgePopoverModel(
 
   let authText = '未校验';
   let authTone: 'ok' | 'warn' | 'bad' = 'warn';
+  let authStatus: BridgeAuthStatus = 'unchecked';
   let hintKind: 'offline' | 'warn-missing-token' | 'warn-invalid-token' | 'ok' = 'ok';
   let hintDescription = '本机 Bridge 服务运行正常，支持 SSH 极速扫描与 WSL 文件访问。';
 
@@ -71,11 +89,13 @@ export function getBridgePopoverModel(
     case 'ok':
       authText = '已授权';
       authTone = 'ok';
+      authStatus = 'ok';
       hintKind = 'ok';
       break;
     case 'missing':
       authText = '未配置';
       authTone = 'warn';
+      authStatus = 'missing';
       hintKind = 'warn-missing-token';
       hintDescription =
         '当前未配置鉴权 Token。建议在 Bridge 启动终端复制 Token 并在设置中保存，以增强安全性。';
@@ -83,6 +103,7 @@ export function getBridgePopoverModel(
     case 'unauthorized':
       authText = '无效 / 未授权';
       authTone = 'bad';
+      authStatus = 'unauthorized';
       hintKind = 'warn-invalid-token';
       hintDescription =
         'Bridge Token 校验失败。请确认设置中的 Token 是否与终端输出一致。';
@@ -90,21 +111,26 @@ export function getBridgePopoverModel(
     case 'error':
       authText = '校验失败';
       authTone = 'bad';
+      authStatus = 'error';
       hintKind = 'warn-invalid-token';
       hintDescription = 'Bridge Token 校验发生异常，请检查服务日志。';
       break;
     default:
       authText = '未校验';
       authTone = 'warn';
+      authStatus = 'unchecked';
       hintKind = 'ok';
       hintDescription = '本机 Bridge 服务已连接。';
   }
 
   let wslText = '未就绪';
+  let wslStatus: BridgeWslStatus = 'not_ready';
   if (h.wslAvailable) {
     wslText = '可用 (wsl.exe)';
+    wslStatus = 'ready';
   } else if (h.platform && h.platform !== 'win32') {
     wslText = '不可用 (非 Windows)';
+    wslStatus = 'not_windows';
   }
 
   let sessionText: string | undefined;
@@ -121,8 +147,10 @@ export function getBridgePopoverModel(
     url,
     authText,
     authTone,
+    authStatus,
     tokenPreview: h.tokenPreview,
     wslText,
+    wslStatus,
     sessionText,
     hintKind,
     hintDescription,
@@ -169,7 +197,28 @@ export function toggleBridgePopover(): void {
   }
 }
 
+const AUTH_I18N_KEYS: Record<BridgeAuthStatus, string> = {
+  ok: 'workbench.bridgeAuthOk',
+  missing: 'workbench.bridgeAuthMissing',
+  unauthorized: 'workbench.bridgeAuthUnauthorized',
+  error: 'workbench.bridgeAuthError',
+  configured_offline: 'workbench.bridgeAuthConfigured',
+  unchecked: 'workbench.bridgeAuthUnchecked',
+};
+
+const WSL_I18N_KEYS: Record<BridgeWslStatus, string> = {
+  ready: 'workbench.wslReady',
+  not_windows: 'workbench.wslNotWindows',
+  not_ready: 'workbench.wslNotReady',
+  none: '—',
+};
+
 function renderPopoverDom(model: BridgePopoverModel): void {
+  const popover = document.getElementById('wb-bridge-popover');
+  if (popover) {
+    localizeDom(popover);
+  }
+
   const dot = document.getElementById('wb-bp-status-dot');
   const title = document.getElementById('wb-bp-title');
   const url = document.getElementById('wb-bp-url');
@@ -180,25 +229,34 @@ function renderPopoverDom(model: BridgePopoverModel): void {
   const hint = document.getElementById('wb-bp-hint');
 
   if (dot) {
-    dot.className = `wb-status-dot ${model.online ? 'online' : 'offline'}`;
+    dot.className = `wb-status-dot wb-bp-dot ${model.online ? 'online' : 'offline'}`;
   }
   if (title) {
-    title.textContent = model.statusText;
+    title.textContent = model.online ? t('workbench.bridgeOnline') : t('workbench.bridgeOffline');
   }
   if (url) {
     url.textContent = model.url;
   }
+
+  const localizedAuthText = model.authStatus ? t(AUTH_I18N_KEYS[model.authStatus]) : model.authText;
+
   if (auth) {
     auth.className = `wb-bp-val ${model.authTone}`;
     if (model.tokenPreview && model.tokenPreview.trim()) {
-      auth.innerHTML = `${escapeHtml(model.authText)}<code class="wb-bp-token-preview">${escapeHtml(model.tokenPreview)}</code>`;
+      auth.innerHTML = `${escapeHtml(localizedAuthText)}<code class="wb-bp-token-preview">${escapeHtml(model.tokenPreview)}</code>`;
     } else {
-      auth.textContent = model.authText;
+      auth.textContent = localizedAuthText;
     }
   }
+
+  const localizedWslText =
+    model.wslStatus && model.wslStatus !== 'none'
+      ? t(WSL_I18N_KEYS[model.wslStatus])
+      : model.wslText;
   if (wsl) {
-    wsl.textContent = model.wslText;
+    wsl.textContent = localizedWslText;
   }
+
   if (sessionRow && session) {
     if (model.sessionText) {
       sessionRow.hidden = false;
@@ -210,19 +268,22 @@ function renderPopoverDom(model: BridgePopoverModel): void {
 
   if (hint) {
     if (model.hintKind === 'offline') {
+      const offlineDesc = t('workbench.bridgeOfflineHint');
+      const offlineSub = t('workbench.bridgeOfflineSubnote');
+      const copyTitle = t('workbench.bridgeCopyCmd');
       hint.innerHTML = `
         <div class="wb-bp-notice wb-bp-notice-offline">
-          <div class="wb-bp-notice-desc">${escapeHtml(model.hintDescription)}</div>
+          <div class="wb-bp-notice-desc">${escapeHtml(offlineDesc)}</div>
           <div class="wb-bp-code-line">
             <code>npm run ssh-bridge</code>
-            <button type="button" class="wb-bp-copy-btn" id="wb-bp-copy-cmd" title="复制启动命令" aria-label="复制启动命令">
+            <button type="button" class="wb-bp-copy-btn" id="wb-bp-copy-cmd" title="${escapeHtml(copyTitle)}" aria-label="${escapeHtml(copyTitle)}">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true">
                 <rect x="5.5" y="5.5" width="8" height="9" rx="1.25"/>
                 <path d="M3.5 10.5V3.75A1.25 1.25 0 0 1 4.75 2.5h6.75"/>
               </svg>
             </button>
           </div>
-          <div class="wb-bp-subnote">首次使用请先执行 <code>npm run ssh-bridge:install</code></div>
+          <div class="wb-bp-subnote">${offlineSub}</div>
         </div>
       `;
 
@@ -244,13 +305,22 @@ function renderPopoverDom(model: BridgePopoverModel): void {
         }, 1500);
       });
     } else {
+      let desc = model.hintDescription;
+      if (model.hintKind === 'ok') {
+        desc = t('workbench.bridgeOkHint');
+      } else if (model.hintKind === 'warn-missing-token') {
+        desc = t('workbench.bridgeWarnMissingToken');
+      } else if (model.hintKind === 'warn-invalid-token') {
+        desc = t('workbench.bridgeWarnInvalidToken');
+      }
+
       const noticeClass =
         model.hintKind === 'warn-missing-token' || model.hintKind === 'warn-invalid-token'
           ? (model.authTone === 'bad' ? 'wb-bp-notice-bad' : 'wb-bp-notice-warn')
           : 'wb-bp-notice-ok';
       hint.innerHTML = `
         <div class="wb-bp-notice ${noticeClass}">
-          <div class="wb-bp-notice-desc">${escapeHtml(model.hintDescription)}</div>
+          <div class="wb-bp-notice-desc">${escapeHtml(desc)}</div>
         </div>
       `;
     }
@@ -302,12 +372,12 @@ export async function updateBridgePopover(probeNetwork = true): Promise<void> {
 
   if (model.online) {
     statusEl.className = 'wb-bridge-status online';
-    textEl.textContent = 'Bridge 在线';
-    statusEl.title = `本机 Bridge 在线 (HTTP ${h.auth === 'ok' ? '已鉴权' : '未开启鉴权'}) - 点击查看提示信息`;
+    textEl.textContent = t('workbench.bridgeOnline');
+    statusEl.title = t('workbench.bridgeTitle');
   } else {
     statusEl.className = 'wb-bridge-status offline';
-    textEl.textContent = 'Bridge 离线';
-    statusEl.title = '本机 Bridge 服务未连接 - 点击查看提示信息';
+    textEl.textContent = t('workbench.bridgeOffline');
+    statusEl.title = t('workbench.bridgeTitle');
   }
 
   renderPopoverDom(model);

@@ -6,7 +6,8 @@ import {
 } from '../preview/config';
 import { MarkdownPreviewEngine } from '../preview/engine';
 import { runMermaid } from '../content/mermaidRunner';
-import { mountToolbar, type PreviewMode } from '../content/toolbar';
+import { mountToolbar, mountLangDropdown, type PreviewMode } from '../content/toolbar';
+import { initI18n, onLocaleChange, t, localizeDom } from '../shared/i18n/index';
 import {
   isPreviewableFileName,
   isSvgFileName,
@@ -79,6 +80,7 @@ import {
 import { isPreviewablePath } from '../shared/wslPaths';
 import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
 import { copyText } from '../shared/clipboard';
+import { downloadRawFile } from '../shared/download';
 import { createIconEl, type IconName } from '../shared/icons';
 import {
   clearFileTreeExpandState,
@@ -86,6 +88,7 @@ import {
   prepareFileTreeForWorkspace,
   renderFileTree,
   setWorkspaceChrome,
+  syncTreeFoldButton,
   wireTreeFoldButton,
 } from './workspaceUi';
 import { closeContextMenu, showContextMenu, type ContextMenuItem } from './contextMenu';
@@ -113,11 +116,12 @@ import {
 } from '../shared/previewZoom';
 import { renderSourceWithLineNumbers } from '../shared/sourceView';
 import { refreshHistoryPanel, wireHistoryClearButton } from './historyUi';
-import { isOptionsDialogOpen, showOptionsDialog } from './optionsDialog';
+import { isOptionsDialogOpen, showOptionsDialog, localizeOptionsDialog } from './optionsDialog';
 import {
   closeBridgePopover,
   initBridgePopover,
   isBridgePopoverOpen,
+  updateBridgePopover,
 } from './bridgePopover';
 
 import markdownCss from '../preview/styles/markdown.css';
@@ -833,14 +837,14 @@ function updatePathCopyButtons(): void {
     visible: Boolean(rel),
     enabled: Boolean(rel),
     icon: 'copy',
-    title: rel ? `复制路径\n${rel}` : '复制路径',
+    title: rel ? `${t('sidebar.copyRelPath')}\n${rel}` : t('sidebar.copyRelPath'),
     copyValue: rel,
   });
   setPathCopyButton(absBtn, {
     visible: Boolean(abs),
     enabled: Boolean(abs),
     icon: 'copyAbsolute',
-    title: abs ? `复制绝对路径\n${abs}` : '复制绝对路径',
+    title: abs ? `${t('sidebar.copyAbsPath')}\n${abs}` : t('sidebar.copyAbsPath'),
     copyValue: abs,
   });
 }
@@ -850,17 +854,17 @@ function updatePathBar(): void {
   const countEl = document.getElementById('ws-file-count');
   if (pathEl) {
     if (inSvgCompareMode && compareLeft && compareRight) {
-      pathEl.textContent = `比较: ${compareLeft.name}  |  ${compareRight.name}`;
+      pathEl.textContent = `${t('sidebar.compareBoth')}: ${compareLeft.name}  |  ${compareRight.name}`;
       pathEl.title = `L: ${compareLeft.path}\nR: ${compareRight.path}`;
     } else if (compareLeft || compareRight) {
       const l = compareLeft ? `L=${compareLeft.name}` : 'L=?';
       const r = compareRight ? `R=${compareRight.name}` : 'R=?';
       pathEl.textContent =
-        currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
-      pathEl.title = `比较选择: ${l} · ${r}（右键 SVG 继续选择）`;
+        currentPath ?? (doc ? doc.name : t('workbench.selectFileHint'));
+      pathEl.title = `${t('sidebar.compareBoth')}: ${l} · ${r}`;
     } else {
       pathEl.textContent =
-        currentPath ?? (doc ? doc.name : '选择左侧 Markdown / SVG 文件开始预览');
+        currentPath ?? (doc ? doc.name : t('workbench.selectFileHint'));
       pathEl.title = pathEl.textContent;
     }
   }
@@ -868,9 +872,9 @@ function updatePathBar(): void {
     const n = workspaceFiles.length;
     let extra = '';
     if (compareLeft || compareRight) {
-      extra = ` · 比较 ${compareLeft ? 'L' : ''}${compareLeft && compareRight ? '+' : ''}${compareRight ? 'R' : ''}`;
+      extra = ` · ${t('sidebar.compareBoth')} ${compareLeft ? 'L' : ''}${compareLeft && compareRight ? '+' : ''}${compareRight ? 'R' : ''}`;
     }
-    countEl.textContent = n ? `${n} 个文件${extra}` : extra.trim();
+    countEl.textContent = n ? `${t('sidebar.fileCount', { count: n })}${extra}` : extra.trim();
   }
   updatePathCopyButtons();
 }
@@ -1650,9 +1654,12 @@ function showSourceView(): void {
   }
   root.hidden = true;
 
+  const sourceDoc = doc;
   const sourceEl = $(SOURCE_ID);
   sourceEl.hidden = false;
-  renderSourceWithLineNumbers(sourceEl, doc.content);
+  renderSourceWithLineNumbers(sourceEl, sourceDoc.content, {
+    fileName: sourceDoc.name,
+  });
 
   applyThemeClass();
   applyPreviewZoom(previewZoom);
@@ -2010,6 +2017,7 @@ function mountToolbarExtras(): void {
   if (!doc) {
     return;
   }
+  const currentDoc = doc;
   const svg = isSvgFileName(doc.name);
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
@@ -2028,6 +2036,22 @@ function mountToolbarExtras(): void {
     onZoomOut: () => zoomOut(),
     onZoomReset: () => zoomReset(),
     zoom: previewZoom,
+    onCopyRaw: mode === 'source' ? () => void copyText(currentDoc.content) : undefined,
+    onDownloadRaw:
+      mode === 'source'
+        ? () => downloadRawFile(currentDoc.name, currentDoc.content)
+        : undefined,
+    onToggleLocale: (nextLocale) => {
+      settings.locale = nextLocale;
+      mountToolbarExtras();
+      localizeWorkbench();
+      outlinePanel.updateLabels();
+      if (mode === 'source') {
+        showSourceView();
+      } else if (mode === 'preview') {
+        void showPreviewView();
+      }
+    },
   });
 }
 
@@ -2269,6 +2293,32 @@ function wireUi(): void {
       btn.disabled = true;
       btn.title = '不支持 Directory Picker';
     }
+  }
+}
+
+export function localizeWorkbench(): void {
+  localizeDom(document);
+  localizeOptionsDialog();
+  updatePathBar();
+  syncTreeFoldButton();
+  void refreshHistoryPanel(historyHandlersRef);
+  void updateBridgePopover(false);
+
+  const langSlot = document.getElementById('wb-lang-dropdown-slot');
+  if (langSlot) {
+    mountLangDropdown(langSlot, {
+      buttonClass: 'wb-icon-btn',
+      onSelect: (next) => {
+        settings.locale = next;
+        localizeWorkbench();
+        mountToolbarExtras();
+        outlinePanel.updateLabels();
+        if (doc) {
+          if (mode === 'preview') void showPreviewView();
+          else if (mode === 'source') showSourceView();
+        }
+      },
+    });
   }
 }
 
@@ -2814,6 +2864,20 @@ function promptEmptyAction(buttonId: string, hint: string): void {
 async function init(): Promise<void> {
   document.getElementById('ws-content')?.addEventListener('click', onPreviewClick);
   settings = await loadSettings();
+  initI18n(settings.locale);
+  onLocaleChange((next) => {
+    settings.locale = next;
+    mountToolbarExtras();
+    localizeWorkbench();
+    outlinePanel.updateLabels();
+    if (doc) {
+      if (mode === 'preview') {
+        void showPreviewView();
+      } else if (mode === 'source') {
+        showSourceView();
+      }
+    }
+  });
   engine = new MarkdownPreviewEngine(settings);
   injectStyles();
   applyThemeClass();
@@ -2822,6 +2886,7 @@ async function init(): Promise<void> {
   await outlinePanel.loadPinPreference();
   wireUi();
   wirePreviewZoomShortcuts();
+  localizeWorkbench();
 
   const params = new URLSearchParams(location.search);
   const shouldPickFile = params.get('pick') === '1';

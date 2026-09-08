@@ -42,6 +42,8 @@ export interface OutlineRenderOptions {
   emptyText?: string;
 }
 
+import { t } from '../shared/i18n/index';
+
 /**
  * Render a flat indented outline list into container.
  */
@@ -56,7 +58,7 @@ export function renderOutline(
   if (!items.length) {
     const empty = document.createElement('p');
     empty.className = 'md-outline-empty';
-    empty.textContent = options.emptyText ?? '当前文档没有标题';
+    empty.textContent = options.emptyText ?? t('outline.empty');
     container.appendChild(empty);
     return;
   }

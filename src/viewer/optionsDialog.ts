@@ -9,6 +9,7 @@ import {
   type MermaidThemeSetting,
   type PreviewSettings,
   type PreviewWidthSetting,
+  type SupportedLocale,
   type ThemeMode,
 } from '../preview/config';
 import {
@@ -19,6 +20,7 @@ import {
   saveSshBridgeSettings,
   sshHealth,
 } from '../shared/sshClient';
+import { t, setLocale, onLocaleChange, localizeDom, getLocale } from '../shared/i18n/index';
 import { updateBridgePopover } from './bridgePopover';
 
 export const OPTIONS_DIALOG_ID = 'options-dialog';
@@ -71,13 +73,19 @@ function setStatus(msg: string): void {
   }
 }
 
+export function localizeOptionsDialog(): void {
+  const dlg = document.getElementById(OPTIONS_DIALOG_ID);
+  if (!dlg) return;
+  localizeDom(dlg);
+}
+
 async function refreshBridgeStatus(): Promise<void> {
   const el = document.getElementById('opt-bridge-status');
   if (!el) {
     return;
   }
   const h = await sshHealth();
-  const { tone, html } = formatBridgeStatus(h, 'zh');
+  const { tone, html } = formatBridgeStatus(h, getLocale() === 'en' ? 'en' : 'zh');
   applyBridgeStatusTone(el, tone);
   el.innerHTML = html;
 }
@@ -86,14 +94,14 @@ async function refreshBridgeStatus(): Promise<void> {
 // settings changed meanwhile from the full options page.
 async function persistSettings(partial: Partial<PreviewSettings>): Promise<void> {
   await saveSettings(partial);
-  setStatus('✓ 已实时保存');
+  setStatus(t('options.saved'));
 }
 
 async function persistBridge(): Promise<void> {
   const url = ($('opt-sshBridgeUrl') as HTMLInputElement).value.trim() || DEFAULT_SSH_BRIDGE_URL;
   const token = ($('opt-sshBridgeToken') as HTMLInputElement).value.trim();
   await saveSshBridgeSettings({ bridgeUrl: url, bridgeToken: token });
-  setStatus('✓ Bridge 设置已保存');
+  setStatus(t('options.bridgeSaved'));
   void refreshBridgeStatus();
   void updateBridgePopover(true);
 }
@@ -104,6 +112,10 @@ async function fillForm(): Promise<void> {
     const key = SETTING_BY_CHECKBOX[id];
     ($(id) as HTMLInputElement).checked = Boolean(settings[key]);
   }
+  const localeEl = document.getElementById('opt-locale') as HTMLSelectElement | null;
+  if (localeEl) {
+    localeEl.value = settings.locale ?? 'en';
+  }
   ($('opt-theme') as HTMLSelectElement).value = settings.theme;
   ($('opt-previewWidth') as HTMLSelectElement).value = settings.previewWidth ?? 'wide';
   ($('opt-mermaidTheme') as HTMLSelectElement).value = settings.mermaidTheme ?? 'vscode';
@@ -111,6 +123,7 @@ async function fillForm(): Promise<void> {
   const bridge = await loadSshBridgeSettings();
   ($('opt-sshBridgeUrl') as HTMLInputElement).value = bridge.bridgeUrl || DEFAULT_SSH_BRIDGE_URL;
   ($('opt-sshBridgeToken') as HTMLInputElement).value = bridge.bridgeToken || '';
+  localizeOptionsDialog();
   void refreshBridgeStatus();
 }
 
@@ -126,6 +139,19 @@ function wireOnce(): void {
       void persistSettings({ [key]: ($(id) as HTMLInputElement).checked }),
     );
   }
+  const localeEl = document.getElementById('opt-locale') as HTMLSelectElement | null;
+  if (localeEl) {
+    localeEl.addEventListener('change', () => {
+      const next = localeEl.value as SupportedLocale;
+      setLocale(next);
+      void persistSettings({
+        locale: next,
+      });
+    });
+  }
+  onLocaleChange(() => {
+    localizeOptionsDialog();
+  });
   $('opt-theme').addEventListener('change', () =>
     void persistSettings({
       theme: ($('opt-theme') as HTMLSelectElement).value as ThemeMode,

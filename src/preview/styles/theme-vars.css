@@ -396,7 +396,7 @@ html[data-preview-width="full"],
 .md-source-view {
   box-sizing: border-box;
   margin: 0;
-  padding: 12px 0 24px;
+  padding: 0 0 24px;
   overflow: auto;
   font-family: var(
     --vscode-editor-font-family,
@@ -414,6 +414,73 @@ html[data-preview-width="full"],
   tab-size: 4;
   color: var(--vscode-editor-foreground, var(--vscode-foreground, #ccc));
   background-color: var(--vscode-editor-background, transparent);
+}
+
+/* GitHub-style source header bar */
+.md-source-view .md-source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: 0 0 8px 0;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, rgba(127, 127, 127, 0.25));
+  background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
+  color: var(--vscode-descriptionForeground, #858585);
+  font-family: var(--markdown-font-family, system-ui, -apple-system, sans-serif);
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: none;
+  -webkit-user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+}
+
+.md-source-view .md-source-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-source-view .md-source-sep {
+  opacity: 0.6;
+}
+
+.md-source-view .md-source-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.md-source-view .md-source-actions button.vsc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border-radius: var(--r-sm, 4px);
+  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
+  background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.12));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, inherit));
+  cursor: pointer;
+  transition: background var(--dur, 0.15s) var(--ease, ease),
+    border-color var(--dur, 0.15s) var(--ease, ease),
+    color var(--dur, 0.15s) var(--ease, ease);
+}
+
+.md-source-view .md-source-actions button.vsc-icon-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.24));
+  border-color: var(--vscode-focusBorder, #3794ff);
+}
+
+.md-source-view .md-source-actions button.vsc-icon-btn.active {
+  background: var(--acc-soft, rgba(55, 148, 255, 0.15));
+  border-color: var(--vscode-focusBorder, #3794ff);
+  color: var(--vscode-focusBorder, #3794ff);
 }
 
 .md-source-view .md-source-table {

@@ -22,6 +22,9 @@ import {
 } from '../shared/previewZoom';
 import { renderSourceWithLineNumbers } from '../shared/sourceView';
 import { attachCodeBlockCopyButtons } from '../shared/codeBlockCopy';
+import { copyText } from '../shared/clipboard';
+import { downloadRawFile } from '../shared/download';
+import { initI18n, onLocaleChange } from '../shared/i18n/index';
 
 import markdownCss from '../preview/styles/markdown.css';
 import highlightCss from '../preview/styles/highlight.css';
@@ -168,6 +171,28 @@ function wirePreviewZoomShortcuts(): void {
   );
 }
 
+function getSourceFileName(): string {
+  try {
+    const pathname = location.pathname;
+    const segment = pathname.split('/').filter(Boolean).pop();
+    if (segment) {
+      const decoded = decodeURIComponent(segment);
+      if (decoded.includes('.')) {
+        return decoded;
+      }
+      return `${decoded}.md`;
+    }
+  } catch {
+    // ignore
+  }
+  const title = document.title?.trim();
+  if (title) {
+    const clean = title.replace(/[<>:"/\\|?*]+/g, '_');
+    return clean.endsWith('.md') ? clean : `${clean}.md`;
+  }
+  return 'document.md';
+}
+
 function remountToolbar(): void {
   mountToolbar(mode, {
     onToggleMode: (m) => void setMode(m),
@@ -181,6 +206,21 @@ function remountToolbar(): void {
     onZoomOut: () => zoomOut(),
     onZoomReset: () => zoomReset(),
     zoom: previewZoom,
+    onCopyRaw: mode === 'source' ? () => void copyText(sourceText) : undefined,
+    onDownloadRaw:
+      mode === 'source'
+        ? () => downloadRawFile(getSourceFileName(), sourceText)
+        : undefined,
+    onToggleLocale: (nextLocale) => {
+      settings.locale = nextLocale;
+      remountToolbar();
+      outlinePanel.updateLabels(document.getElementById(ROOT_ID));
+      if (mode === 'source') {
+        showSource();
+      } else if (mode === 'preview') {
+        void showPreview();
+      }
+    },
   });
 }
 
@@ -205,7 +245,9 @@ function showSource(): void {
   } else {
     sourceEl.hidden = false;
   }
-  renderSourceWithLineNumbers(sourceEl, sourceText);
+  renderSourceWithLineNumbers(sourceEl, sourceText, {
+    fileName: getSourceFileName(),
+  });
   removePrehideStyle();
 
   applyPreviewZoom(previewZoom);
@@ -303,6 +345,7 @@ async function bootstrap(force = false): Promise<void> {
   }
 
   settings = await loadSettings();
+  initI18n(settings.locale);
   if (!force && !settings.autoPreview) {
     removePrehideStyle();
     return;
@@ -323,12 +366,26 @@ async function bootstrap(force = false): Promise<void> {
   await showPreview();
 }
 
+onLocaleChange((next) => {
+  settings.locale = next;
+  if (bootstrapped) {
+    remountToolbar();
+    outlinePanel.updateLabels(document.getElementById(ROOT_ID));
+    if (mode === 'source') {
+      showSource();
+    } else if (mode === 'preview') {
+      void showPreview();
+    }
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'togglePreview') {
     void (async () => {
       if (!bootstrapped) {
         sourceText = extractMarkdownSource();
         settings = await loadSettings();
+        initI18n(settings.locale);
         engine = new MarkdownPreviewEngine(settings);
         await outlinePanel.loadPinPreference();
         previewZoom = await loadPreviewZoom();

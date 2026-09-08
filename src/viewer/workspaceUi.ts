@@ -1,4 +1,5 @@
 import { createIconEl } from '../shared/icons';
+import { t } from '../shared/i18n/index';
 import type { WorkspaceTreeNode } from '../shared/workspaceFs';
 
 export interface WorkspaceUiHandlers {
@@ -302,7 +303,9 @@ function appendNodes(
       row.type = 'button';
       row.className = 'ws-row ws-dir-row';
       row.style.paddingLeft = `${8 + depth * 12}px`;
-      row.title = isOpen ? `收起 ${node.path}` : `展开 ${node.path}`;
+      row.title = isOpen
+        ? t('sidebar.collapseDir', { path: node.path })
+        : t('sidebar.expandDir', { path: node.path });
 
       const twisty = document.createElement('span');
       twisty.className = 'ws-twisty';
@@ -321,7 +324,7 @@ function appendNodes(
       count.className = 'ws-dir-count';
       const fileCount = countFiles(node);
       count.textContent = String(fileCount);
-      count.title = `${fileCount} 个文件`;
+      count.title = t('sidebar.fileCount', { count: fileCount });
 
       row.append(twisty, folderIcon, label, count);
 
@@ -338,7 +341,9 @@ function appendNodes(
         const next = li.classList.contains('is-collapsed');
         setDirExpanded(node.path, next);
         setDirRowUi(li, row, twisty, childUl, next);
-        row.title = next ? `收起 ${node.path}` : `展开 ${node.path}`;
+        row.title = next
+          ? t('sidebar.collapseDir', { path: node.path })
+          : t('sidebar.expandDir', { path: node.path });
         syncTreeFoldButton();
       });
 
@@ -373,15 +378,15 @@ function appendNodes(
         badge.className = 'ws-compare-badge';
         if (compare.leftPath === node.path && compare.rightPath === node.path) {
           badge.textContent = 'L+R';
-          badge.title = '比较左侧与右侧';
+          badge.title = t('sidebar.compareBoth');
           badge.classList.add('both');
         } else if (compare.leftPath === node.path) {
           badge.textContent = 'L';
-          badge.title = '比较左侧';
+          badge.title = t('sidebar.compareLeft');
           badge.classList.add('left');
         } else {
           badge.textContent = 'R';
-          badge.title = '比较右侧';
+          badge.title = t('sidebar.compareRight');
           badge.classList.add('right');
         }
         row.appendChild(badge);
@@ -454,19 +459,19 @@ export function syncTreeFoldButton(): void {
   btn.replaceChildren();
   if (restoring) {
     btn.appendChild(createIconEl('chevronDown', 'vsc-icon vsc-icon-sm'));
-    const t = document.createElement('span');
-    t.textContent = '恢复展开';
-    btn.appendChild(t);
-    btn.title = '恢复收起前的目录展开状态';
-    btn.setAttribute('aria-label', '恢复展开');
+    const tEl = document.createElement('span');
+    tEl.textContent = t('sidebar.unfoldAll');
+    btn.appendChild(tEl);
+    btn.title = t('sidebar.unfoldAllTitle');
+    btn.setAttribute('aria-label', t('sidebar.unfoldAll'));
     btn.dataset.mode = 'restore';
   } else {
     btn.appendChild(createIconEl('chevronRight', 'vsc-icon vsc-icon-sm'));
-    const t = document.createElement('span');
-    t.textContent = '收起全部';
-    btn.appendChild(t);
-    btn.title = '收起所有目录（可再点恢复）';
-    btn.setAttribute('aria-label', '收起全部');
+    const tEl = document.createElement('span');
+    tEl.textContent = t('sidebar.foldAll');
+    btn.appendChild(tEl);
+    btn.title = t('sidebar.foldAllTitle');
+    btn.setAttribute('aria-label', t('sidebar.foldAll'));
     btn.dataset.mode = 'collapse';
   }
 }

@@ -2,6 +2,8 @@
  * Export rendered Mermaid diagrams as PNG/JPG (clipboard when possible).
  */
 
+import { t } from '../shared/i18n/index';
+
 function findSvg(container: HTMLElement): SVGSVGElement | null {
   return container.querySelector('svg');
 }
@@ -243,7 +245,7 @@ async function exportDiagram(
 ): Promise<void> {
   const svg = findSvg(container);
   if (!svg) {
-    setButtonFeedback(btn, '无图');
+    setButtonFeedback(btn, t('mermaid.noDiagram'));
     return;
   }
 
@@ -253,13 +255,13 @@ async function exportDiagram(
     const blob = await svgToBlob(svg, type, 2);
     const how = await copyImageBlob(blob, format === 'jpg' ? 'jpg' : 'png');
     if (how === 'clipboard') {
-      setButtonFeedback(btn, '已复制');
+      setButtonFeedback(btn, t('mermaid.copied'));
     } else {
-      setButtonFeedback(btn, '已下载');
+      setButtonFeedback(btn, t('mermaid.downloaded'));
     }
   } catch (e) {
     console.error('[vscode-md-preview] mermaid export failed', e);
-    setButtonFeedback(btn, '失败');
+    setButtonFeedback(btn, t('mermaid.failed'));
   }
 }
 
@@ -281,13 +283,14 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     const bar = document.createElement('div');
     bar.className = 'mermaid-export';
     bar.setAttribute('role', 'group');
-    bar.setAttribute('aria-label', '导出 Mermaid 图');
+    bar.setAttribute('aria-label', t('mermaid.exportGroup'));
 
     const pngBtn = document.createElement('button');
     pngBtn.type = 'button';
     pngBtn.className = 'mermaid-export-btn';
     pngBtn.textContent = 'PNG';
-    pngBtn.title = '复制为 PNG 图片（剪贴板不可用时下载）';
+    pngBtn.title = t('mermaid.copyPng');
+    pngBtn.setAttribute('aria-label', t('mermaid.copyPngAria'));
     pngBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -298,7 +301,8 @@ export function attachMermaidExportButtons(nodes: HTMLElement[]): void {
     jpgBtn.type = 'button';
     jpgBtn.className = 'mermaid-export-btn';
     jpgBtn.textContent = 'JPG';
-    jpgBtn.title = '复制为图片（剪贴板使用 PNG；失败时下载 JPG）';
+    jpgBtn.title = t('mermaid.copyJpg');
+    jpgBtn.setAttribute('aria-label', t('mermaid.copyJpgAria'));
     jpgBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

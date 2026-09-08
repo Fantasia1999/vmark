@@ -4,6 +4,7 @@ import {
   type MermaidThemeSetting,
   type PreviewSettings,
   type PreviewWidthSetting,
+  type SupportedLocale,
   type ThemeMode,
 } from '../preview/config';
 import {
@@ -45,6 +46,7 @@ async function refreshBridgeStatus(): Promise<void> {
 }
 
 async function init(): Promise<void> {
+  const locale = $('locale') as HTMLSelectElement;
   const theme = $('theme') as HTMLSelectElement;
   const previewWidth = $('previewWidth') as HTMLSelectElement;
   const mermaidTheme = $('mermaidTheme') as HTMLSelectElement;
@@ -54,6 +56,7 @@ async function init(): Promise<void> {
     for (const id of ids) {
       ($(id) as HTMLInputElement).checked = Boolean(settings[id]);
     }
+    locale.value = settings.locale ?? 'en';
     theme.value = settings.theme;
     previewWidth.value = settings.previewWidth ?? 'wide';
     mermaidTheme.value = settings.mermaidTheme ?? 'vscode';
@@ -65,6 +68,9 @@ async function init(): Promise<void> {
     const input = $(id) as HTMLInputElement;
     input.addEventListener('change', () => void persist({ [id]: input.checked }));
   }
+  locale.addEventListener('change', () =>
+    void persist({ locale: locale.value as SupportedLocale }),
+  );
   theme.addEventListener('change', () =>
     void persist({ theme: theme.value as ThemeMode }),
   );

@@ -45,6 +45,7 @@ function resetStore(): void {
 // but keeping the order explicit documents the dependency).
 import {
   clearAllHistory,
+  formatHistoryTime,
   loadFileHistory,
   loadWorkspaceHistory,
   recordFileOpen,
@@ -52,6 +53,7 @@ import {
   removeFileHistory,
   touchWorkspaceLastFile,
 } from '../src/shared/history';
+import { setLocale } from '../src/shared/i18n/index';
 
 describe('history — basics', () => {
   beforeEach(async () => {
@@ -136,3 +138,36 @@ describe('history — concurrent write serialization (regression)', () => {
     assert.equal(ws.lastFilePath, '2.md');
   });
 });
+
+describe('history — formatHistoryTime (i18n)', () => {
+  it('formats past date according to active locale', () => {
+    // Fixed past date: 2025-05-15
+    const pastTs = new Date(2025, 4, 15, 12, 0, 0).getTime();
+
+    setLocale('zh-CN');
+    const zhDate = formatHistoryTime(pastTs);
+    assert.ok(zhDate.includes('5月') && zhDate.includes('15'), `Expected Chinese date format, got: ${zhDate}`);
+
+    setLocale('en');
+    const enDate = formatHistoryTime(pastTs);
+    assert.ok(enDate.includes('May') && enDate.includes('15'), `Expected English date format, got: ${enDate}`);
+  });
+
+  it('allows explicit locale override', () => {
+    const pastTs = new Date(2025, 4, 15, 12, 0, 0).getTime();
+    assert.ok(formatHistoryTime(pastTs, 'en').includes('May'));
+    assert.ok(formatHistoryTime(pastTs, 'zh-CN').includes('5月'));
+  });
+
+  it('formats same-day time correctly', () => {
+    const todayTs = Date.now();
+    setLocale('zh-CN');
+    const zhTime = formatHistoryTime(todayTs);
+    assert.match(zhTime, /\d{1,2}:\d{2}/);
+
+    setLocale('en');
+    const enTime = formatHistoryTime(todayTs);
+    assert.match(enTime, /\d{1,2}:\d{2}/);
+  });
+});
+

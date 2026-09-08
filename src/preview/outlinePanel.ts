@@ -4,6 +4,7 @@
  */
 
 import { createIconEl } from '../shared/icons';
+import { t } from '../shared/i18n/index';
 import {
   createOutlineScrollSpy,
   extractOutlineFromDom,
@@ -75,13 +76,13 @@ export class OutlineFloatingPanel {
     panel = document.createElement('div');
     panel.id = OUTLINE_PANEL_ID;
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', '文档大纲');
+    panel.setAttribute('aria-label', t('outline.dialogAria'));
     panel.innerHTML = `
       <div class="md-outline-header" data-drag-handle>
-        <span class="md-outline-title">大纲</span>
+        <span class="md-outline-title">${t('outline.title')}</span>
         <span class="md-outline-actions">
-          <button type="button" data-action="pin" class="vsc-icon-btn" title="固定悬浮窗（切换文件/点击外部不关闭）" aria-pressed="false" aria-label="固定"></button>
-          <button type="button" data-action="close" class="vsc-icon-btn" title="关闭" aria-label="关闭"></button>
+          <button type="button" data-action="pin" class="vsc-icon-btn" title="${t('outline.pin')}" aria-pressed="false" aria-label="${t('outline.pinAria')}"></button>
+          <button type="button" data-action="close" class="vsc-icon-btn" title="${t('outline.close')}" aria-label="${t('outline.close')}"></button>
         </span>
       </div>
       <div class="md-outline-body"></div>
@@ -109,14 +110,24 @@ export class OutlineFloatingPanel {
 
   #syncPinUi(panel: HTMLElement): void {
     panel.classList.toggle('is-pinned', this.#pinned);
+    panel.setAttribute('aria-label', t('outline.dialogAria'));
+    const titleEl = panel.querySelector('.md-outline-title');
+    if (titleEl) {
+      titleEl.textContent = t('outline.title');
+    }
+    const closeBtn = panel.querySelector('[data-action="close"]') as HTMLButtonElement | null;
+    if (closeBtn) {
+      closeBtn.title = t('outline.close');
+      closeBtn.setAttribute('aria-label', t('outline.close'));
+    }
     const pinBtn = panel.querySelector('[data-action="pin"]') as HTMLButtonElement | null;
     if (pinBtn) {
       pinBtn.setAttribute('aria-pressed', this.#pinned ? 'true' : 'false');
       pinBtn.classList.toggle('active', this.#pinned);
       pinBtn.title = this.#pinned
-        ? '取消固定'
-        : '固定悬浮窗（切换文件/点击外部不关闭）';
-      pinBtn.setAttribute('aria-label', this.#pinned ? '取消固定' : '固定');
+        ? t('outline.unpin')
+        : t('outline.pin');
+      pinBtn.setAttribute('aria-label', this.#pinned ? t('outline.unpinAria') : t('outline.pinAria'));
       pinBtn.replaceChildren(createIconEl(this.#pinned ? 'pinFilled' : 'pin'));
     }
   }
@@ -282,12 +293,13 @@ export class OutlineFloatingPanel {
     this.#items = previewRoot ? extractOutlineFromDom(previewRoot) : [];
     renderOutline(body, this.#items, {
       onNavigate: (id) => this.navigateToHeading(id),
-      emptyText: '没有标题',
+      emptyText: t('outline.empty'),
     });
 
     const count = panel.querySelector('.md-outline-title');
     if (count) {
-      count.textContent = this.#items.length ? `大纲 · ${this.#items.length}` : '大纲';
+      const baseTitle = t('outline.title');
+      count.textContent = this.#items.length ? `${baseTitle} · ${this.#items.length}` : baseTitle;
     }
 
     if (this.#items.length) {
@@ -296,6 +308,16 @@ export class OutlineFloatingPanel {
         this.#items.map((i) => i.id),
         (id) => setOutlineActive(body, id),
       );
+    }
+  }
+
+  updateLabels(previewRoot?: ParentNode | null): void {
+    const panel = document.getElementById(OUTLINE_PANEL_ID);
+    if (panel) {
+      this.#syncPinUi(panel);
+      if (this.#open) {
+        this.updateFromDom(previewRoot ?? document.getElementById('vscode-md-preview-root'));
+      }
     }
   }
 

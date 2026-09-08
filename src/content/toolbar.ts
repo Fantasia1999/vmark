@@ -1,5 +1,6 @@
-import { createIconEl, setButtonIcon } from '../shared/icons';
+import { createIconEl, flashButtonFeedback, setButtonIcon } from '../shared/icons';
 import { formatPreviewZoom } from '../shared/previewZoom';
+import { t, getLocale, setLocale, type SupportedLocale } from '../shared/i18n/index';
 
 export type PreviewMode = 'preview' | 'source';
 
@@ -19,6 +20,12 @@ export interface ToolbarHandlers {
   onZoomReset?: () => void;
   /** Current zoom factor for label (e.g. 1 = 100%) */
   zoom?: number;
+  /** Source mode: copy raw file */
+  onCopyRaw?: () => void;
+  /** Source mode: download raw file */
+  onDownloadRaw?: () => void;
+  /** Optional: toggle interface language */
+  onToggleLocale?: (locale: SupportedLocale) => void;
 }
 
 const TOOLBAR_ID = 'vscode-md-preview-toolbar';
@@ -48,6 +55,230 @@ function ensureButton(
     bar.appendChild(btn);
   }
   return btn;
+}
+
+const langMenuCleanups = new WeakMap<HTMLElement, () => void>();
+
+function closeLangMenu(scope: HTMLElement): void {
+  const menu = scope.querySelector<HTMLElement>('.vsc-lang-menu');
+  const btn = scope.querySelector<HTMLButtonElement>('button[data-action="toggle-lang"]');
+  if (menu) {
+    menu.hidden = true;
+  }
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    btn.classList.remove('active');
+  }
+  const cleanup = langMenuCleanups.get(scope);
+  if (cleanup) {
+    cleanup();
+    langMenuCleanups.delete(scope);
+  }
+}
+
+function openLangMenu(scope: HTMLElement): void {
+  const prevCleanup = langMenuCleanups.get(scope);
+  if (prevCleanup) {
+    prevCleanup();
+    langMenuCleanups.delete(scope);
+  }
+
+  const menu = scope.querySelector<HTMLElement>('.vsc-lang-menu');
+  const btn = scope.querySelector<HTMLButtonElement>('button[data-action="toggle-lang"]');
+  if (!menu || !btn) return;
+
+  menu.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  btn.classList.add('active');
+
+  const onDocPointer = (e: MouseEvent | PointerEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const dropdown = scope.classList.contains('vsc-lang-dropdown')
+      ? scope
+      : scope.querySelector('.vsc-lang-dropdown');
+    if (dropdown && !dropdown.contains(target)) {
+      closeLangMenu(scope);
+    }
+  };
+
+  const onDocKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.preventDefault();
+      closeLangMenu(scope);
+      btn.focus?.();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = Array.from(menu.children) as HTMLButtonElement[];
+      if (!items.length) return;
+      const activeIndex = items.findIndex((el) => el === (document as any)?.activeElement);
+      let nextIndex = 0;
+      if (e.key === 'ArrowDown') {
+        nextIndex = activeIndex >= 0 ? (activeIndex + 1) % items.length : 0;
+      } else {
+        nextIndex = activeIndex > 0 ? activeIndex - 1 : items.length - 1;
+      }
+      items[nextIndex]?.focus?.();
+    }
+  };
+
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('pointerdown', onDocPointer, true);
+    document.addEventListener('keydown', onDocKeyDown, true);
+  }
+
+  langMenuCleanups.set(scope, () => {
+    if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('pointerdown', onDocPointer, true);
+      document.removeEventListener('keydown', onDocKeyDown, true);
+    }
+  });
+}
+
+function toggleLangMenu(scope: HTMLElement): void {
+  const menu = scope.querySelector<HTMLElement>('.vsc-lang-menu');
+  if (!menu || menu.hidden) {
+    openLangMenu(scope);
+  } else {
+    closeLangMenu(scope);
+  }
+}
+
+export interface MountLangDropdownOptions {
+  buttonClass?: string;
+  onSelect?: (locale: SupportedLocale) => void;
+  insertBefore?: HTMLElement | null;
+}
+
+export function mountLangDropdown(
+  container: HTMLElement,
+  options?: MountLangDropdownOptions,
+): HTMLElement {
+  let dropdown = container.querySelector<HTMLElement>('.vsc-lang-dropdown');
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'vsc-lang-dropdown';
+
+    const oldBtn = container.querySelector<HTMLButtonElement>('button[data-action="toggle-lang"]');
+    if (oldBtn && oldBtn.parentElement === container) {
+      oldBtn.remove();
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = options?.buttonClass || 'vsc-icon-btn';
+    btn.dataset.action = 'toggle-lang';
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    setButtonIcon(btn, 'globe');
+    dropdown.appendChild(btn);
+
+    const menu = document.createElement('div');
+    menu.className = 'vsc-lang-menu';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+
+    const locales: { id: SupportedLocale; label: string }[] = [
+      { id: 'en', label: 'English' },
+      { id: 'zh-CN', label: '简体中文' },
+    ];
+
+    for (const loc of locales) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'vsc-lang-menu-item';
+      item.dataset.action = 'select-lang';
+      item.dataset.lang = loc.id;
+      item.setAttribute('role', 'menuitemradio');
+      item.title = loc.label;
+
+      const check = document.createElement('span');
+      check.className = 'vsc-lang-menu-check';
+      check.setAttribute('aria-hidden', 'true');
+      item.appendChild(check);
+
+      const label = document.createElement('span');
+      label.className = 'vsc-lang-menu-label';
+      label.textContent = loc.label;
+      item.appendChild(label);
+
+      menu.appendChild(item);
+    }
+
+    dropdown.appendChild(menu);
+
+    dropdown.addEventListener('click', (e) => {
+      const targetBtn = (e.target as HTMLElement).closest('button');
+      if (!targetBtn || !dropdown!.contains(targetBtn)) return;
+      e.stopPropagation();
+      (e as any)._langHandled = true;
+      const action = targetBtn.dataset.action;
+      if (action === 'toggle-lang') {
+        toggleLangMenu(container);
+      } else if (action === 'select-lang') {
+        const targetLang = targetBtn.dataset.lang as SupportedLocale;
+        if (targetLang && targetLang !== getLocale()) {
+          setLocale(targetLang);
+          try {
+            void chrome.storage?.sync?.set({ locale: targetLang });
+          } catch {
+            // ignore
+          }
+          options?.onSelect?.(targetLang);
+        }
+        closeLangMenu(container);
+      }
+    });
+
+    if (options?.insertBefore) {
+      container.insertBefore(dropdown, options.insertBefore);
+    } else {
+      container.appendChild(dropdown);
+    }
+  }
+
+  const btn = dropdown.querySelector<HTMLButtonElement>('button[data-action="toggle-lang"]');
+  if (btn) {
+    btn.title = t('toolbar.language');
+    btn.setAttribute('aria-label', t('toolbar.language'));
+  }
+
+  const current = getLocale();
+  const menu = dropdown.querySelector<HTMLElement>('.vsc-lang-menu');
+  if (menu) {
+    for (let i = 0; i < menu.children.length; i++) {
+      const item = menu.children[i] as HTMLButtonElement;
+      if (!item || !item.dataset) continue;
+      const isCurrent = item.dataset.lang === current;
+      item.classList.toggle('is-active', isCurrent);
+      item.setAttribute('aria-checked', isCurrent ? 'true' : 'false');
+      const checkSpan = item.querySelector('.vsc-lang-menu-check');
+      if (checkSpan) {
+        if (isCurrent) {
+          checkSpan.replaceChildren(createIconEl('check', 'vsc-icon'));
+        } else {
+          checkSpan.replaceChildren();
+        }
+      }
+    }
+  }
+
+  return dropdown;
+}
+
+function ensureLangDropdown(bar: HTMLElement): HTMLElement {
+  const options = bar.querySelector('button[data-action="options"]');
+  return mountLangDropdown(bar, {
+    buttonClass: 'vsc-icon-btn',
+    insertBefore: options as HTMLElement | null,
+    onSelect: (targetLang) => {
+      const rt = getRuntime(bar);
+      rt?.handlers.onToggleLocale?.(targetLang);
+    },
+  });
 }
 
 /**
@@ -112,6 +343,50 @@ export function mountToolbar(
         case 'source':
           rt.handlers.onToggleMode('source');
           break;
+        case 'copy-raw':
+          if (rt.handlers.onCopyRaw) {
+            rt.handlers.onCopyRaw();
+            flashButtonFeedback(btn, {
+              idleIcon: 'copy',
+              feedbackTitle: t('toolbar.copied'),
+              idleTitle: t('toolbar.copyRaw'),
+            });
+          }
+          break;
+        case 'download-raw':
+          if (rt.handlers.onDownloadRaw) {
+            rt.handlers.onDownloadRaw();
+            flashButtonFeedback(btn, {
+              idleIcon: 'download',
+              feedbackTitle: t('toolbar.downloading'),
+              idleTitle: t('toolbar.downloadRaw'),
+            });
+          }
+          break;
+        case 'toggle-lang': {
+          if ((e as any)._langHandled) {
+            break;
+          }
+          toggleLangMenu(bar!);
+          break;
+        }
+        case 'select-lang': {
+          if ((e as any)._langHandled) {
+            break;
+          }
+          const targetLang = btn.dataset.lang as SupportedLocale;
+          if (targetLang && targetLang !== getLocale()) {
+            setLocale(targetLang);
+            try {
+              void chrome.storage?.sync?.set({ locale: targetLang });
+            } catch {
+              // ignore
+            }
+            rt.handlers.onToggleLocale?.(targetLang);
+          }
+          closeLangMenu(bar!);
+          break;
+        }
         case 'outline':
           rt.handlers.onToggleOutline?.();
           break;
@@ -154,21 +429,51 @@ export function mountToolbar(
   const previewBtn = ensureButton(bar, 'preview', () => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = 'Preview';
-    b.title = '预览';
     return b;
   });
+  previewBtn.textContent = t('toolbar.preview');
+  previewBtn.title = t('toolbar.previewTitle');
+  previewBtn.setAttribute('aria-label', t('toolbar.preview'));
+
   const sourceBtn = ensureButton(bar, 'source', () => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = 'Source';
-    b.title = '源码';
     return b;
   });
+  sourceBtn.textContent = t('toolbar.source');
+  sourceBtn.title = t('toolbar.sourceTitle');
+  sourceBtn.setAttribute('aria-label', t('toolbar.source'));
+
   previewBtn.classList.toggle('active', mode === 'preview');
   sourceBtn.classList.toggle('active', mode === 'source');
   previewBtn.setAttribute('aria-pressed', mode === 'preview' ? 'true' : 'false');
   sourceBtn.setAttribute('aria-pressed', mode === 'source' ? 'true' : 'false');
+
+  // Source mode raw file operations (GitHub-style)
+  const copyRawBtn = ensureButton(bar, 'copy-raw', () => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'vsc-icon-btn';
+    setButtonIcon(b, 'copy');
+    return b;
+  });
+  copyRawBtn.title = t('toolbar.copyRaw');
+  copyRawBtn.setAttribute('aria-label', t('toolbar.copyRaw'));
+
+  const downloadRawBtn = ensureButton(bar, 'download-raw', () => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'vsc-icon-btn';
+    setButtonIcon(b, 'download');
+    return b;
+  });
+  downloadRawBtn.title = t('toolbar.downloadRaw');
+  downloadRawBtn.setAttribute('aria-label', t('toolbar.downloadRaw'));
+  sourceBtn.after(copyRawBtn, downloadRawBtn);
+
+  const showSourceActions = mode === 'source';
+  copyRawBtn.hidden = !showSourceActions || !handlers.onCopyRaw;
+  downloadRawBtn.hidden = !showSourceActions || !handlers.onDownloadRaw;
 
   // Outline
   let outlineBtn = bar.querySelector<HTMLButtonElement>('button[data-action="outline"]');
@@ -178,7 +483,6 @@ export function mountToolbar(
       outlineBtn.type = 'button';
       outlineBtn.className = 'vsc-icon-btn';
       outlineBtn.dataset.action = 'outline';
-      outlineBtn.title = '文档大纲';
       setButtonIcon(outlineBtn, 'outline');
       // insert before options if present, else append
       const options = bar.querySelector('button[data-action="options"]');
@@ -188,6 +492,8 @@ export function mountToolbar(
         bar.appendChild(outlineBtn);
       }
     }
+    outlineBtn.title = t('toolbar.outline');
+    outlineBtn.setAttribute('aria-label', t('toolbar.outline'));
     outlineBtn.hidden = false;
     outlineBtn.classList.toggle('active', !!handlers.outlineOpen);
     outlineBtn.setAttribute('aria-pressed', handlers.outlineOpen ? 'true' : 'false');
@@ -195,54 +501,66 @@ export function mountToolbar(
     outlineBtn.hidden = true;
   }
 
-  // Optional open actions — skip when embedded (sidebar already has 文件/换夹)
+  // Optional open actions — skip when embedded
   const showOpenFile = Boolean(handlers.onOpenFile) && !embedded;
   const showOpenFolder = Boolean(handlers.onOpenFolder) && !embedded;
   if (showOpenFile) {
-    ensureButton(bar, 'open-file', () => {
+    const openFileBtn = ensureButton(bar, 'open-file', () => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = 'File…';
-      b.title = '打开单个文件';
       return b;
-    }).hidden = false;
+    });
+    openFileBtn.textContent = t('toolbar.openFile');
+    openFileBtn.title = t('toolbar.openFileTitle');
+    openFileBtn.setAttribute('aria-label', t('toolbar.openFileTitle'));
+    openFileBtn.hidden = false;
   } else {
     const b = bar.querySelector<HTMLButtonElement>('button[data-action="open-file"]');
     if (b) b.hidden = true;
   }
 
   if (showOpenFolder) {
-    ensureButton(bar, 'open-folder', () => {
+    const openFolderBtn = ensureButton(bar, 'open-folder', () => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = 'Folder…';
-      b.title = '打开本地文件夹';
       return b;
-    }).hidden = false;
+    });
+    openFolderBtn.textContent = t('toolbar.openFolder');
+    openFolderBtn.title = t('toolbar.openFolderTitle');
+    openFolderBtn.setAttribute('aria-label', t('toolbar.openFolderTitle'));
+    openFolderBtn.hidden = false;
   } else {
     const b = bar.querySelector<HTMLButtonElement>('button[data-action="open-folder"]');
     if (b) b.hidden = true;
   }
 
-  // Zoom group (content only) — before options
+  // Zoom group (content only) — before language & options
   ensureZoomGroup(bar, handlers);
+
+  // Language dropdown popover — before options
+  ensureLangDropdown(bar);
 
   // Options always last
   const optionsBtn = ensureButton(bar, 'options', () => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'vsc-icon-btn';
-    b.title = '选项';
     setButtonIcon(b, 'settings');
     return b;
   });
+  optionsBtn.title = t('toolbar.optionsTitle');
+  optionsBtn.setAttribute('aria-label', t('toolbar.optionsTitle'));
   // keep options at end
   bar.appendChild(optionsBtn);
 
   if (created) {
     // subtle enter animation (floating); embedded is static in the main bar
     bar.classList.add('vsc-toolbar-enter');
-    requestAnimationFrame(() => bar!.classList.add('vsc-toolbar-ready'));
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => bar!.classList.add('vsc-toolbar-ready'));
+    } else {
+      bar.classList.add('vsc-toolbar-ready');
+    }
   }
 
   return bar;
@@ -254,37 +572,52 @@ function ensureZoomGroup(bar: HTMLElement, handlers: ToolbarHandlers): void {
     group = document.createElement('span');
     group.className = 'vsc-zoom-group';
     group.setAttribute('role', 'group');
-    group.setAttribute('aria-label', '预览缩放');
 
     const out = document.createElement('button');
     out.type = 'button';
     out.dataset.action = 'zoom-out';
-    out.title = '缩小预览 (Ctrl+-)';
-    out.setAttribute('aria-label', '缩小预览');
     out.textContent = '−';
 
     const label = document.createElement('button');
     label.type = 'button';
     label.dataset.action = 'zoom-label';
-    label.title = '重置为 100% (Ctrl+0)';
-    label.setAttribute('aria-label', '重置缩放');
     label.textContent = '100%';
 
     const inn = document.createElement('button');
     inn.type = 'button';
     inn.dataset.action = 'zoom-in';
-    inn.title = '放大预览 (Ctrl+=)';
-    inn.setAttribute('aria-label', '放大预览');
     inn.textContent = '+';
 
     group.append(out, label, inn);
 
+    const lang =
+      bar.querySelector('.vsc-lang-dropdown') ||
+      bar.querySelector('button[data-action="toggle-lang"]');
     const options = bar.querySelector('button[data-action="options"]');
-    if (options) {
-      bar.insertBefore(group, options);
+    const insertBeforeTarget = lang || options;
+    if (insertBeforeTarget) {
+      bar.insertBefore(group, insertBeforeTarget);
     } else {
       bar.appendChild(group);
     }
+  }
+
+  group.setAttribute('aria-label', t('toolbar.zoomGroup'));
+
+  const out = group.querySelector<HTMLButtonElement>('button[data-action="zoom-out"]');
+  if (out) {
+    out.title = t('toolbar.zoomOut');
+    out.setAttribute('aria-label', t('toolbar.zoomOutAria'));
+  }
+  const label = group.querySelector<HTMLButtonElement>('button[data-action="zoom-label"]');
+  if (label) {
+    label.title = t('toolbar.zoomReset');
+    label.setAttribute('aria-label', t('toolbar.zoomResetAria'));
+  }
+  const inn = group.querySelector<HTMLButtonElement>('button[data-action="zoom-in"]');
+  if (inn) {
+    inn.title = t('toolbar.zoomIn');
+    inn.setAttribute('aria-label', t('toolbar.zoomInAria'));
   }
 
   const hasZoom =
@@ -309,5 +642,9 @@ function ensureZoomGroup(bar: HTMLElement, handlers: ToolbarHandlers): void {
 }
 
 export function removeToolbar(): void {
-  document.getElementById(TOOLBAR_ID)?.remove();
+  const bar = document.getElementById(TOOLBAR_ID);
+  if (bar) {
+    closeLangMenu(bar);
+    bar.remove();
+  }
 }
